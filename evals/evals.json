@@ -470,7 +470,7 @@
       "argv": [
         "deployer",
         "deployeur",
-        "sb1"
+        "serveur1"
       ],
       "attendu": {
         "code": 3,
@@ -1141,7 +1141,7 @@
         ],
         {
           "fichier": "plan-livraison.md",
-          "contenu": "# Plan\n```json livraison\n{\"cibles\":{\"sb1\":{\"ssh\":\"sb1\"}},\"paquet\":{\"chemin\":\"p.tgz\",\"sha256\":\"00\"},\"retour_arriere\":{\"procedure\":\"r.md\"},\"etapes\":[{\"id\":\"1\",\"cible\":\"sb1\",\"commande\":\"x\",\"retour\":\"y\"}]}\n```\n"
+          "contenu": "# Plan\n```json livraison\n{\"cibles\":{\"serveur1\":{\"ssh\":\"serveur1\"}},\"paquet\":{\"chemin\":\"p.tgz\",\"sha256\":\"00\"},\"retour_arriere\":{\"procedure\":\"r.md\"},\"etapes\":[{\"id\":\"1\",\"cible\":\"serveur1\",\"commande\":\"x\",\"retour\":\"y\"}]}\n```\n"
         },
         [
           "livraison-go",
@@ -1150,7 +1150,7 @@
         ],
         {
           "fichier": "plan-livraison.md",
-          "contenu": "# Plan\n```json livraison\n{\"cibles\":{\"sb1\":{\"ssh\":\"sb1\"}},\"paquet\":{\"chemin\":\"p.tgz\",\"sha256\":\"00\"},\"retour_arriere\":{\"procedure\":\"r.md\"},\"etapes\":[{\"id\":\"1\",\"cible\":\"sb1\",\"commande\":\"x\",\"retour\":\"y\"}]}\n```\n\n<!-- modifié après le GO -->\n"
+          "contenu": "# Plan\n```json livraison\n{\"cibles\":{\"serveur1\":{\"ssh\":\"serveur1\"}},\"paquet\":{\"chemin\":\"p.tgz\",\"sha256\":\"00\"},\"retour_arriere\":{\"procedure\":\"r.md\"},\"etapes\":[{\"id\":\"1\",\"cible\":\"serveur1\",\"commande\":\"x\",\"retour\":\"y\"}]}\n```\n\n<!-- modifié après le GO -->\n"
         }
       ],
       "argv": [

@@ -1,19 +1,18 @@
-# Dispositif de recette d'atelier
+# Dispositif de recette d'atelier (contrat attendu)
 
-Service système d'atelier, indépendant de tout workflow. Les agents restent `utilisateur`.
+Un service système du VPS, indépendant du workflow, prépare et lance les environnements de recette à
+la demande des agents, qui n'ont pas les droits système. Le socle n'en fournit pas l'implémentation :
+chaque installation écrit la sienne et la déclare dans le `poste.local.json` du VPS
+(`recette.dispositif`). Voici le contrat que les agents attendent.
 
-- **Échange** : `/srv/recette/echange/app-recette/{demandes,resultats}` et
-  `.../ui8-recette/`. Une demande = un fichier JSON `{"id","action",...}` avec un `id`
-  neuf (minuscules et tirets) ; le résultat apparaît dans `resultats/<id>.json`.
-- **Actions Paie** : `preparer`, `construire` (`sha` exact présent dans le clone
-  atelier d'mon-api), `semer`, `demarrer`, `arreter`, `retirer`, `etat`.
-- **Navigateur des agents** : `{"action":"navigateur","port":<p>}` ouvre au navigateur
-  MCP (espace réseau à boucle locale) un port local : 5100–5299, seconde application 5410–5499 et
-  53980–54079, ou port API de recette ; `"ouvrir":false` le referme.
-- **Admission** : seules les issues non closes d'une campagne v2.2 `en_cours`
-  (`/home/utilisateur/.pilote/campagnes/*.json`) sont admises (adaptateur
-  `/srv/recette/registre.mjs`).
-- **Santé** : `/srv/recette/echange/app-recette/sante.json`, toutes les 30 minutes.
-- Outil de recette frontend statique (serveur loopback seccomp) :
-  `/srv/recette/outils/recette-statique-loopback.py`.
-
+- **Échange** : `<dispositif>/echange/<application>/{demandes,resultats}`. Une demande est un fichier
+  JSON `{"id","action",...}` avec un `id` neuf (minuscules et tirets) ; le résultat apparaît dans
+  `resultats/<id>.json`.
+- **Actions d'une application** : `preparer`, `construire` (SHA exact présent dans le clone du VPS),
+  `semer` (données synthétiques uniquement), `demarrer`, `arreter`, `retirer`, `etat`.
+- **Navigateur des agents** : `{"action":"navigateur","port":<p>}` ouvre au navigateur MCP (boucle
+  locale) un port d'une plage déclarée par application ; `"ouvrir":false` le referme.
+- **Admission** : seules les issues non closes d'une campagne `en_cours` (lues dans
+  `.pilote/campagnes/`) sont servies.
+- **Santé** : `<dispositif>/echange/<application>/sante.json`, mis à jour périodiquement.
+- **Frontend statique** : un serveur de boucle locale, confiné, pour les recettes sans backend.

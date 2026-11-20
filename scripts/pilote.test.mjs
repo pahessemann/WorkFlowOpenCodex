@@ -79,10 +79,10 @@ test('escalade et circuit-breaker', () => {
 });
 
 test('déploiement refusé sur atelier, autorisé à préparer sur le poste', () => {
-  assert.equal(code(() => P.deployer(configTest({ hote: 'atelier', deploiement_serveurs: false }), 'deployeur', 'sb1')), 'DÉPLOIEMENT REFUSÉ SUR CET HÔTE');
-  const r = spawnSync(process.execPath, [new URL('./pilote.mjs', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'), 'deployer', 'deployeur', 'sb1'], { encoding: 'utf8', env: { ...process.env, PILOTE_CONFIG: ecrireConfig(configTest({ hote: 'atelier', deploiement_serveurs: false })) } });
+  assert.equal(code(() => P.deployer(configTest({ hote: 'atelier', deploiement_serveurs: false }), 'deployeur', 'serveur1')), 'DÉPLOIEMENT REFUSÉ SUR CET HÔTE');
+  const r = spawnSync(process.execPath, [new URL('./pilote.mjs', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'), 'deployer', 'deployeur', 'serveur1'], { encoding: 'utf8', env: { ...process.env, PILOTE_CONFIG: ecrireConfig(configTest({ hote: 'atelier', deploiement_serveurs: false })) } });
   assert.equal(r.status, 3); assert.match(r.stderr, /DÉPLOIEMENT REFUSÉ/);
-  assert.match(P.deployer(configTest(), 'deployeur', 'sb1').consigne, /GO/);
+  assert.match(P.deployer(configTest(), 'deployeur', 'serveur1').consigne, /GO/);
 });
 function ecrireConfig(c) { const f = path.join(c.etat, 'poste.local.json'); fs.writeFileSync(f, JSON.stringify(c)); return f; }
 
@@ -220,8 +220,8 @@ test('$dev livrer : poste seulement, GO et plan figés, répétition à blanc, a
   P.composer(c, { nom: 'livr', projet: 'deployeur', ids: ['DEV-9'], mode: 'supervise', hoteLivraison: 'local' });
   P.modifierCampagne(c, 'livr', (x) => { x.chat = 'chat-sup'; x.chat_modele = 'claude-haiku-5-5'; });
   const plan = path.join(c.etat, 'plan-livraison.md');
-  const corps = (etapes) => '# Plan\n\n' + '```json livraison\n' + JSON.stringify({ cibles: { sb1: { ssh: 'sb1', chemin_disque: '/', disque_min_gio: 2, version: 'cat /srv/VERSION' } }, paquet: { chemin: paquet, sha256: P.sha256Fichier(paquet) }, retour_arriere: { procedure: retour }, etapes, verification: [{ cible: 'sb1', titre: 'santé', commande: 'curl -fsS http://127.0.0.1/sante', attendu: 'ok' }] }, null, 1) + '\n```\n';
-  const etapes = [{ id: '1', titre: 'copie', cible: 'sb1', commande: 'deposer-paquet', retour: 'RETOUR-1' }, { id: '2', titre: 'bascule', cible: 'sb1', commande: 'basculer-version', retour: 'RETOUR-2' }];
+  const corps = (etapes) => '# Plan\n\n' + '```json livraison\n' + JSON.stringify({ cibles: { serveur1: { ssh: 'serveur1', chemin_disque: '/', disque_min_gio: 2, version: 'cat /srv/VERSION' } }, paquet: { chemin: paquet, sha256: P.sha256Fichier(paquet) }, retour_arriere: { procedure: retour }, etapes, verification: [{ cible: 'serveur1', titre: 'santé', commande: 'curl -fsS http://127.0.0.1/sante', attendu: 'ok' }] }, null, 1) + '\n```\n';
+  const etapes = [{ id: '1', titre: 'copie', cible: 'serveur1', commande: 'deposer-paquet', retour: 'RETOUR-1' }, { id: '2', titre: 'bascule', cible: 'serveur1', commande: 'basculer-version', retour: 'RETOUR-2' }];
   fs.writeFileSync(plan, corps(etapes));
   await assert.rejects(P.executerLivraison({ ...c, deploiement_serveurs: false }, 'livr'), (e) => e.titre === 'LIVRAISON REFUSÉE SUR CET HÔTE' && e.code === 6);
   await assert.rejects(P.executerLivraison(c, 'livr'), (e) => e.titre === 'GO ABSENT');
@@ -230,7 +230,7 @@ test('$dev livrer : poste seulement, GO et plan figés, répétition à blanc, a
   await assert.rejects(P.executerLivraison(c, 'livr'), (e) => e.titre === 'PLAN MODIFIÉ DEPUIS LE GO');
   fs.writeFileSync(plan, corps(etapes)); P.goLivraison(c, 'livr', plan);
   ecrireScenario({ libre_ko: 100000 });
-  let r = await P.executerLivraison(c, 'livr'); assert.equal(r.code, 7); assert.match(r.message, /disque sb1/);
+  let r = await P.executerLivraison(c, 'livr'); assert.equal(r.code, 7); assert.match(r.message, /disque serveur1/);
   const cmds = () => fs.readFileSync(journalSsh, 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l).commande);
   assert.ok(!cmds().includes('deposer-paquet'), 'aucune étape après une répétition en échec');
   assert.match(P.titreCampagne(P.lireCampagne(c, 'livr')).titre, /⛔ BLOQUÉ/);
