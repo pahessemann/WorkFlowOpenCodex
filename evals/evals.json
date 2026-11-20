@@ -1,6 +1,6 @@
 {
-  "version": "2.5.2",
-  "description": "Évaluations du workflow $dev v2.5.2 : un cas par commande, plus les cas limites. Exécuter : node scripts/evals.mjs",
+  "version": "2.5.3",
+  "description": "Évaluations du workflow $dev v2.5.3 : un cas par commande, plus les cas limites. Exécuter : node scripts/evals.mjs",
   "cas": [
     {
       "id": "composer",
