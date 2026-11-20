@@ -461,3 +461,81 @@ test('point 2.6 : estimation par durée médiane dès 5 issues mesurées', () =>
   assert.match(e.base, /durée médiane de 5 issues mesurées, 2 place\(s\) occupée\(s\)/); assert.equal(e.fiabilite, 'moyenne');
   assert.deepEqual(e.si_actions_faites, [3, 6], '4 issues × 2 h / 2 places = 4 h, fourchette 0,75 à 1,5');
 });
+
+test('2.6.1 : un fichier JSON qui n’est pas une campagne (matrice, preuve) est ignoré par le ménage et le point', () => {
+  const at = configTest({ hote: 'atelier', deploiement_serveurs: false });
+  fs.mkdirSync(path.join(at.etat, 'campagnes'), { recursive: true });
+  fs.writeFileSync(path.join(at.etat, 'campagnes', 'k.json'), JSON.stringify({ id: 'k', projet: 'p', mode: 'auto', statut: 'en_cours', items: [{ type: 'issue_standalone', linear_id: 'DEV-1', statut: 'en_attente', blocked_by: [] }] }));
+  fs.writeFileSync(path.join(at.etat, 'campagnes', 'k.DEV-1.matrice.json'), JSON.stringify([{ ligne: 1 }]));
+  fs.writeFileSync(path.join(at.etat, 'campagnes', 'k.DEV-1.preuve.json'), JSON.stringify({ issue: 'DEV-1', criteres: [] }));
+  assert.deepEqual(P.listerCampagnes(at).map((c) => c.id), ['k']);
+  assert.equal(code(() => P.analyserMenage(at, { chats: [] })), 0);
+  assert.equal(P.point(at).campagnes.length, 1);
+});
+
+// ---------- v2.6.2 : archivage automatique, campagne ajouter ----------
+function etatArchivage() {
+  const at = configTest({ hote: 'atelier', deploiement_serveurs: false, chats: { archive_apres_heures: 1 } });
+  fs.mkdirSync(path.join(at.etat, 'campagnes'), { recursive: true });
+  const il = (id, statut) => ({ type: 'issue_standalone', linear_id: id, statut, blocked_by: [] });
+  fs.writeFileSync(path.join(at.etat, 'campagnes', 'ouverte.json'), JSON.stringify({ id: 'ouverte', projet: 'p', mode: 'auto', statut: 'en_cours', chat: 'C-AUTO-1', items: [il('DEV-1', 'close'), il('DEV-2', 'revue')] }));
+  fs.writeFileSync(path.join(at.etat, 'campagnes', 'finie.json'), JSON.stringify({ id: 'finie', projet: 'p', mode: 'auto', statut: 'close', chat: 'C-AUTO-2', items: [il('DEV-9', 'close')] }));
+  fs.writeFileSync(path.join(at.etat, 'campagnes', 'sansbilan.json'), JSON.stringify({ id: 'sansbilan', projet: 'p', mode: 'auto', statut: 'close', chat: 'C-AUTO-3', items: [il('DEV-8', 'close')] }));
+  fs.writeFileSync(path.join(at.etat, 'aide.json'), JSON.stringify({ chat_id: 'C-AIDE' }));
+  const il2 = new Date(Date.now() - 2 * 3600000).toISOString(), recent = new Date(Date.now() - 10 * 60000).toISOString();
+  const ch = (role, titre, x = {}) => ({ role, titre, hote: 'atelier', statut: 'clos', derniere_ligne_le: il2, ...x });
+  fs.writeFileSync(path.join(at.etat, 'chats.json'), JSON.stringify({
+    'C-DEV-VIEUX': ch('DEV', '🔵 DEV · p · DEV-1 · ✅', { lien: { type: 'issue', id: 'DEV-1' } }),
+    'C-DEV-RECENT': ch('DEV', '🔵 DEV · p · DEV-7 · ✅', { derniere_ligne_le: recent }),
+    'C-DEV-NONCLOSE': ch('DEV', '🔵 DEV · p · DEV-2 · ✅', { objet: 'DEV-2', lien: { type: 'sujet', id: 'DEV-2' } }),
+    'C-CADRE-ACTIF': ch('CADRE', '🟣 CADRE · p · sujet', { statut: 'actif' }),
+    'C-CADRE-FINI': ch('CADRE', '🟣 CADRE · p · sujet2 · ✅'),
+    'C-AIDE': ch('AIDE', '❓ AIDE · workflow'), 'C-ARCHI': ch('ARCHI', '🏛 ARCHI · workflow'),
+    'C-POSTE': ch('DEV', '🔵 DEV · p · DEV-5 · ✅', { hote: 'local' }),
+    'C-DEJA': ch('DEV', 'x', { statut: 'archive' }),
+    'C-AUTO-1': ch('AUTO', '🟢 AUTO · p · ouverte', { statut: 'actif', orchestrateur: true, campagne: 'ouverte' }),
+    'C-AUTO-2': ch('AUTO', '🟢 AUTO · p · finie', { statut: 'actif', orchestrateur: true, campagne: 'finie' }),
+    'C-BILAN-2': ch('BILAN', '📘 BILAN · p · finie · ✅', { objet: 'finie', lien: { type: 'sujet', id: 'finie' }, derniere_ligne_le: recent }),
+    'C-AUTO-3': ch('AUTO', '🟢 AUTO · p · sansbilan', { statut: 'actif', orchestrateur: true, campagne: 'sansbilan' }) }));
+  return at;
+}
+
+test('2.6.2 : le réveil archive les chats terminés depuis 1 h, jamais AIDE, ARCHI, une campagne en cours, un chat qui travaille ni l’issue non close', async () => {
+  const at = etatArchivage();
+  assert.deepEqual(P.chatsAArchiver(at).map((x) => x.chat).sort(), ['C-AUTO-2', 'C-CADRE-FINI', 'C-DEV-VIEUX']);
+  const appels = []; const s = { call: async (m, p) => { appels.push([m, p?.threadId]); if (m === 'thread/read') return { thread: { status: { type: p.threadId === 'C-CADRE-FINI' ? 'active' : 'idle' } } }; if (m === 'threadSection/list') return { data: [{ id: 's99', name: '99 Archives' }] }; return {}; } };
+  const r = await P.archiverTermines(at, s);
+  assert.deepEqual(r.map((x) => x.chat).sort(), ['C-AUTO-2', 'C-DEV-VIEUX'], 'chat en plein tour : au prochain réveil');
+  assert.ok(appels.some(([m, id]) => m === 'thread/archive' && id === 'C-DEV-VIEUX'));
+  const reg = JSON.parse(fs.readFileSync(path.join(at.etat, 'chats.json'), 'utf8'));
+  assert.equal(reg['C-DEV-VIEUX'].statut, 'archive'); assert.ok(reg['C-DEV-VIEUX'].archive_le); assert.equal(reg['C-AIDE'].statut, 'clos');
+  assert.equal(P.chatsArchives24h(at).length, 2);
+  assert.match(P.point(at).rendu, /\*\*Chats archivés \(24 h\)\*\* : 2 —/);
+});
+
+test('2.6.2 : le ménage archive après archive_apres_heures (1 h)', () => {
+  const at = configTest({ chats: { archive_apres_heures: 1 } });
+  const vieux = new Date(Date.now() - 2 * 3600000).toISOString();
+  const a = P.analyserMenage(at, { chats: [{ id: 'X', titre: '🔵 DEV · p · DEV-3 · ✅', maj: vieux }, { id: 'Y', titre: '🔵 DEV · p · DEV-4 · ✅', maj: new Date().toISOString() }] });
+  assert.equal(a.totaux.a_archiver, 1);
+  const d = JSON.parse(fs.readFileSync(path.join(at.etat, 'menage', 'derniere.json'), 'utf8'));
+  assert.deepEqual(d.lignes.filter((l) => l.categorie === 'a_archiver').map((l) => l.chat), ['X']);
+});
+
+test('2.6.2 : campagne ajouter : issue admissible, motif obligatoire, doublon signalé, journal tenu', () => {
+  const at = configTest({ hote: 'atelier', deploiement_serveurs: false, projets: { p: { chemin: '/x' } } });
+  fs.mkdirSync(path.join(at.etat, 'campagnes'), { recursive: true });
+  fs.writeFileSync(path.join(at.etat, 'campagnes', 'k.json'), JSON.stringify({ id: 'k', projet: 'p', mode: 'auto', statut: 'en_cours', items: [{ type: 'issue_standalone', linear_id: 'DEV-1', statut: 'revue', blocked_by: [] }, { type: 'milestone', linear_id: 'MS-1', slug: 'ms-1', issues: [] }] }));
+  assert.equal(code(() => P.ajouterIssues(at, 'k', ['DEV-5'], {})), 'MOTIF ABSENT');
+  assert.equal(code(() => P.ajouterIssues(at, 'k', ['dev5'], { motif: 'm' })), 'IDENTIFIANT INVALIDE');
+  assert.equal(code(() => P.ajouterIssues(at, 'k', ['DEV-5'], { motif: 'm', projet: 'inconnu' })), 'PROJET INCONNU');
+  const r = P.ajouterIssues(at, 'k', ['DEV-5', 'DEV-1'], { motif: 'mandat de cadrage autonome de Paul', bloqueePar: ['DEV-1'], projet: 'p' });
+  assert.deepEqual(r.ajoutees, ['DEV-5']); assert.deepEqual(r.deja_presentes, ['DEV-1']); assert.equal(r.total, 2);
+  const i5 = P.issues(P.lireCampagne(at, 'k')).find((i) => i.linear_id === 'DEV-5');
+  assert.equal(i5.statut, 'en_attente'); assert.deepEqual(i5.blocked_by, ['DEV-1']); assert.equal(i5.branche, 'codex/issue-DEV-5');
+  P.ajouterIssues(at, 'k', ['DEV-6'], { motif: 'm', milestone: 'ms-1' });
+  assert.equal(P.lireCampagne(at, 'k').items[1].issues[0].linear_id, 'DEV-6');
+  assert.match(fs.readFileSync(path.join(at.etat, 'campagnes', 'k.decisions.md'), 'utf8'), /DEV-5 · Ajoutée à la campagne en cours \(pilote\.mjs campagne ajouter\) : mandat de cadrage autonome de Paul ; bloquée par DEV-1/);
+  P.modifierCampagne(at, 'k', (c) => { c.statut = 'close'; });
+  assert.equal(code(() => P.ajouterIssues(at, 'k', ['DEV-7'], { motif: 'm' })), 'CAMPAGNE CLOSE');
+});

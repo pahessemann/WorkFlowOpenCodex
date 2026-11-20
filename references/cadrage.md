@@ -397,3 +397,9 @@ même lot.
 **Chat de travail** : créé par `node <pilote> chat-travail CADRE <projet> <objet> --modele <node <pilote> modele cadrage <criticite> <volumetrie>> --consigne-fichier <f>`, jamais par l'outil de création de chat de l'application ; accès de l'hôte appliqué à chaque tour ; en accès restreint, aucune demande d'élévation (SKILL.md §2).
 
 **Lancé depuis n’importe quel chat.** `$dev cadrage <sujet>` tapé dans un chat dont le modèle n’est pas celui du routeur (ex. AIDE sur Luna) est délégué par le lanceur : un chat `🟣 CADRE` sur Opus est créé dans `03 Cadrage & prototypes` (ou rouvert s’il existe), avec la fiche de lancement pour seul contexte (`lanceur.md`).
+
+## Issue publiée pour une campagne en cours (v2.6.2)
+
+Si le cadrage publie une issue destinée à une campagne déjà lancée (mandat de Paul, correctif), le cadreur
+l'y inscrit lui-même : `node <pilote> campagne ajouter <campagne> <ID> --motif "<mandat ou décision>"
+[--bloquee-par ID,ID]`, sur l'hôte d'exécution. L'orchestrateur l'admet au réveil suivant.

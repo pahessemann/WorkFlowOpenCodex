@@ -15,7 +15,7 @@ export const ETATS_ISSUE = ['en_attente', 'preflight', 'en_cours', 'revue', 'rec
 export const ETATS_CAMPAGNE = ['brouillon', 'en_cours', 'en_pause', 'close'];
 export const CRITICITES = ['leger', 'standard', 'sensible'];
 export const MAX_ESSAIS = 3;
-export const VERSION = '2.6.0';
+export const VERSION = '2.6.2';
 const PASTILLES = { AUTO: '🟢', SUP: '🟠', MS: '🔷', DEV: '🔵', CADRE: '🟣', PROTO: '🎨', TEST: '🧪', RELAIS: '⚙️', BILAN: '📘', AIDE: '❓', ARCHI: '🏛' };
 const DOSSIERS = { AUTO: '01 Campagnes', SUP: '01 Campagnes', MS: '01 Campagnes', DEV: '02 Développement', CADRE: '03 Cadrage & prototypes', PROTO: '03 Cadrage & prototypes', TEST: '04 Relais & maintenance', RELAIS: '04 Relais & maintenance', BILAN: '04 Relais & maintenance', AIDE: '00 Accueil', ARCHI: '00 Accueil' };
 export const TITRE_ARCHI = '🏛 ARCHI · workflow';
@@ -50,7 +50,8 @@ function verrou(cfg, fn) {
 }
 export const fichierCampagne = (cfg, nom) => path.join(dossierCampagnes(cfg), nom + '.json');
 export function lireCampagne(cfg, nom) { const c = lireJson(fichierCampagne(cfg, nom)); if (!c) refuser('CAMPAGNE INCONNUE', nom); return c; }
-export function listerCampagnes(cfg) { const d = dossierCampagnes(cfg); return fs.existsSync(d) ? fs.readdirSync(d).filter((f) => f.endsWith('.json')).map((f) => lireJson(path.join(d, f))).filter(Boolean) : []; }
+// Seuls les fichiers de campagne comptent (id et items) : matrices et preuves rangées à côté sont ignorées (2.6.1).
+export function listerCampagnes(cfg) { const d = dossierCampagnes(cfg); return fs.existsSync(d) ? fs.readdirSync(d).filter((f) => f.endsWith('.json')).map((f) => { try { return lireJson(path.join(d, f)); } catch { return null; } }).filter((c) => c && typeof c.id === 'string' && Array.isArray(c.items)) : []; }
 export function issues(c) { return c.items.flatMap((it) => it.type === 'milestone' ? it.issues.map((i) => ({ ...i, milestone: it.slug })) : [it]); }
 function trouverIssue(c, id) { for (const it of c.items) { if (it.type === 'milestone') { const i = it.issues.find((x) => x.linear_id === id); if (i) return i; } else if (it.linear_id === id) return it; } refuser('ISSUE INCONNUE', id + ' hors de la campagne ' + c.id); }
 export function modifierCampagne(cfg, nom, fn) { return verrou(cfg, () => { const c = lireCampagne(cfg, nom); const r = fn(c); c.maj = new Date().toISOString(); ecrireJson(fichierCampagne(cfg, nom), c); return r; }); }
@@ -233,7 +234,7 @@ export function digest(cfg, nom) {
   const c = lireCampagne(cfg, nom); const l = issues(c); const depuis = Date.now() - 86400000;
   const j = path.join(dossierCampagnes(cfg), nom + '.decisions.md');
   const dec = fs.existsSync(j) ? fs.readFileSync(j, 'utf8').split('\n').filter((x) => x && Date.parse(x.slice(2, 26)) > depuis) : [];
-  return { campagne: nom, ...avancement(c), closes_24h: l.filter((i) => i.close_le && Date.parse(i.close_le) > depuis).map((i) => i.linear_id), bloquees: l.filter((i) => i.statut === 'bloquee').map((i) => i.linear_id), ligne_etat: ligneEtat(cfg, nom).ligne, signalements: [...signalementsLivraison(cfg, c), ...signalementsPoste(cfg, c), ...ligneMenage(cfg), ...l.flatMap((i) => i.signalements || []), ...[...new Set(l.map((i) => i.projet || c.projet))].filter((p) => carteSquelette(cfg, p)).map((p) => 'carte ' + p + ' encore à l\'état de squelette (utilisable)')], decisions_24h: dec, modele: router(cfg, { tache: 'digest', criticite: 'leger', sousAgent: true }).modele, lignes_max: 15 };
+  return { campagne: nom, ...avancement(c), closes_24h: l.filter((i) => i.close_le && Date.parse(i.close_le) > depuis).map((i) => i.linear_id), bloquees: l.filter((i) => i.statut === 'bloquee').map((i) => i.linear_id), ligne_etat: ligneEtat(cfg, nom).ligne, signalements: [...signalementsLivraison(cfg, c), ...signalementsPoste(cfg, c), ...ligneMenage(cfg), ...l.flatMap((i) => i.signalements || []), ...[...new Set(l.map((i) => i.projet || c.projet))].filter((p) => carteSquelette(cfg, p)).map((p) => 'carte ' + p + ' encore à l\'état de squelette (utilisable)')], decisions_24h: dec, chats_archives_24h: chatsArchives24h(cfg), modele: router(cfg, { tache: 'digest', criticite: 'leger', sousAgent: true }).modele, lignes_max: 15 };
 }
 
 // ---------- préflight, comptes ----------
@@ -625,7 +626,7 @@ export function donneesMenage(cfg, ids = null) {
 }
 export function analyserMenage(cfg, { chats = [], maintenant = new Date(), linear = {} } = {}) {
   if (cfg.registre_distant && !chats.some((c) => c.hote === 'atelier')) { try { chats = [...chats, ...viaAtelier(cfg, ['chats-app'])]; } catch {} }
-  const conf = { seuil: cfg.chats?.seuil_contexte ?? 300000, dormant: cfg.chats?.dormant_jours ?? 14, archive: cfg.chats?.archive_apres_jours ?? 7 };
+  const conf = { seuil: cfg.chats?.seuil_contexte ?? 300000, dormant: cfg.chats?.dormant_jours ?? 14, archive: cfg.chats?.archive_apres_heures != null ? cfg.chats.archive_apres_heures / 24 : (cfg.chats?.archive_apres_jours ?? 1 / 24) }; // v2.6.2 : en heures (1 h)
   const ids = chats.map((c) => c.id); const loc = donneesMenage(cfg, ids); let dist = { chats: {}, campagnes: [], tailles: {}, aide: null };
   if (cfg.registre_distant) { try { dist = viaAtelier(cfg, ['menage-donnees', '--ids', ids.join(',') || '-']); } catch {} }
   const reg = { ...Object.fromEntries(Object.entries(dist.chats).map(([k, v]) => [k, { ...v, hote: v.hote || 'atelier' }])), ...Object.fromEntries(Object.entries(loc.chats).map(([k, v]) => [k, { ...v, hote: v.hote || cfg.hote }])) };
@@ -657,7 +658,7 @@ export function analyserMenage(cfg, { chats = [], maintenant = new Date(), linea
     const taille = tailles[c.id] || r?.taille_contexte || 0;
     if (protege) { if (archi && taille > conf.seuil) ajout('trop_lourd', 'contexte estimé ' + Math.round(taille / 1000) + 'k tokens : ARCHI écrit sa fiche de reprise, puis Paul le recrée à la main (jamais archivé par le ménage)', false, []); continue; }
     if (objetClos && !estClos) ajout('a_cloturer', 'poster le bilan, puis passer en ✅', true, [{ type: 'cloturer', titre: t.replace(/\s·\s(⏸ GO|⛔ BLOQUÉ)$/u, '') + ' · ✅' }]);
-    else if (estClos && age > conf.archive) ajout('a_archiver', '✅ depuis ' + Math.round(age) + ' j : déplacer dans 99 Archives', true, [{ type: 'archiver' }]);
+    else if (estClos && age > conf.archive) ajout('a_archiver', '✅ depuis ' + (age >= 1 ? Math.round(age) + ' j' : Math.round(age * 24) + ' h') + ' : déplacer dans 99 Archives', true, [{ type: 'archiver' }]);
     else if (!estClos && age > conf.dormant) ajout('dormant', 'sans activité depuis ' + Math.round(age) + ' j : reprendre, mettre en pause ou archiver ?', false, [{ type: 'dormant' }]);
     if (role && (!m || (DOSSIERS[role] && c.dossier && sectionDe(DOSSIERS[role]) !== c.dossier))) {
       const ops = []; if (!m && r) ops.push({ type: 'renommer', titre: titre(role, r.projet || 'general', r.objet || t).titre }); if (DOSSIERS[role] && c.dossier !== sectionDe(DOSSIERS[role])) ops.push({ type: 'ranger', dossier: sectionDe(DOSSIERS[role]) });
@@ -887,11 +888,76 @@ export async function reveil(cfg, { maintenant = new Date(), intervalleMin = 10 
     }
     s ||= await connecter(cfg);
     res.push(...(await reveilChatsTravail(cfg, s)).filter((x) => x.action !== 'aucune'));
+    try { res.push(...(await archiverTermines(cfg, s, maintenant))); } catch (e) { res.push({ action: 'archivage impossible', erreur: e.message }); } // v2.6.2
   } finally { s?.fermer(); }
   return res;
 }
 
 
+// ---------- v2.6.2 : archivage automatique des chats terminés (réveil, chats.archive_apres_heures) ----------
+const RE_ID_ISSUE = /^[A-Z][A-Z0-9]*-\d+$/;
+export function chatsAArchiver(cfg, maintenant = new Date()) {
+  const reg = lireJson(fichierChats(cfg), {}); const h = cfg.chats?.archive_apres_heures ?? 1;
+  const camps = listerCampagnes(cfg); const etatIssue = {}; for (const c of camps) for (const i of issues(c)) etatIssue[i.linear_id] = i.statut;
+  const aide = lireJson(path.join(cfg.etat, 'aide.json'), {}).chat_id; const out = [];
+  const depuisH = (d) => d ? (maintenant - Date.parse(d)) / 3600000 : 0;
+  for (const [id, x] of Object.entries(reg)) {
+    const t = String(x.titre || '');
+    if (['archive', 'a_creer'].includes(x.statut) || ['AIDE', 'ARCHI'].includes(x.role) || id === aide || t.startsWith('❓ AIDE') || estTitreArchi(t)) continue; // jamais AIDE ni ARCHI
+    if ((x.hote || cfg.hote) !== cfg.hote) continue; // seul l'hôte du chat l'archive
+    const c = camps.find((k) => k.chat === id) || (x.orchestrateur ? camps.find((k) => k.id === x.campagne) : null);
+    if (c || ['AUTO', 'SUP'].includes(x.role)) { // chat de campagne : campagne close et bilan terminé
+      if (!c || c.statut !== 'close') continue;
+      const bilan = Object.values(reg).some((b) => b.role === 'BILAN' && [b.campagne, b.lien?.id, b.objet].includes(c.id) && ['clos', 'archive'].includes(b.statut));
+      if (bilan && depuisH(x.derniere_ligne_le || x.derniere_activite || c.maj) >= h) out.push({ chat: id, titre: t, motif: 'campagne ' + c.id + ' close, bilan fait' });
+      continue;
+    }
+    if (!(x.statut === 'clos' || /✅\s*$/.test(t))) continue; // seuls les chats terminés (ligne ✅ TERMINÉ)
+    const issue = x.lien?.type === 'issue' ? x.lien.id : x.issue || (RE_ID_ISSUE.test(x.objet || '') ? x.objet : null);
+    if (issue && etatIssue[issue] && etatIssue[issue] !== 'close') continue; // chat d'une issue non close : gardé
+    const age = depuisH(x.derniere_ligne_le || x.derniere_activite || x.cree_le);
+    if (age >= h) out.push({ chat: id, titre: t, motif: 'terminé depuis ' + Math.floor(age) + ' h' });
+  }
+  return out;
+}
+export async function archiverTermines(cfg, s, maintenant = new Date()) {
+  const res = [];
+  for (const x of chatsAArchiver(cfg, maintenant)) {
+    const lu = await s.call('thread/read', { threadId: x.chat, includeTurns: false }).catch(() => null);
+    if (lu?.thread?.status?.type === 'active') continue; // en plein tour : au prochain réveil
+    try { await rangerChat(cfg, s, x.chat, '99 Archives'); await s.call('thread/archive', { threadId: x.chat });
+      inscrireChat(cfg, { chat_id: x.chat, statut: 'archive', archive_le: maintenant.toISOString(), action: 'archivé par le réveil : ' + x.motif }); res.push({ chat: x.chat, titre: x.titre, action: 'archive', motif: x.motif }); }
+    catch (e) { res.push({ chat: x.chat, titre: x.titre, action: 'archivage impossible', erreur: e.message }); }
+  }
+  return res;
+}
+export function chatsArchives24h(cfg, maintenant = Date.now()) { return Object.values(lireJson(fichierChats(cfg), {})).filter((x) => x.statut === 'archive' && x.archive_le && maintenant - Date.parse(x.archive_le) < 86400000).map((x) => x.titre || x.chat_id); }
+
+// ---------- v2.6.2 : ajouter une issue à une campagne en cours ----------
+export function ajouterIssues(cfg, nom, ids = [], { projet = null, criticite = 'standard', bloqueePar = [], milestone = null, motif = '' } = {}) {
+  if (cfg.hote === 'local' && (cfg.registre_distant || cfg.atelier_simule)) return appelAtelier(cfg, ['campagne', 'ajouter', nom, ...ids, '--motif', String(motif || ''), '--criticite', criticite, ...(projet ? ['--projet', projet] : []), ...(bloqueePar.length ? ['--bloquee-par', bloqueePar.join(',')] : []), ...(milestone ? ['--milestone', milestone] : [])]);
+  const usage = 'usage : pilote.mjs campagne ajouter <campagne> <ID…> --motif "<décision de Paul ou clause du contrat>" [--projet p] [--criticite c] [--bloquee-par ID,ID] [--milestone slug]';
+  if (!ids.length) refuser('ISSUE ABSENTE', usage);
+  if (motif === true || !net(motif)) refuser('MOTIF ABSENT', 'une issue ajoutée en cours de campagne doit être couverte par une décision ou le contrat. ' + usage);
+  if (!CRITICITES.includes(criticite)) refuser('CRITICITÉ INCONNUE', criticite);
+  for (const id of [...ids, ...bloqueePar]) if (!RE_ID_ISSUE.test(id)) refuser('IDENTIFIANT INVALIDE', id);
+  if (projet && cfg.projets && !cfg.projets[projet]) refuser('PROJET INCONNU', projet);
+  const maintenant = new Date().toISOString();
+  const r = modifierCampagne(cfg, nom, (c) => {
+    if (c.statut === 'close') refuser('CAMPAGNE CLOSE', nom + ' est close : composer une nouvelle campagne');
+    const ms = milestone ? c.items.find((it) => it.type === 'milestone' && (it.slug === milestone || it.linear_id === milestone)) : null;
+    if (milestone && !ms) refuser('MILESTONE INCONNU', milestone);
+    const presentes = new Set(issues(c).map((i) => i.linear_id)); const ajoutees = [], deja = [];
+    for (const id of ids) {
+      if (presentes.has(id)) { deja.push(id); continue; }
+      const i = { linear_id: id, statut: 'en_attente', criticite, branche: 'codex/issue-' + id, sha_valide: null, sha_reprise: null, branche_reprise: null, attempts: 0, modele_courant: null, blocked_by: [...bloqueePar], ...(projet ? { projet } : {}), ajoutee_le: maintenant, ajout_motif: net(motif).slice(0, 300) };
+      if (ms) ms.issues.push(i); else c.items.push({ type: 'issue_standalone', ...i }); presentes.add(id); ajoutees.push(id);
+    }
+    c.maj = maintenant; return { campagne: nom, statut: c.statut, ajoutees, deja_presentes: deja, ...avancement(c) };
+  });
+  for (const id of r.ajoutees) decision(cfg, nom, id, 'Ajoutée à la campagne en cours (pilote.mjs campagne ajouter' + (milestone ? ', milestone ' + milestone : '') + ') : ' + net(motif) + (bloqueePar.length ? ' ; bloquée par ' + bloqueePar.join(', ') : ''));
+  return { ...r, regle: 'admise au prochain réveil selon ses dépendances et les limites d’admission ; la fiche Linear reste la source du contenu' };
+}
 
 // ---------- charges lourdes : verrou réel (lourdes_max par campagne) ----------
 function pidVivant(pid) { try { process.kill(pid, 0); return true; } catch (e) { return e.code === 'EPERM'; } }
@@ -924,7 +990,7 @@ export function lourde(cfg, nom, commande, options = {}) {
 
 // ---------- contrats par commande $dev ----------
 export const COMMANDES = {
-  'campagne composer': ['campagne.md', 'inline'], 'campagne lancer': ['campagne.md', 'AUTO/SUP'], milestone: ['execution.md', 'MS'], issue: ['issue.md', 'DEV'],
+  'campagne composer': ['campagne.md', 'inline'], 'campagne ajouter': ['campagne.md', 'inline'], point: ['point.md', 'inline'], 'campagne lancer': ['campagne.md', 'AUTO/SUP'], milestone: ['execution.md', 'MS'], issue: ['issue.md', 'DEV'],
   iteration: ['iteration.md', 'DEV'], finaliser: ['finalisation.md', 'inline'], cadrage: ['cadrage.md', 'CADRE'], 'cadrage-court': ['cadrage-court.md', 'inline'],
   projet: ['projet.md', 'inline'], digest: ['campagne.md', 'inline'], prototype: ['prototype.md', 'PROTO'], test: ['test.md', 'inline ou TEST'],
   nettoyeur: ['nettoyeur.md', 'RELAIS'], aide: ['aide.md', 'AIDE'], menage: ['menage.md', 'inline'], lancer: ['lanceur.md', 'inline'], livrer: ['livraison.md', 'SUP'], cloture: ['cloture.md', 'BILAN'], pause: ['campagne.md', 'inline'], reprendre: ['campagne.md', 'inline'], etat: [null, 'inline'], modele: ['modeles.md', 'inline'],
@@ -1102,7 +1168,9 @@ export function rendrePoint(p) {
   const arrets = p.campagnes.flatMap((c) => c.arrets.map((a) => ({ ...a, campagne: c.campagne })));
   L.push('', '**Blocages**', ''); if (!arrets.length) L.push('Aucun.'); else { L.push('| Issue | Campagne | Qui débloque | Cause |', '|---|---|---|---|'); for (const a of arrets) L.push('| ' + a.issue + ' (' + a.statut + ') | ' + a.campagne + ' | ' + a.qui + ' | ' + String(a.quoi).replace(/\|/g, '/') + ' |'); }
   L.push('', '**Ce que tu dois faire**', ''); if (!p.actions_paul.length) L.push('Rien.'); else p.actions_paul.forEach((a, k) => L.push((k + 1) + '. ' + a.action + ' — débloque ' + a.debloque + ' issue(s) (' + a.issues.join(', ') + ')'));
-  const r = p.ressources; L.push('', '**Ressources** (' + r.hote + ') : RAM libre ' + r.ram_libre_gio + ' Gio · charge ' + r.charge_1min + ' pour ' + r.coeurs + ' cœurs' + (r.pression_cpu_60s !== null ? ' · attente CPU ' + r.pression_cpu_60s + ' % sur 60 s' : '') + ' · places : ' + p.campagnes.map((c) => c.campagne + ' ' + c.places.occupees + '/' + c.places.max).join(', '), '', p.ligne_etat);
+  const r = p.ressources; L.push('', '**Ressources** (' + r.hote + ') : RAM libre ' + r.ram_libre_gio + ' Gio · charge ' + r.charge_1min + ' pour ' + r.coeurs + ' cœurs' + (r.pression_cpu_60s !== null ? ' · attente CPU ' + r.pression_cpu_60s + ' % sur 60 s' : '') + ' · places : ' + p.campagnes.map((c) => c.campagne + ' ' + c.places.occupees + '/' + c.places.max).join(', '));
+  const ar = p.chats_archives_24h || []; if (ar.length) L.push('', '**Chats archivés (24 h)** : ' + ar.length + ' — ' + ar.slice(0, 6).join(' ; ') + (ar.length > 6 ? ' ; …' : ''));
+  L.push('', p.ligne_etat);
   return L.join('\n');
 }
 export function point(cfg, noms = [], { maintenant = Date.now() } = {}) {
@@ -1133,7 +1201,7 @@ export function point(cfg, noms = [], { maintenant = Date.now() } = {}) {
   const n = campagnes.length; const qualifier = campagnes.flatMap((c) => c.arrets.filter((a) => a.attend === 'a_qualifier').map((a) => a.issue));
   const toi = actions_paul.slice(0, 2).map((a) => a.action + ' (' + a.issues.join(', ') + ')').join(' ; ') + (actions_paul.length > 2 ? ' ; et ' + (actions_paul.length - 2) + ' autre(s) action(s)' : '');
   const ligne_etat = actions_paul.length ? formatLigne('⏸', 'point de ' + n + ' campagne(s) fait' + (qualifier.length ? ', ' + qualifier.length + ' blocage(s) à qualifier' : ''), toi) : formatLigne('✅', 'point de ' + n + ' campagne(s) fait, rien ne t’attend' + (qualifier.length ? ' ; ' + qualifier.length + ' blocage(s) à qualifier par les orchestrateurs' : ''), 'rien');
-  const p = { genere_le: new Date(maintenant).toISOString(), campagnes, actions_paul, ressources, ligne_etat, consigne: 'Recopie le champ rendu tel quel, sans rien ajouter ni retirer ; point en lecture seule.' };
+  const p = { genere_le: new Date(maintenant).toISOString(), campagnes, actions_paul, ressources, chats_archives_24h: chatsArchives24h(cfg, maintenant), ligne_etat, consigne: 'Recopie le champ rendu tel quel, sans rien ajouter ni retirer ; point en lecture seule.' };
   return { ...p, rendu: rendrePoint(p) };
 }
 
@@ -1374,6 +1442,7 @@ export function executer(argv, cfg = null) {
       const [sous, nom, ...r] = a;
       if (sous === 'composer') return composer(C(), { nom, projet: r[0], ids: r.slice(1), depuis: o.depuis, mode: o.mode, hoteExecution: o['hote-execution'], hoteLivraison: o['hote-livraison'] });
       if (sous === 'contrat') return validerContrat(C(), nom);
+      if (sous === 'ajouter') return ajouterIssues(C(), nom, r, { projet: o.projet && o.projet !== true ? o.projet : null, criticite: o.criticite && o.criticite !== true ? o.criticite : 'standard', bloqueePar: o['bloquee-par'] && o['bloquee-par'] !== true ? String(o['bloquee-par']).split(',').map((x) => x.trim()).filter(Boolean) : [], milestone: o.milestone && o.milestone !== true ? o.milestone : null, motif: o.motif });
       if (sous === 'lancer') return lancer(C(), nom, r[0] === 'supervise' ? 'supervise' : r[0] === 'auto' ? 'auto' : undefined);
       if (sous === 'cloturer') return changerStatutCampagne(C(), nom, 'close');
       refuser('COMMANDE INCONNUE', 'campagne ' + sous);
@@ -1424,7 +1493,7 @@ export function executer(argv, cfg = null) {
     case 'livraison-marquer': return marquerLivraison(C(), a[0], JSON.parse(fs.readFileSync(0, 'utf8')));
     case 'poster': return posterSup(C(), a[0], o['texte-stdin'] ? fs.readFileSync(0, 'utf8') : String(o.texte || ''));
     case 'lancer': return lancerCommande(C(), { commande: a[0], args: a.slice(1), depuisModele: o['depuis-modele'] || null, depuisRole: o['depuis-role'] && o['depuis-role'] !== true ? o['depuis-role'] : null, fiche: o['fiche-stdin'] ? fs.readFileSync(0, 'utf8') : o['fiche-fichier'] ? fs.readFileSync(o['fiche-fichier'], 'utf8') : String(o.fiche || ''), projet: o.projet || null, criticite: o.criticite || null, garder: o.garder || null, nouveau: !!o.nouveau });
-    case 'menage': { const rel = (f) => path.isAbsolute(f) ? f : path.join(C().etat, f); const ch = o['chats-fichier'] ? lireJson(rel(o['chats-fichier']), []) : o.chats ? JSON.parse(o.chats) : null; const lin = o['linear-fichier'] ? lireJson(rel(o['linear-fichier']), {}) : {}; if (o['archive-apres-jours'] !== undefined) C().chats = { ...(C().chats || {}), archive_apres_jours: Number(o['archive-apres-jours']) }; if (a[0] === 'appliquer') return appliquerMenage(C(), a[1] || 'surs', { chats: ch, linear: lin }); return analyserMenage(C(), { chats: ch || [], linear: lin }); }
+    case 'menage': { const rel = (f) => path.isAbsolute(f) ? f : path.join(C().etat, f); const ch = o['chats-fichier'] ? lireJson(rel(o['chats-fichier']), []) : o.chats ? JSON.parse(o.chats) : null; const lin = o['linear-fichier'] ? lireJson(rel(o['linear-fichier']), {}) : {}; if (o['archive-apres-jours'] !== undefined) { C().chats = { ...(C().chats || {}), archive_apres_jours: Number(o['archive-apres-jours']) }; delete C().chats.archive_apres_heures; } if (o['archive-apres-heures'] !== undefined) C().chats = { ...(C().chats || {}), archive_apres_heures: Number(o['archive-apres-heures']) }; if (a[0] === 'appliquer') return appliquerMenage(C(), a[1] || 'surs', { chats: ch, linear: lin }); return analyserMenage(C(), { chats: ch || [], linear: lin }); }
     case 'chats': return lireRegistreChats(C());
     case 'recreer-chat': return modifierCampagne(C(), a[0], (cc) => { cc.recreer_chat = true; return { campagne: a[0], recreer_chat: true, regle: 'recréé par le réveil au prochain point stable, jamais au milieu d’une issue' }; });
     case 'chats-app': return (async () => { const { connecter } = await import('./appserver.mjs'); const s = await connecter(C()); const out = []; try { let cursor = null; for (let i = 0; i < 20; i++) { const r = await s.call('thread/list', { limit: 100, ...(cursor ? { cursor } : {}) }); for (const x of r.data) out.push({ id: x.id, titre: x.name || '', hote: C().hote, archive: false, maj: new Date((x.updatedAt || 0) * 1000).toISOString(), dossier: x.section?.name || null }); cursor = r.nextCursor; if (!cursor) break; } } finally { s.fermer(); } return out; })();

@@ -40,6 +40,9 @@ contrat est mise de côté et signalée dans le digest.
   (`test.md`). PR finale vers `main` : automatique si recette verte, revue favorable et
   `main_deploie: false` ; sinon `⏸ GO`.
 - Toute décision prise seul : une ligne dans `.pilote/campagnes/<nom>.decisions.md`.
+- Issue à ajouter en cours de campagne (cadreur, décision de Paul) : `pilote.mjs campagne ajouter <campagne> <ID…>
+  --motif "<décision ou clause du contrat>" [--bloquee-par ID,ID] [--milestone slug]`, jamais en modifiant le JSON
+  à la main ; la ligne au journal est écrite par le script (v2.6.2).
 - Digest quotidien : `$dev digest <nom>` (Haiku, 15 lignes).
 
 ## Passerelle poste et ligne d'état (v2.5)

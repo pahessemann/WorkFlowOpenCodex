@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<title>Workflow $dev v2.6 — Fiche d'utilisation</title>
+<title>Workflow $dev v2.6.2 — Fiche d'utilisation</title>
 <style>
   @page { size: A4; margin: 12mm 13mm 10mm 13mm; }
   * { box-sizing: border-box; }
@@ -40,7 +40,7 @@
 </head>
 <body>
 
-<h1>Workflow <code style="font-size:16pt">$dev</code> v2.6 — fiche d'utilisation</h1>
+<h1>Workflow <code style="font-size:16pt">$dev</code> v2.6.2 — fiche d'utilisation</h1>
 <div class="sub">Paul cadre, les agents exécutent. Poste Windows <span class="emo">💻</span> + VPS atelier <span class="emo">☁️</span> · Linear = source de vérité</div>
 
 <div class="grid">
@@ -98,7 +98,7 @@
       <tr><td><b>02 Développement</b></td><td>DEV, par projet</td></tr>
       <tr><td><b>03 Cadrage &amp; prototypes</b></td><td>CADRE · PROTO</td></tr>
       <tr><td><b>04 Relais &amp; maintenance</b></td><td>RELAIS · BILAN · TEST</td></tr>
-      <tr><td><b>99 Archives</b></td><td>Chats <span class="emo">✅</span> après 7 jours (<code>$dev menage</code>)</td></tr>
+      <tr><td><b>99 Archives</b></td><td>Chats <span class="emo">✅</span> archivés seuls, 1 h après la fin</td></tr>
     </table>
     <p class="muted" style="margin:4px 0 0">Toute commande <code>$dev</code> tapée dans <span class="emo">❓</span> AIDE ou un chat Luna ouvre le bon chat (modèle, titre, dossier), ou le chat existant. Seule exception : si AIDE ou ARCHI manque, le poste n'ayant pas d'app-server, tu reçois un bloc à coller pour le créer à la main.</p>
   </div>
@@ -140,7 +140,7 @@
         <tr><td><code>$dev prototype &lt;sujet&gt;</code></td><td>Page UI, <code>spec.json</code> vérifié</td></tr>
         <tr><td><code>$dev projet &lt;nom&gt;</code></td><td>Créer ou raccorder un dépôt</td></tr>
         <tr><th colspan="2">Lancer</th></tr>
-        <tr><td><code>$dev campagne composer</code><br><code>&lt;nom&gt; &lt;projet&gt; &lt;MS|ID…&gt;</code></td><td>Brouillon, aucun agent lancé</td></tr>
+        <tr><td><code>$dev campagne composer</code><br><code>&lt;nom&gt; &lt;projet&gt; &lt;MS|ID…&gt;</code></td><td>Brouillon, aucun agent lancé ; <code>ajouter &lt;ID&gt; --motif</code> : en cours</td></tr>
         <tr><td><code>$dev campagne lancer</code><br><code>&lt;nom&gt; [auto|supervise]</code></td><td>Démarre, si le contrat est validé</td></tr>
         <tr><td><code>$dev milestone &lt;projet&gt; &lt;ms&gt;</code></td><td>Un Milestone isolé</td></tr>
         <tr><td><code>$dev issue &lt;ID&gt;</code></td><td>Une issue, à la main</td></tr>
@@ -219,6 +219,6 @@
 
 </div>
 
-<footer>Workflow $dev v2.6 · référence complète : SKILL.md, references/modeles.md et references/decisions-workflow.md · novembre 2026</footer>
+<footer>Workflow $dev v2.6.2 · référence complète : SKILL.md, references/modeles.md et references/decisions-workflow.md · novembre 2026</footer>
 </body>
 </html>

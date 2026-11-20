@@ -1,6 +1,6 @@
 {
-  "version": "2.6.0",
-  "description": "Évaluations du workflow $dev v2.6.0 : un cas par commande, plus les cas limites. Exécuter : node scripts/evals.mjs",
+  "version": "2.6.2",
+  "description": "Évaluations du workflow $dev v2.6.2 : un cas par commande, plus les cas limites. Exécuter : node scripts/evals.mjs",
   "cas": [
     {
       "id": "composer",
@@ -2158,6 +2158,84 @@
       "attendu": {
         "code": 2,
         "contient": "ATTENTE INCONNUE"
+      }
+    },
+    {
+      "id": "campagne-ajouter",
+      "commande": "$dev campagne ajouter une issue à une campagne en cours",
+      "argv": [
+        "campagne",
+        "ajouter",
+        "demo",
+        "DEV-3",
+        "--motif",
+        "décision de Paul du 20/11"
+      ],
+      "avant": [
+        [
+          "campagne",
+          "composer",
+          "demo",
+          "mon-api",
+          "DEV-1",
+          "DEV-2"
+        ],
+        {
+          "fichier": "campagnes/demo.contrat.md"
+        },
+        [
+          "campagne",
+          "contrat",
+          "demo"
+        ],
+        [
+          "campagne",
+          "lancer",
+          "demo",
+          "auto"
+        ]
+      ],
+      "attendu": {
+        "code": 0,
+        "contient": "\"ajoutees\": [\n    \"DEV-3\""
+      }
+    },
+    {
+      "id": "campagne-ajouter-sans-motif",
+      "commande": "campagne ajouter sans motif",
+      "argv": [
+        "campagne",
+        "ajouter",
+        "demo",
+        "DEV-3"
+      ],
+      "avant": [
+        [
+          "campagne",
+          "composer",
+          "demo",
+          "mon-api",
+          "DEV-1",
+          "DEV-2"
+        ],
+        {
+          "fichier": "campagnes/demo.contrat.md"
+        },
+        [
+          "campagne",
+          "contrat",
+          "demo"
+        ],
+        [
+          "campagne",
+          "lancer",
+          "demo",
+          "auto"
+        ]
+      ],
+      "attendu": {
+        "code": 2,
+        "contient": "MOTIF ABSENT"
       }
     }
   ]

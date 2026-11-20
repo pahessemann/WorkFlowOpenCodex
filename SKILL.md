@@ -34,6 +34,7 @@ Paul intervient **une fois, au cadrage**. Ensuite, les agents travaillent seuls 
 | Commande | Action / contrat | Type de chat |
 | :--- | :--- | :--- |
 | `$dev campagne composer <nom> <projet> <MS\|ID...>` | Créer ou enrichir une campagne en **brouillon**, sans agent | inline |
+| `$dev campagne ajouter <campagne> <ID…> --motif "…"` | Ajouter une issue à une campagne **en cours** (ou en pause), avec la décision ou la clause du contrat qui la couvre ; options `--projet`, `--criticite`, `--bloquee-par`, `--milestone` ; ligne au journal, admission au prochain réveil (v2.6.2) | inline |
 | `$dev campagne lancer <nom> [auto\|supervise]` | Resynchroniser Linear, vérifier les dépendances, démarrer (`campagne.md`) | `AUTO` / `SUP` |
 | `$dev milestone <projet> <ms-id>` | Exécuter un Milestone isolé (`execution.md`) | `MS` |
 | `$dev issue <ID>` | Traiter une issue (`issue.md`) | `DEV` |
@@ -178,6 +179,8 @@ Exemple : `⏳ EN ATTENTE · retour du poste Windows attendu pour DEV-1038 · To
 ### 2.5 Registre des chats
 
 `.pilote/chats.json`, sur chaque hôte, tenu par `pilote.mjs` : `chat_id`, `titre`, `role`, `objet`, `dossier`, `modele`, `hote`, `cree_le`, `derniere_activite`, `lien` (campagne, issue ou sujet), `statut` (`actif`, `attente_go`, `bloque`, `clos`, `archive`, `a_creer`), `taille_contexte` estimée, et `historique` des actions. Tout chat créé par le lanceur, une campagne ou `$dev aide` y est inscrit ; `$dev menage` rattache les chats créés à la main.
+
+**Archivage automatique (v2.6.2).** Le réveil d'atelier archive dans `99 Archives` tout chat de travail terminé (ligne `✅ TERMINÉ`, statut `clos`) depuis `chats.archive_apres_heures` (1 h), et le chat d'une campagne close dès que son `📘 BILAN` est terminé. Jamais archivés : `❓ AIDE`, `🏛 ARCHI`, les campagnes en cours, un chat en plein tour, le chat d'une issue non close. `archive_le` est inscrit au registre ; le digest et `$dev point` listent les chats archivés depuis 24 h. Rien n'est supprimé ; `$dev menage` rattrape un archivage manqué.
 
 ---
 

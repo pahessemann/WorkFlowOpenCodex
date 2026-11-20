@@ -1,5 +1,9 @@
 # Changelog du socle public
 
+## 2.6.2 — 20/11/2026
+
+Archivage automatique des chats terminés par le réveil du VPS, une heure après la fin (jamais l’accueil, l’architecte, une campagne en cours ni un chat actif). Commande `campagne ajouter` pour inscrire une issue dans une campagne en cours, avec son motif. Correctif 2.6.1 : un fichier JSON étranger dans le dossier des campagnes faisait planter le ménage. 93 évaluations, 53 tests.
+
 ## 2.6 — 20/11/2026
 
 `$dev point` : le point des campagnes en un rendu fixe, en lecture seule (avancement, blocages et qui les débloque, actions de l’humain dédoublonnées et triées, ressources de l’hôte, temps restant en heures de travail des agents). Les orchestrateurs disent qui débloque chaque issue arrêtée (`statut --attend --quoi`, `arret`). Tests indépendants de la charge réelle de l’hôte. 91 évaluations, 49 tests.

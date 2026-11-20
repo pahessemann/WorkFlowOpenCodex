@@ -9,7 +9,7 @@ Modèle : routeur `pilotage leger`. L'agent fournit la liste des chats des deux 
 | Catégorie | Critère | Action | Sûre |
 | :--- | :--- | :--- | :---: |
 | `a_cloturer` | objet clos (issue close, campagne close), titre sans ✅ | bilan posté, puis titre en ✅ | oui |
-| `a_archiver` | ✅ depuis plus de `chats.archive_apres_jours` (7) | déplacer dans `99 Archives` et archiver | oui |
+| `a_archiver` | ✅ depuis plus de `chats.archive_apres_heures` (1 h ; le réveil d'atelier l'archive déjà de lui-même, v2.6.2) | déplacer dans `99 Archives` et archiver | oui |
 | `mal_nomme` | titre non conforme au §2.1 ou mauvais dossier | renommer, ranger | oui |
 | `hors_registre` | chat inconnu du registre | rattacher (sûr) ; rôle illisible : archivage proposé | oui / non |
 | `doublon` | même rôle et même objet | garder le plus récent, archiver l'autre | non |
