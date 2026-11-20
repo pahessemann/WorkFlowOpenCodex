@@ -1,5 +1,9 @@
 # Changelog du socle public
 
+## 2.5.2 — 20/11/2026
+
+Limites d’admission du VPS ajustées sur mesure : plus de développements en parallèle par campagne (la mémoire a de la marge), moins de charges lourdes simultanées sur l’hôte (le CPU est le facteur limitant).
+
 ## 2.5.1 — 20/11/2026
 
 Première publication du socle commun, issu du workflow `$dev` v2.5.1 :

@@ -26,7 +26,7 @@ Le contenu de l'issue Linear n'est jamais modifié (seul le cadrage l'écrit).
 
 
 
-**Charge lourde (verrou réel)** : suite de tests complète, build complet, Docker, runtime de recette ou migration SQL se lance uniquement par `node <pilote> lourde <campagne> -- <commande>`. Plusieurs en parallèle selon l'hôte : sur atelier, 4 par campagne (`admission.lourdes_max`), 8 au total sur l'hôte (`lourdes_max_hote`, un par cœur) et seulement si 6 Gio de mémoire restent disponibles (`garde_ram_lourde_gio`) ; sur le poste, 1. Au-delà, la commande attend son tour. Les tests ciblés d'une issue n'en sont pas.
+**Charge lourde (verrou réel)** : suite de tests complète, build complet, Docker, runtime de recette ou migration SQL se lance uniquement par `node <pilote> lourde <campagne> -- <commande>`. Plusieurs en parallèle selon l'hôte : sur atelier, 4 par campagne (`admission.lourdes_max`), 6 au total sur l'hôte (`lourdes_max_hote`, pour garder de la marge de CPU) et seulement si 6 Gio de mémoire restent disponibles (`garde_ram_lourde_gio`) ; sur le poste, 1. Au-delà, la commande attend son tour. Les tests ciblés d'une issue n'en sont pas.
 
 **Livrable sans code** (planche, note, maquette statique ; fiche avec recette développeur « sans objet » et aucun code, ou `--livrable`) : démarrage allégé, sans worktree applicatif, sans branche ni compte. Les livrables vont dans `livrables/<ID>/` du dépôt, ou dans l'emplacement indiqué par la ligne `Livrables :` du `PROJECT.md`. Une direction visuelle est routée sur `choix-visuel` (Fable 5.1). Revue et clôture inchangées (tableau de couverture).
 

@@ -3,7 +3,7 @@ name: dev-orchestrator
 description: Orchestrateur de campagnes autonomes et supervisées (Linear Milestones et Issues) : composition à froid, chats identifiables d'un coup d'œil, routage économe des modèles et exécution hybride (PC local / VPS atelier).
 ---
 
-# Orchestrateur Dev — Workflow opérationnel (v2.5.1)
+# Orchestrateur Dev — Workflow opérationnel (v2.5.2)
 
 Ce skill régit l'orchestration des travaux via `pilote.mjs`, sur le poste local Windows et sur le VPS `atelier` (Linux).
 
@@ -282,7 +282,7 @@ Pour une campagne de déploiement (ex. `deployeur`) : `"mode": "supervise"`, `"h
 
 1. **Dépendances** : une issue dont un `blocked_by` n'est pas clos reste en attente.
 2. **Conflits** : deux issues qui touchent les mêmes fichiers critiques passent en séquentiel.
-3. **Admission** (lue dans `poste.local.json` de l'hôte d'exécution, à chaque admission) : sur atelier, 6 développements actifs au maximum par campagne et 4 charges lourdes par campagne, 8 sur l'hôte (suite de tests complète, migration SQL, build complet, Docker), chacune seulement si 6 Gio restent disponibles ; sur le poste, 4 développements et 1 charge lourde. Le message de reprise automatique (et du digest) et `pilote.mjs contexte` donnent ces limites en clair : elles priment sur la consigne initiale d'un orchestrateur et sur toute décision antérieure de son journal. Une issue qui attend le poste Windows (`poste: en_file` ou `en_cours`) ne compte pas dans ces limites. Les agents en attente d'un créneau entrent dans la file de `pilote.mjs` sans demander de nouveau GO.
+3. **Admission** (lue dans `poste.local.json` de l'hôte d'exécution, à chaque admission) : sur atelier, 8 développements actifs au maximum par campagne et 4 charges lourdes par campagne, 6 sur l'hôte (suite de tests complète, migration SQL, build complet, Docker), chacune seulement si 6 Gio restent disponibles ; sur le poste, 4 développements et 1 charge lourde. Le message de reprise automatique (et du digest) et `pilote.mjs contexte` donnent ces limites en clair : elles priment sur la consigne initiale d'un orchestrateur et sur toute décision antérieure de son journal. Une issue qui attend le poste Windows (`poste: en_file` ou `en_cours`) ne compte pas dans ces limites. Les agents en attente d'un créneau entrent dans la file de `pilote.mjs` sans demander de nouveau GO.
 
 ---
 

@@ -60,6 +60,6 @@ examine le `WIP` de `branche_reprise` avant de coder.
 
 
 
-**Charge lourde (verrou réel)** : suite de tests complète, build complet, Docker, runtime de recette ou migration SQL se lance uniquement par `node <pilote> lourde <campagne> -- <commande>`. Plusieurs en parallèle selon l'hôte : sur atelier, 4 par campagne (`admission.lourdes_max`), 8 au total sur l'hôte (`lourdes_max_hote`, un par cœur) et seulement si 6 Gio de mémoire restent disponibles (`garde_ram_lourde_gio`) ; sur le poste, 1. Au-delà, la commande attend son tour. Les tests ciblés d'une issue n'en sont pas.
+**Charge lourde (verrou réel)** : suite de tests complète, build complet, Docker, runtime de recette ou migration SQL se lance uniquement par `node <pilote> lourde <campagne> -- <commande>`. Plusieurs en parallèle selon l'hôte : sur atelier, 4 par campagne (`admission.lourdes_max`), 6 au total sur l'hôte (`lourdes_max_hote`, pour garder de la marge de CPU) et seulement si 6 Gio de mémoire restent disponibles (`garde_ram_lourde_gio`) ; sur le poste, 1. Au-delà, la commande attend son tour. Les tests ciblés d'une issue n'en sont pas.
 
 **Chat d'orchestration** : créé uniquement par `node <pilote> chat <campagne>` (app-server, accès de l'hôte, consigne avec la règle d'accès restreint) et repris par `pilote.mjs reveil` avec le même réglage. Les chats de travail des issues passent par `node <pilote> chat-travail`.
