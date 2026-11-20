@@ -1,5 +1,9 @@
 # Changelog du socle public
 
+## 2.6 — 20/11/2026
+
+`$dev point` : le point des campagnes en un rendu fixe, en lecture seule (avancement, blocages et qui les débloque, actions de l’humain dédoublonnées et triées, ressources de l’hôte, temps restant en heures de travail des agents). Les orchestrateurs disent qui débloque chaque issue arrêtée (`statut --attend --quoi`, `arret`). Tests indépendants de la charge réelle de l’hôte. 91 évaluations, 49 tests.
+
 ## 2.5.4 — 20/11/2026
 
 Passerelle poste : imprimante PDF basculée et restaurée automatiquement, plafond des échecs d’environnement, rendu d’un résultat produit à la main. Garde CPU à l’admission. ARCHI délègue toujours au lanceur. 86 évaluations, 46 tests.

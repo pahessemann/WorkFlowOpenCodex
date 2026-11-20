@@ -3,7 +3,7 @@ name: dev-orchestrator
 description: Orchestrateur de campagnes autonomes et supervisées (Linear Milestones et Issues) : composition à froid, chats identifiables d'un coup d'œil, routage économe des modèles et exécution hybride (PC local / VPS atelier).
 ---
 
-# Orchestrateur Dev — Workflow opérationnel (v2.5.4)
+# Orchestrateur Dev — Workflow opérationnel (v2.6)
 
 Ce skill régit l'orchestration des travaux via `pilote.mjs`, sur le poste local Windows et sur le VPS `atelier` (Linux).
 
@@ -42,6 +42,7 @@ Paul intervient **une fois, au cadrage**. Ensuite, les agents travaillent seuls 
 | `$dev cadrage <sujet>` | **Cadrage complet avec Paul** : Linear, Obsidian, tableaux de référence, contrat de campagne (`cadrage.md`) | `CADRE` |
 | `$dev cadrage-court <ID\|sujet>` | Créer ou modifier **une seule** issue Linear (itération, demande de composant), sans cadrage complet (`cadrage-court.md`) | inline |
 | `$dev projet <nom>` | Créer ou raccorder un dépôt, vérifier son `PROJECT.md` jusqu'à `PRET_POUR_DEVELOPPEMENT` (`projet.md`) | inline |
+| `$dev point [campagne…]` | **Le point des campagnes** en un rendu fixe : avancement, blocages et qui débloque, ce que Paul doit faire, temps restant en heures de travail des agents ; lecture seule, lancé depuis AIDE ou tout chat du workflow (`point.md`) | inline |
 | `$dev digest [nom]` | Résumé des dernières 24 h : avancement, décisions prises seul, blocages | inline |
 | `$dev prototype <sujet>` | Composer une page avec les vrais composants dans l'éditeur, exporter un `spec.json` v1 vérifié (`prototype.md`) | `PROTO` |
 | `$dev test <projet>` | Recette ou tests ciblés (`test.md`) | inline ou `TEST` |
@@ -184,7 +185,7 @@ Exemple : `⏳ EN ATTENTE · retour du poste Windows attendu pour DEV-1038 · To
 
 Un chat n’exécute une commande `$dev` que si son modèle est celui du routeur pour cette commande. Sinon, il délègue par `node <pilote> lancer <commande> … --depuis-modele <son modèle> --fiche-stdin` : chat dédié pour une commande à type de chat, sous-agent pour une commande inline (résultat en 5 lignes). Le lanceur ne transmet qu’une fiche de 15 lignes au plus, rouvre un chat existant plutôt que d’en créer un doublon, et répond en une ligne « → ouvert : … ». Il ne cadre pas et ne code pas. Détail : `references/lanceur.md`.
 
-**❓ AIDE, porte d’entrée.** Le chat `❓ AIDE · workflow` aiguille les questions et lance toute commande `$dev` selon cette règle, sans jamais faire le travail lui-même.
+**❓ AIDE, porte d’entrée.** Le chat `❓ AIDE · workflow` aiguille les questions et lance toute commande `$dev` selon cette règle, sans jamais faire le travail lui-même. Seule exception (v2.6) : `$dev point`, qui n'écrit rien, qu'AIDE exécute lui-même et recopie tel quel (`point.md`).
 
 **🏛 ARCHI délègue toujours (v2.5.4).** ARCHI lance avec `--depuis-role ARCHI` : le lanceur ne lui répond jamais `executer_ici`, même quand son modèle est celui du routeur ; il conçoit, il n'exécute ni cadrage, ni issue, ni campagne.
 
@@ -344,6 +345,7 @@ Dès que le correctif est validé, **redescendre au niveau nominal**.
 
 * **Droits d'écriture dans Linear** : seuls `$dev cadrage` et `$dev cadrage-court` écrivent le **contenu** d'une issue (titre, description, critères d'acceptation, découpage). Les autres étapes n'écrivent que l'état, des commentaires et le bilan. Un agent ne réécrit jamais les critères de l'issue qu'il traite : s'il les juge faux, il le signale dans le digest, rubrique « À confirmer ».
 * **Journal de décisions** (`.pilote/campagnes/<nom>.decisions.md`) : chaque choix fait sans Paul y est consigné en une ligne (issue, décision, règle appliquée, comment revenir en arrière). Paul le parcourt dans le digest et peut annuler une décision a posteriori. Quand une règle commune change après un GO de Paul (limite d'admission, par exemple), `🏛 ARCHI` inscrit une ligne `GLOBAL · Paul (…) : …` dans le journal de chaque campagne en cours (`node <pilote> decision-globale <texte>`, sur l'hôte d'exécution).
+* **Qui débloque (v2.6)** : quand un orchestrateur arrête une issue (`bloquee`, ou `revue`/`recette` qui attend autre chose que son travail), il le dit : `pilote.mjs statut … --attend paul|agents|poste|env --quoi "<cause ; pour Paul : action exacte et réponse proposée>"`, ou `pilote.mjs arret …` sans changer le statut. `$dev point` s'en sert ; une issue arrêtée sans ce champ y apparaît « à qualifier » (`point.md`).
 * **Questions non bloquantes** : une question qui ne relève pas des 3 motifs n'arrête jamais une issue. L'agent prend l'option par défaut, la journalise et la place dans le digest, rubrique « À confirmer ».
 * **Digest quotidien** : un message par campagne et par jour dans son chat, généré par Haiku, 15 lignes maximum (avancement, issues closes, décisions prises seul, `⛔`). Pas d'autre notification hors des 3 motifs.
 

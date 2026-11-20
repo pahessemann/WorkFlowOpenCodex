@@ -1,0 +1,53 @@
+# Point des campagnes — `$dev point [campagne…]` (v2.6)
+
+Une commande, toujours le même rendu : où en sont les campagnes, ce qui bloque, qui débloque,
+ce que Paul doit faire, et le temps restant. Lecture seule : elle n'écrit rien (test dédié).
+
+## Où la lancer
+
+- Dans `❓ AIDE` : AIDE l'exécute lui-même, seule exception à sa délégation, car elle n'écrit rien.
+- Dans tout chat du workflow, `🏛 ARCHI` compris. Pas de chat dédié.
+- Commande : `node <pilote> point [campagne…] --texte`, puis recopier la sortie telle quelle, sans rien
+  ajouter ni retirer. Sans nom : toutes les campagnes `en_cours` ; avec des noms : celles-ci, même en pause.
+- Sur le poste, le script interroge atelier par SSH (`registre_distant`) ; les chiffres sont ceux d'atelier.
+
+## Rendu (ordre fixe)
+
+1. **Campagnes** : avancement (closes / total), clôtures des 24 dernières heures, issues restantes, temps restant.
+2. **Blocages** : une ligne par issue arrêtée, avec **qui débloque** : `Toi`, `agents`, `poste`, `environnement`,
+   ou `à qualifier` (avec la dernière ligne du journal de l'issue : le point ne devine jamais).
+3. **Ce que tu dois faire** : toutes campagnes confondues, sans doublon, trié par nombre d'issues débloquées
+   (l'issue et toutes celles qui en dépendent).
+4. **Ressources** de l'hôte : RAM libre, charge, attente CPU, places d'admission occupées par campagne.
+5. **Ligne d'état** du point : `⏸ À TOI` s'il reste une action de Paul, sinon `✅ TERMINÉ`.
+
+Sans `--texte` : le JSON complet (`campagnes`, `actions_paul`, `ressources`, `ligne_etat`, `rendu`).
+
+## Qui débloque : le champ `arret` des issues
+
+L'orchestrateur le renseigne chaque fois qu'il arrête une issue (`bloquee`, ou `revue`/`recette` qui attend
+autre chose que son propre travail) :
+
+- `pilote.mjs statut <campagne> <ID> <statut> --attend paul|agents|poste|env --quoi "<cause courte>"` ;
+- `pilote.mjs arret <campagne> <ID> --attend … --quoi …` qualifie sans changer le statut (ni solder un retour
+  du poste) ; `--lever` efface l'arrêt.
+- Pour `paul`, `--quoi` donne l'action exacte et, pour une décision, la réponse proposée :
+  « Choisir le moteur Word (proposé : HtmlToOpenXml) ».
+- Un changement de statut sans `--attend` lève l'arrêt. `contexte` liste `a_qualifier` (issues `bloquee`
+  sans arrêt) : l'orchestrateur les qualifie à sa reprise.
+
+Sans arrêt renseigné, le script déduit seulement ce qu'il sait : issue retirée du poste ou poste à débloquer
+→ `Toi` ; issue au poste → `poste` ; autre issue `bloquee` → `à qualifier`.
+
+## Temps restant
+
+En **heures de travail des agents** (temps écoulé, places actuelles comprises), en fourchette de 0,75 à 1,5 fois
+l'estimation centrale, dans deux cas :
+
+- **si tes actions sont faites** : toutes les issues non closes ;
+- **sinon** : sans les issues qui attendent Paul et celles qui en dépendent, avec le **plafond** des issues
+  atteignables sans lui.
+
+Base de calcul : à partir de 5 issues mesurées (`admise_le` posé par `ouvrir`, `close_le`), durée médiane d'une
+issue divisée par les places occupées ; sinon, rythme de clôture depuis le lancement. Fiabilité : `faible` sous
+5 mesures, `moyenne` sous 15, `bonne` au-delà.

@@ -55,7 +55,7 @@ registre reste à jour.
 
 - `$dev nettoyeur` n'archive jamais ce chat (`pilote.mjs nettoyeur candidats` l'exclut par
   titre et par `chat_id`).
-- Le chat AIDE est en lecture seule : il ne lance aucune commande `$dev`, ne modifie aucun
+- Le chat AIDE est en lecture seule : sauf `$dev point` (v2.6, ci-dessous), il ne lance aucune commande `$dev`, ne modifie aucun
   fichier et n'écrit pas dans Linear.
 
 ## Porte d’entrée (v2.3)
@@ -78,3 +78,10 @@ de le faire évoluer, est orientée vers `🏛 ARCHI · workflow` : AIDE lance
 enregistré et le message à y poster (`poster`), qu'AIDE poste avec l'outil de l'application
 avant de répondre « → ouvert : 🏛 ARCHI · workflow ». S'il rend `a_creer`, AIDE affiche le
 bloc à coller. Jamais de second chat ARCHI.
+
+## Point des campagnes (v2.6)
+
+`$dev point [campagne…]`, ou une question comme « où en sont les campagnes, qu'est-ce qui bloque, combien
+de temps reste-t-il ? » : AIDE exécute lui-même `node <pilote> point [campagne…] --texte` et recopie la sortie
+telle quelle. C'est la seule commande qu'il n'envoie pas au lanceur, car elle n'écrit rien (`point.md`).
+Après la mise à jour de son premier message (v2.6) : `$dev aide --recreer`.

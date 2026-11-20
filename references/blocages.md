@@ -4,6 +4,8 @@
   (`pilote.mjs essai`). Au 3ᵉ échec, l'issue passe `bloquee`, le titre porte
   `⛔ BLOQUÉ`, un chat `🔵 DEV` est ouvert depuis la fiche de reprise de l'issue, et Paul
   est interrompu (motif « circuit-breaker »).
+- **Qui débloque (v2.6)** : toute issue arrêtée porte `--attend paul|agents|poste|env --quoi "<cause>"`
+  (`pilote.mjs statut` ou `pilote.mjs arret`) ; `$dev point` la classe ainsi, sinon « à qualifier » (`point.md`).
 - **Escalade** : `pilote.mjs escalade <criticite> <essai> [bug|architecture]`
   (`modeles.md` §5). Redescendre au modèle nominal dès que le correctif est validé.
 - **Timeout environnement** : réseau, SSH, Docker ou permissions bloqués plus de

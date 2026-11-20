@@ -10,7 +10,7 @@ import * as P from './pilote.mjs';
 const OPUS = 'claude-opus-5-5', SONNET = 'claude-sonnet-5-5', HAIKU = 'claude-haiku-5-5', FABLE51 = 'claude-fable-5-1', FABLE52 = 'claude-fable-5-2';
 export function configTest(extra = {}) {
   const etat = fs.mkdtempSync(path.join(os.tmpdir(), 'pilote-'));
-  return { hote: 'local', deploiement_serveurs: true, etat, admission: { dev_max: 4, lourdes_max: 1 },
+  return { hote: 'local', deploiement_serveurs: true, etat, admission: { dev_max: 4, lourdes_max: 1, pression_cpu_fichier: path.join(etat, 'pression-cpu-absente') }, // tests indépendants de la charge réelle de l'hôte
     modeles: { cerveau: OPUS, dev: [OPUS, SONNET], controle: [SONNET, 'gpt-6.2-sol'], ouvrier: [HAIKU, 'gpt-6-luna'],
       lecteur: { jusqu_a_100k: HAIKU, au_dela: SONNET, fallback: 'gpt-6.1-terra' }, second_regard: 'gpt-6.2-astra', recours: FABLE51, oeil: FABLE51,
       reserve_paul: [FABLE52], sous_agents: [HAIKU, OPUS, FABLE51, 'gpt-6-luna'], fable_autorise: false },
@@ -399,4 +399,65 @@ test('admission 2.5.4 : garde CPU sur l’attente moyenne à 60 s ; une issue d�
   fs.writeFileSync(f, 'some avg10=5.00 avg60=12.50 avg300=10.00 total=1\n'); assert.equal(P.gardeCpu(c, { statut: 'en_attente' }), 12.5);
   assert.match(P.limitesTexte(c), /attente CPU dépasse 40 %/);
   fs.rmSync(f, { force: true });
+});
+
+// ---------- v2.6 : $dev point ----------
+const empreinteDossier = (d) => { const out = []; const walk = (x) => { for (const f of fs.readdirSync(x, { withFileTypes: true })) { const p = path.join(x, f.name); if (f.isDirectory()) walk(p); else out.push(p + ':' + fs.readFileSync(p, 'utf8')); } }; walk(d); return out.sort().join('\n'); };
+function campagnesPoint() {
+  const at = configTest({ hote: 'atelier', deploiement_serveurs: false, admission: { dev_max: 15, lourdes_max: 4 } });
+  fs.mkdirSync(path.join(at.etat, 'campagnes'), { recursive: true });
+  const il = (id, statut, x = {}) => ({ type: 'issue_standalone', linear_id: id, statut, blocked_by: [], ...x });
+  const t0 = new Date(Date.now() - 10 * 3600000).toISOString(), t1 = new Date(Date.now() - 2 * 3600000).toISOString();
+  fs.writeFileSync(path.join(at.etat, 'campagnes', 'a.json'), JSON.stringify({ id: 'a', projet: 'p', mode: 'auto', statut: 'en_cours', lancee_le: t0, items: [
+    il('DEV-1', 'close', { admise_le: t0, close_le: t1 }), il('DEV-2', 'bloquee'), il('DEV-3', 'revue', { arret: { attend: 'paul', quoi: 'Fournir le compte service (proposé : compte _2)', le: t1 } }),
+    il('DEV-4', 'en_attente', { blocked_by: ['DEV-3'] }), il('DEV-5', 'revue', { arret: { attend: 'agents', quoi: 'faux services à écrire', le: t1 } }), il('DEV-6', 'en_cours')] }));
+  fs.writeFileSync(path.join(at.etat, 'campagnes', 'a.decisions.md'), '- ' + t1 + ' · DEV-2 · DEV-2 bloquée : 504 sous charge, correction hors mandat.\n');
+  fs.writeFileSync(path.join(at.etat, 'campagnes', 'b.json'), JSON.stringify({ id: 'b', projet: 'q', mode: 'sup', statut: 'en_cours', lancee_le: t0, items: [il('DEV-9', 'bloquee', { arret: { attend: 'paul', quoi: 'fournir le compte service (proposé : compte _2)', le: t1 } })] }));
+  fs.writeFileSync(path.join(at.etat, 'campagnes', 'c.json'), JSON.stringify({ id: 'c', projet: 'q', mode: 'auto', statut: 'en_pause', items: [il('DEV-20', 'bloquee')] }));
+  return at;
+}
+
+test('point 2.6 : lecture seule, qui débloque, actions dédoublonnées et triées, campagne en pause exclue', () => {
+  const at = campagnesPoint(); const avant = empreinteDossier(at.etat);
+  const p = P.point(at);
+  assert.equal(empreinteDossier(at.etat), avant, 'point n’écrit rien');
+  assert.deepEqual(p.campagnes.map((c) => c.campagne).sort(), ['a', 'b'], 'en pause exclue par défaut');
+  const a = p.campagnes.find((c) => c.campagne === 'a');
+  const q = Object.fromEntries(a.arrets.map((x) => [x.issue, x]));
+  assert.equal(q['DEV-2'].qui, 'à qualifier'); assert.match(q['DEV-2'].quoi, /504 sous charge/, 'la cause vient du journal, sans invention');
+  assert.equal(q['DEV-3'].qui, 'Toi'); assert.equal(q['DEV-5'].qui, 'agents'); assert.equal(q['DEV-6'], undefined, 'une issue en travail n’est pas un blocage');
+  assert.equal(p.actions_paul.length, 1, 'même action dans deux campagnes : une seule ligne');
+  assert.deepEqual(p.actions_paul[0].issues.sort(), ['DEV-3', 'DEV-9']); assert.equal(p.actions_paul[0].debloque, 3, 'DEV-3, DEV-4 (dépendante) et DEV-9');
+  assert.equal(a.estimation.fiabilite, 'faible'); assert.equal(a.estimation.unite, 'heures de travail des agents');
+  assert.equal(a.estimation.plafond_sans_toi, 4, 'sans Paul : DEV-1 close + DEV-2, DEV-5, DEV-6');
+  assert.ok(a.estimation.si_actions_faites[1] >= a.estimation.sinon[1]);
+  assert.match(p.ligne_etat, /^⏸ À TOI · point de 2 campagne\(s\) fait, 1 blocage\(s\) à qualifier · Toi : Fournir le compte service/);
+  assert.match(p.rendu, /\*\*Ce que tu dois faire\*\*\n\n1\. Fournir le compte service \(proposé : compte _2\) — débloque 3 issue\(s\)/);
+  assert.equal(p.rendu.split('\n').at(-1), p.ligne_etat, 'le rendu finit par la ligne d’état');
+  assert.deepEqual(P.point(at, ['c']).campagnes.map((c) => c.campagne), ['c'], 'nommée : incluse même en pause');
+});
+
+test('point 2.6 : statut --attend/--quoi, levé au changement de statut ; arret ne solde pas le retour du poste', () => {
+  const at = campagnesPoint();
+  assert.equal(code(() => P.statutIssue(at, 'a', 'DEV-6', 'bloquee', null, { attend: 'paul' })), 'CAUSE ABSENTE');
+  assert.equal(code(() => P.statutIssue(at, 'a', 'DEV-6', 'bloquee', null, { attend: 'moi', quoi: 'x' })), 'ATTENTE INCONNUE');
+  P.statutIssue(at, 'a', 'DEV-6', 'bloquee', null, { attend: 'env', quoi: 'Docker arrêté' });
+  assert.equal(P.point(at, ['a']).campagnes[0].arrets.find((x) => x.issue === 'DEV-6').qui, 'environnement');
+  P.statutIssue(at, 'a', 'DEV-6', 'en_attente');
+  assert.equal(P.issues(P.lireCampagne(at, 'a')).find((i) => i.linear_id === 'DEV-6').arret, undefined, 'changement de statut sans --attend : arrêt levé');
+  P.modifierCampagne(at, 'a', (c) => { const i = c.items.find((x) => x.linear_id === 'DEV-5'); i.poste = 'retour'; i.poste_resultat = 'ok'; });
+  P.qualifierArret(at, 'a', 'DEV-5', { attend: 'agents', quoi: 'vérifier le retour du poste' });
+  const i5 = P.issues(P.lireCampagne(at, 'a')).find((i) => i.linear_id === 'DEV-5'); assert.equal(i5.poste, 'retour'); assert.equal(i5.statut, 'revue');
+  P.qualifierArret(at, 'a', 'DEV-5', { lever: true }); assert.equal(P.issues(P.lireCampagne(at, 'a')).find((i) => i.linear_id === 'DEV-5').arret, undefined);
+});
+
+test('point 2.6 : estimation par durée médiane dès 5 issues mesurées', () => {
+  const at = configTest({ hote: 'atelier', deploiement_serveurs: false, admission: { dev_max: 15, lourdes_max: 4 } });
+  fs.mkdirSync(path.join(at.etat, 'campagnes'), { recursive: true });
+  const now = Date.now(); const il = (k, statut, x = {}) => ({ type: 'issue_standalone', linear_id: 'DEV-' + k, statut, blocked_by: [], ...x });
+  const closes = [1, 2, 3, 4, 5].map((k) => il(k, 'close', { admise_le: new Date(now - 5 * 3600000).toISOString(), close_le: new Date(now - 3 * 3600000).toISOString() }));
+  fs.writeFileSync(path.join(at.etat, 'campagnes', 'm.json'), JSON.stringify({ id: 'm', projet: 'p', mode: 'auto', statut: 'en_cours', lancee_le: new Date(now - 6 * 3600000).toISOString(), items: [...closes, il(6, 'en_cours'), il(7, 'en_cours'), il(8, 'en_attente'), il(9, 'en_attente')] }));
+  const e = P.point(at).campagnes[0].estimation;
+  assert.match(e.base, /durée médiane de 5 issues mesurées, 2 place\(s\) occupée\(s\)/); assert.equal(e.fiabilite, 'moyenne');
+  assert.deepEqual(e.si_actions_faites, [3, 6], '4 issues × 2 h / 2 places = 4 h, fourchette 0,75 à 1,5');
 });

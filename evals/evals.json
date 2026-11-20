@@ -1,6 +1,6 @@
 {
-  "version": "2.5.4",
-  "description": "Évaluations du workflow $dev v2.5.4 : un cas par commande, plus les cas limites. Exécuter : node scripts/evals.mjs",
+  "version": "2.6.0",
+  "description": "Évaluations du workflow $dev v2.6.0 : un cas par commande, plus les cas limites. Exécuter : node scripts/evals.mjs",
   "cas": [
     {
       "id": "composer",
@@ -1984,6 +1984,180 @@
       "attendu": {
         "code": 0,
         "contient": "\"garde_cpu_pct\": 40"
+      }
+    },
+    {
+      "id": "point-vide",
+      "commande": "$dev point sans campagne en cours",
+      "argv": [
+        "point"
+      ],
+      "attendu": {
+        "code": 0,
+        "contient": "point de 0 campagne(s) fait"
+      }
+    },
+    {
+      "id": "point-texte",
+      "commande": "$dev point rend le tableau des campagnes",
+      "argv": [
+        "point",
+        "--texte"
+      ],
+      "avant": [
+        [
+          "campagne",
+          "composer",
+          "demo",
+          "mon-api",
+          "DEV-1",
+          "DEV-2"
+        ],
+        {
+          "fichier": "campagnes/demo.contrat.md"
+        },
+        [
+          "campagne",
+          "contrat",
+          "demo"
+        ],
+        [
+          "campagne",
+          "lancer",
+          "demo",
+          "auto"
+        ]
+      ],
+      "attendu": {
+        "code": 0,
+        "contient": "| demo (AUTO) | 0/2 (0 %) |"
+      }
+    },
+    {
+      "id": "point-action-paul",
+      "commande": "$dev point liste ce que Paul doit faire",
+      "argv": [
+        "point",
+        "--texte"
+      ],
+      "avant": [
+        [
+          "campagne",
+          "composer",
+          "demo",
+          "mon-api",
+          "DEV-1",
+          "DEV-2"
+        ],
+        {
+          "fichier": "campagnes/demo.contrat.md"
+        },
+        [
+          "campagne",
+          "contrat",
+          "demo"
+        ],
+        [
+          "campagne",
+          "lancer",
+          "demo",
+          "auto"
+        ],
+        [
+          "statut",
+          "demo",
+          "DEV-1",
+          "bloquee",
+          "--attend",
+          "paul",
+          "--quoi",
+          "fournir le compte (proposé : compte _2)"
+        ]
+      ],
+      "attendu": {
+        "code": 0,
+        "contient": "1. fournir le compte (proposé : compte _2) — débloque 1 issue(s) (DEV-1)"
+      }
+    },
+    {
+      "id": "statut-attend-sans-cause",
+      "commande": "statut --attend sans --quoi",
+      "argv": [
+        "statut",
+        "demo",
+        "DEV-1",
+        "bloquee",
+        "--attend",
+        "paul"
+      ],
+      "avant": [
+        [
+          "campagne",
+          "composer",
+          "demo",
+          "mon-api",
+          "DEV-1",
+          "DEV-2"
+        ],
+        {
+          "fichier": "campagnes/demo.contrat.md"
+        },
+        [
+          "campagne",
+          "contrat",
+          "demo"
+        ],
+        [
+          "campagne",
+          "lancer",
+          "demo",
+          "auto"
+        ]
+      ],
+      "attendu": {
+        "code": 2,
+        "contient": "CAUSE ABSENTE"
+      }
+    },
+    {
+      "id": "arret-attente-inconnue",
+      "commande": "arret avec une attente hors liste",
+      "argv": [
+        "arret",
+        "demo",
+        "DEV-1",
+        "--attend",
+        "moi",
+        "--quoi",
+        "x"
+      ],
+      "avant": [
+        [
+          "campagne",
+          "composer",
+          "demo",
+          "mon-api",
+          "DEV-1",
+          "DEV-2"
+        ],
+        {
+          "fichier": "campagnes/demo.contrat.md"
+        },
+        [
+          "campagne",
+          "contrat",
+          "demo"
+        ],
+        [
+          "campagne",
+          "lancer",
+          "demo",
+          "auto"
+        ]
+      ],
+      "attendu": {
+        "code": 2,
+        "contient": "ATTENTE INCONNUE"
       }
     }
   ]

@@ -32,6 +32,10 @@ contrat est mise de côté et signalée dans le digest.
 - Revue : sous-agent Opus démarré à neuf (diff, fiche, critères). Tests : sous-agent Haiku.
 - Statuts uniquement par `pilote.mjs statut` (liste fermée, `etats.md`) ; chaque échec
   par `pilote.mjs essai <campagne> <ID> echec` (circuit-breaker à 3).
+- Issue arrêtée (`bloquee`, ou `revue`/`recette` qui attend autre chose que ton travail) : dis qui la
+  débloque, `pilote.mjs statut … --attend paul|agents|poste|env --quoi "<cause>"` ou `pilote.mjs arret …`
+  sans changer le statut ; pour Paul, l'action exacte et la réponse proposée. Qualifie aussi chaque issue
+  de `a_qualifier` (`contexte`) à ta reprise. `$dev point` en dépend (`point.md`, v2.6).
 - Fusions dans `codex/ms-<slug>` sans GO. Recette de Milestone : chat `🧪 TEST` Sonnet
   (`test.md`). PR finale vers `main` : automatique si recette verte, revue favorable et
   `main_deploie: false` ; sinon `⏸ GO`.
