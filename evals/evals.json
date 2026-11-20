@@ -1,0 +1,1929 @@
+{
+  "version": "2.5.1",
+  "description": "Évaluations du workflow $dev v2.5.1 : un cas par commande, plus les cas limites. Exécuter : node scripts/evals.mjs",
+  "cas": [
+    {
+      "id": "composer",
+      "commande": "$dev campagne composer",
+      "argv": [
+        "campagne",
+        "composer",
+        "demo",
+        "mon-api",
+        "DEV-1",
+        "DEV-2"
+      ],
+      "attendu": {
+        "code": 0,
+        "contient": "\"statut\": \"brouillon\""
+      }
+    },
+    {
+      "id": "lancer",
+      "commande": "$dev campagne lancer",
+      "argv": [
+        "campagne",
+        "lancer",
+        "demo",
+        "auto"
+      ],
+      "attendu": {
+        "code": 0,
+        "contient": "🟢 AUTO · mon-api · demo · 0%"
+      },
+      "avant": [
+        [
+          "campagne",
+          "composer",
+          "demo",
+          "mon-api",
+          "DEV-1",
+          "DEV-2"
+        ],
+        {
+          "fichier": "campagnes/demo.contrat.md"
+        },
+        [
+          "campagne",
+          "contrat",
+          "demo"
+        ]
+      ]
+    },
+    {
+      "id": "lancer-sans-contrat",
+      "commande": "$dev campagne lancer",
+      "argv": [
+        "campagne",
+        "lancer",
+        "demo"
+      ],
+      "attendu": {
+        "code": 2,
+        "contient": "CONTRAT NON VALIDÉ"
+      },
+      "avant": [
+        [
+          "campagne",
+          "composer",
+          "demo",
+          "mon-api",
+          "DEV-1",
+          "DEV-2"
+        ]
+      ]
+    },
+    {
+      "id": "milestone",
+      "commande": "$dev milestone",
+      "argv": [
+        "contrat",
+        "milestone"
+      ],
+      "attendu": {
+        "code": 0,
+        "contient": "execution.md"
+      }
+    },
+    {
+      "id": "issue",
+      "commande": "$dev issue",
+      "argv": [
+        "contrat",
+        "issue"
+      ],
+      "attendu": {
+        "code": 0,
+        "contient": "\"chat\": \"DEV\""
+      }
+    },
+    {
+      "id": "iteration",
+      "commande": "$dev iteration",
+      "argv": [
+        "contrat",
+        "iteration"
+      ],
+      "attendu": {
+        "code": 0,
+        "contient": "iteration.md"
+      }
+    },
+    {
+      "id": "finaliser",
+      "commande": "$dev finaliser",
+      "argv": [
+        "contrat",
+        "finaliser"
+      ],
+      "attendu": {
+        "code": 0,
+        "contient": "finalisation.md"
+      }
+    },
+    {
+      "id": "cadrage",
+      "commande": "$dev cadrage",
+      "argv": [
+        "contrat",
+        "cadrage"
+      ],
+      "attendu": {
+        "code": 0,
+        "contient": "\"chat\": \"CADRE\""
+      }
+    },
+    {
+      "id": "cadrage-court",
+      "commande": "$dev cadrage-court",
+      "argv": [
+        "contrat",
+        "cadrage-court"
+      ],
+      "attendu": {
+        "code": 0,
+        "contient": "cadrage-court.md"
+      }
+    },
+    {
+      "id": "projet",
+      "commande": "$dev projet",
+      "argv": [
+        "contrat",
+        "projet"
+      ],
+      "attendu": {
+        "code": 0,
+        "contient": "projet.md"
+      }
+    },
+    {
+      "id": "digest",
+      "commande": "$dev digest",
+      "argv": [
+        "digest",
+        "demo"
+      ],
+      "attendu": {
+        "code": 0,
+        "contient": "claude-haiku-5-5"
+      },
+      "avant": [
+        [
+          "campagne",
+          "composer",
+          "demo",
+          "mon-api",
+          "DEV-1",
+          "DEV-2"
+        ],
+        {
+          "fichier": "campagnes/demo.contrat.md"
+        },
+        [
+          "campagne",
+          "contrat",
+          "demo"
+        ],
+        [
+          "campagne",
+          "lancer",
+          "demo",
+          "auto"
+        ]
+      ]
+    },
+    {
+      "id": "prototype",
+      "commande": "$dev prototype",
+      "argv": [
+        "contrat",
+        "prototype"
+      ],
+      "attendu": {
+        "code": 0,
+        "contient": "\"chat\": \"PROTO\""
+      }
+    },
+    {
+      "id": "test",
+      "commande": "$dev test",
+      "argv": [
+        "modele",
+        "recette-milestone",
+        "standard",
+        "compact"
+      ],
+      "attendu": {
+        "code": 0,
+        "contient": "claude-sonnet-5-5"
+      }
+    },
+    {
+      "id": "nettoyeur",
+      "commande": "$dev nettoyeur",
+      "argv": [
+        "contrat",
+        "nettoyeur"
+      ],
+      "attendu": {
+        "code": 0,
+        "contient": "\"chat\": \"RELAIS\""
+      }
+    },
+    {
+      "id": "cloture",
+      "commande": "$dev cloture",
+      "argv": [
+        "campagne",
+        "cloturer",
+        "demo"
+      ],
+      "attendu": {
+        "code": 0,
+        "contient": "\"statut\": \"close\""
+      },
+      "avant": [
+        [
+          "campagne",
+          "composer",
+          "demo",
+          "mon-api",
+          "DEV-1",
+          "DEV-2"
+        ],
+        {
+          "fichier": "campagnes/demo.contrat.md"
+        },
+        [
+          "campagne",
+          "contrat",
+          "demo"
+        ],
+        [
+          "campagne",
+          "lancer",
+          "demo",
+          "auto"
+        ]
+      ]
+    },
+    {
+      "id": "pause",
+      "commande": "$dev pause",
+      "argv": [
+        "pause",
+        "demo"
+      ],
+      "attendu": {
+        "code": 0,
+        "contient": "en_pause"
+      },
+      "avant": [
+        [
+          "campagne",
+          "composer",
+          "demo",
+          "mon-api",
+          "DEV-1",
+          "DEV-2"
+        ],
+        {
+          "fichier": "campagnes/demo.contrat.md"
+        },
+        [
+          "campagne",
+          "contrat",
+          "demo"
+        ],
+        [
+          "campagne",
+          "lancer",
+          "demo",
+          "auto"
+        ]
+      ]
+    },
+    {
+      "id": "reprendre",
+      "commande": "$dev reprendre",
+      "argv": [
+        "reprendre",
+        "demo"
+      ],
+      "attendu": {
+        "code": 0,
+        "contient": "en_cours"
+      },
+      "avant": [
+        [
+          "campagne",
+          "composer",
+          "demo",
+          "mon-api",
+          "DEV-1",
+          "DEV-2"
+        ],
+        {
+          "fichier": "campagnes/demo.contrat.md"
+        },
+        [
+          "campagne",
+          "contrat",
+          "demo"
+        ],
+        [
+          "campagne",
+          "lancer",
+          "demo",
+          "auto"
+        ],
+        [
+          "pause",
+          "demo"
+        ]
+      ]
+    },
+    {
+      "id": "etat",
+      "commande": "$dev etat",
+      "argv": [
+        "etat"
+      ],
+      "attendu": {
+        "code": 0,
+        "contient": "\"sous_agents\""
+      }
+    },
+    {
+      "id": "modele",
+      "commande": "$dev modele",
+      "argv": [
+        "modele",
+        "dev",
+        "standard",
+        "compact"
+      ],
+      "attendu": {
+        "code": 0,
+        "contient": "claude-opus-5-5"
+      }
+    },
+    {
+      "id": "revue-sous-agent",
+      "commande": "$dev modele",
+      "argv": [
+        "modele",
+        "revue",
+        "standard",
+        "compact",
+        "--sous-agent"
+      ],
+      "attendu": {
+        "code": 0,
+        "contient": "à neuf"
+      }
+    },
+    {
+      "id": "tests-sous-agent",
+      "commande": "$dev modele",
+      "argv": [
+        "modele",
+        "tests",
+        "standard",
+        "compact",
+        "--sous-agent"
+      ],
+      "attendu": {
+        "code": 0,
+        "contient": "\"modele\": \"claude-haiku-5-5\""
+      }
+    },
+    {
+      "id": "circuit-breaker",
+      "commande": "limite",
+      "argv": [
+        "essai",
+        "demo",
+        "DEV-1",
+        "echec"
+      ],
+      "attendu": {
+        "code": 0,
+        "contient": "CIRCUIT-BREAKER"
+      },
+      "avant": [
+        [
+          "campagne",
+          "composer",
+          "demo",
+          "mon-api",
+          "DEV-1",
+          "DEV-2"
+        ],
+        {
+          "fichier": "campagnes/demo.contrat.md"
+        },
+        [
+          "campagne",
+          "contrat",
+          "demo"
+        ],
+        [
+          "campagne",
+          "lancer",
+          "demo",
+          "auto"
+        ],
+        [
+          "essai",
+          "demo",
+          "DEV-1",
+          "echec"
+        ],
+        [
+          "essai",
+          "demo",
+          "DEV-1",
+          "echec"
+        ]
+      ]
+    },
+    {
+      "id": "trivial-sensible",
+      "commande": "limite : tâche triviale (.env) en campagne sensible",
+      "argv": [
+        "modele",
+        "dev",
+        "sensible",
+        "compact",
+        "--trivial"
+      ],
+      "attendu": {
+        "code": 0,
+        "contient": "\"modele\": \"claude-haiku-5-5\""
+      }
+    },
+    {
+      "id": "deploiement-atelier",
+      "commande": "limite : déploiement refusé sur atelier",
+      "argv": [
+        "deployer",
+        "deployeur",
+        "sb1"
+      ],
+      "attendu": {
+        "code": 3,
+        "contient": "DÉPLOIEMENT REFUSÉ SUR CET HÔTE"
+      },
+      "config": {
+        "hote": "atelier",
+        "deploiement_serveurs": false
+      }
+    },
+    {
+      "id": "modele-manquant",
+      "commande": "limite : modèle manquant",
+      "argv": [
+        "modele",
+        "dev",
+        "standard",
+        "compact"
+      ],
+      "attendu": {
+        "code": 2,
+        "contient": "CONFIGURATION INCOMPLÈTE"
+      },
+      "config": {
+        "modeles": null
+      }
+    },
+    {
+      "id": "fable-52",
+      "commande": "limite : Fable 5.2 refusé au routage",
+      "argv": [
+        "modele",
+        "choix-visuel",
+        "standard",
+        "compact"
+      ],
+      "attendu": {
+        "code": 2,
+        "contient": "MODÈLE RÉSERVÉ À PAUL"
+      },
+      "config": {
+        "modeles": {
+          "oeil": "claude-fable-5-2"
+        }
+      }
+    },
+    {
+      "id": "img2code",
+      "commande": "limite : img2code non repris",
+      "argv": [
+        "contrat",
+        "img2code"
+      ],
+      "attendu": {
+        "code": 2,
+        "contient": "COMMANDE NON REPRISE"
+      }
+    },
+    {
+      "id": "statut-ferme",
+      "commande": "limite : statut hors liste fermée",
+      "argv": [
+        "statut",
+        "demo",
+        "DEV-1",
+        "termine"
+      ],
+      "attendu": {
+        "code": 2,
+        "contient": "STATUT INCONNU"
+      },
+      "avant": [
+        [
+          "campagne",
+          "composer",
+          "demo",
+          "mon-api",
+          "DEV-1",
+          "DEV-2"
+        ]
+      ]
+    },
+    {
+      "id": "tour-sandbox",
+      "commande": "réglage d’exécution à chaque tour",
+      "argv": [
+        "tour"
+      ],
+      "attendu": {
+        "code": 0,
+        "contient": "dangerFullAccess"
+      },
+      "config": {
+        "execution": {
+          "sandbox": "danger-full-access",
+          "approvalPolicy": "never"
+        }
+      }
+    },
+    {
+      "id": "aide-creation",
+      "commande": "$dev aide : premier appel, création",
+      "argv": [
+        "aide",
+        "--chats",
+        "[]"
+      ],
+      "attendu": {
+        "code": 0,
+        "contient": "\"action\": \"creer\""
+      }
+    },
+    {
+      "id": "aide-ouverture",
+      "commande": "$dev aide : deuxième appel, ouverture sans doublon",
+      "argv": [
+        "aide",
+        "--chats",
+        "[{\"id\":\"T1\",\"titre\":\"❓ AIDE · workflow\",\"archive\":false,\"maj\":\"2026-11-19T10:00:00Z\"}]"
+      ],
+      "attendu": {
+        "code": 0,
+        "contient": "\"action\": \"ouvrir\""
+      },
+      "avant": [
+        [
+          "aide",
+          "enregistrer",
+          "T1",
+          "--modele",
+          "gpt-6-luna"
+        ]
+      ]
+    },
+    {
+      "id": "aide-skill-modifie",
+      "commande": "$dev aide : SKILL.md modifié, ligne ℹ postée",
+      "config": {
+        "skill_md": "SKILL.md"
+      },
+      "argv": [
+        "aide",
+        "--chats",
+        "[{\"id\":\"T1\",\"titre\":\"❓ AIDE · workflow\",\"archive\":false,\"maj\":\"2026-11-19T10:00:00Z\"}]"
+      ],
+      "attendu": {
+        "code": 0,
+        "contient": "ℹ SKILL.md mis à jour le"
+      },
+      "avant": [
+        {
+          "fichier": "SKILL.md",
+          "contenu": "v1"
+        },
+        [
+          "aide",
+          "enregistrer",
+          "T1"
+        ],
+        {
+          "fichier": "SKILL.md",
+          "contenu": "v2"
+        }
+      ]
+    },
+    {
+      "id": "aide-archive",
+      "commande": "$dev aide : après archivage manuel, recréation",
+      "argv": [
+        "aide",
+        "--chats",
+        "[{\"id\":\"T1\",\"titre\":\"❓ AIDE · workflow\",\"archive\":true,\"maj\":\"2026-11-19T10:00:00Z\"}]"
+      ],
+      "attendu": {
+        "code": 0,
+        "contient": "\"raison\": \"archivé\""
+      },
+      "avant": [
+        [
+          "aide",
+          "enregistrer",
+          "T1"
+        ]
+      ]
+    },
+    {
+      "id": "dev1335-carte",
+      "commande": "démarrage DEV-1335 à blanc : carte absente générée sur place",
+      "config": {
+        "projets": {
+          "mon-app": {
+            "chemin": "depot",
+            "branche_principale": "main"
+          }
+        },
+        "modeles": {
+          "fable_autorise": true
+        }
+      },
+      "avant": [
+        {
+          "fichier": "depot/PROJECT.md",
+          "contenu": "# PROJECT\n"
+        },
+        [
+          "campagne",
+          "composer",
+          "demo",
+          "mon-app",
+          "DEV-1335"
+        ]
+      ],
+      "argv": [
+        "ouvrir",
+        "demo",
+        "DEV-1335",
+        "--a-blanc",
+        "--fiche",
+        "Imaginer une direction artistique pour mon application : planche statique et note. Aucun code. Recette développeur : SANS OBJET. Utiliser Fable 5.2 pour imaginer et produire les visuels."
+      ],
+      "attendu": {
+        "code": 0,
+        "contient": "carte générée"
+      }
+    },
+    {
+      "id": "dev1335-fable52",
+      "commande": "démarrage DEV-1335 : mention de Fable 5.2 ignorée et signalée",
+      "config": {
+        "projets": {
+          "mon-app": {
+            "chemin": "depot",
+            "branche_principale": "main"
+          }
+        },
+        "modeles": {
+          "fable_autorise": true
+        }
+      },
+      "avant": [
+        {
+          "fichier": "depot/PROJECT.md",
+          "contenu": "# PROJECT\n"
+        },
+        [
+          "campagne",
+          "composer",
+          "demo",
+          "mon-app",
+          "DEV-1335"
+        ]
+      ],
+      "argv": [
+        "ouvrir",
+        "demo",
+        "DEV-1335",
+        "--a-blanc",
+        "--fiche",
+        "Imaginer une direction artistique pour mon application : planche statique et note. Aucun code. Recette développeur : SANS OBJET. Utiliser Fable 5.2 pour imaginer et produire les visuels."
+      ],
+      "attendu": {
+        "code": 0,
+        "contient": "réservé à Paul : à lancer à la main si Paul le souhaite"
+      }
+    },
+    {
+      "id": "dev1335-livrable",
+      "commande": "démarrage DEV-1335 : livrable sans code, démarrage allégé",
+      "config": {
+        "projets": {
+          "mon-app": {
+            "chemin": "depot",
+            "branche_principale": "main"
+          }
+        },
+        "modeles": {
+          "fable_autorise": true
+        }
+      },
+      "avant": [
+        {
+          "fichier": "depot/PROJECT.md",
+          "contenu": "# PROJECT\n"
+        },
+        [
+          "campagne",
+          "composer",
+          "demo",
+          "mon-app",
+          "DEV-1335"
+        ]
+      ],
+      "argv": [
+        "ouvrir",
+        "demo",
+        "DEV-1335",
+        "--a-blanc",
+        "--fiche",
+        "Imaginer une direction artistique pour mon application : planche statique et note. Aucun code. Recette développeur : SANS OBJET. Utiliser Fable 5.2 pour imaginer et produire les visuels."
+      ],
+      "attendu": {
+        "code": 0,
+        "contient": "aucun worktree applicatif"
+      }
+    },
+    {
+      "id": "dev1335-choix-visuel",
+      "commande": "démarrage DEV-1335 : routage choix-visuel sur Fable 5.1",
+      "config": {
+        "projets": {
+          "mon-app": {
+            "chemin": "depot",
+            "branche_principale": "main"
+          }
+        },
+        "modeles": {
+          "fable_autorise": true
+        }
+      },
+      "avant": [
+        {
+          "fichier": "depot/PROJECT.md",
+          "contenu": "# PROJECT\n"
+        },
+        [
+          "campagne",
+          "composer",
+          "demo",
+          "mon-app",
+          "DEV-1335"
+        ]
+      ],
+      "argv": [
+        "ouvrir",
+        "demo",
+        "DEV-1335",
+        "--a-blanc",
+        "--fiche",
+        "Imaginer une direction artistique pour mon application : planche statique et note. Aucun code. Recette développeur : SANS OBJET. Utiliser Fable 5.2 pour imaginer et produire les visuels."
+      ],
+      "attendu": {
+        "code": 0,
+        "contient": "\"modele\": \"claude-fable-5-1\""
+      }
+    },
+    {
+      "id": "dev1335-depot-introuvable",
+      "commande": "blocage précis : dépôt introuvable, qui le fournit",
+      "config": {
+        "projets": {
+          "mon-app": {
+            "chemin": "absent"
+          }
+        }
+      },
+      "avant": [
+        [
+          "campagne",
+          "composer",
+          "demo",
+          "mon-app",
+          "DEV-1335"
+        ]
+      ],
+      "argv": [
+        "ouvrir",
+        "demo",
+        "DEV-1335",
+        "--a-blanc"
+      ],
+      "attendu": {
+        "code": 2,
+        "contient": "Paul doit cloner le dépôt"
+      }
+    },
+    {
+      "id": "dev1335-sans-reglage",
+      "commande": "démarrage sans réglage (--fiche absent) : fiche lue automatiquement, mention de modèle ignorée et signalée",
+      "config": {
+        "projets": {
+          "mon-app": {
+            "chemin": "depot",
+            "branche_principale": "main"
+          }
+        },
+        "modeles": {
+          "fable_autorise": true
+        }
+      },
+      "avant": [
+        {
+          "fichier": "depot/PROJECT.md",
+          "contenu": "# PROJECT\n"
+        },
+        {
+          "fichier": "fiches/DEV-1335.md",
+          "contenu": "# Direction artistique mon application\nPlanche statique et note. Aucun code. Recette développeur : SANS OBJET. Utiliser Fable 5.2 pour imaginer et produire les visuels.\n"
+        },
+        [
+          "campagne",
+          "composer",
+          "demo",
+          "mon-app",
+          "DEV-1335"
+        ]
+      ],
+      "argv": [
+        "ouvrir",
+        "demo",
+        "DEV-1335",
+        "--a-blanc"
+      ],
+      "attendu": {
+        "code": 0,
+        "contient": "réservé à Paul : à lancer à la main si Paul le souhaite"
+      }
+    },
+    {
+      "id": "carte-squelette-digest",
+      "commande": "carte encore squelette : utilisable, signalée dans le digest",
+      "config": {
+        "projets": {
+          "mon-app": {
+            "chemin": "depot",
+            "branche_principale": "main"
+          }
+        },
+        "modeles": {
+          "fable_autorise": true
+        }
+      },
+      "avant": [
+        {
+          "fichier": "depot/PROJECT.md",
+          "contenu": "# PROJECT\n"
+        },
+        {
+          "fichier": "carte/mon-app.md",
+          "contenu": "# Carte de dépôt — mon-app\n\nStatut : squelette (test)\n"
+        },
+        [
+          "campagne",
+          "composer",
+          "demo",
+          "mon-app",
+          "DEV-1335"
+        ]
+      ],
+      "argv": [
+        "digest",
+        "demo"
+      ],
+      "attendu": {
+        "code": 0,
+        "contient": "encore à l'état de squelette"
+      }
+    },
+    {
+      "id": "issue-atelier-acces-complet",
+      "commande": "$dev issue sur atelier : le chat DEV est créé par pilote.mjs, en accès complet",
+      "config": {
+        "hote": "atelier",
+        "deploiement_serveurs": false,
+        "execution": {
+          "sandbox": "danger-full-access",
+          "approvalPolicy": "never"
+        },
+        "appServerFactice": "appserver.jsonl"
+      },
+      "argv": [
+        "chat-travail",
+        "DEV",
+        "mon-api",
+        "#1 essai",
+        "--modele",
+        "claude-opus-5-5",
+        "--issue",
+        "DEV-1",
+        "--consigne",
+        "Traiter DEV-1."
+      ],
+      "attendu": {
+        "code": 0,
+        "contient": "\"type\": \"dangerFullAccess\""
+      }
+    },
+    {
+      "id": "acces-restreint-relance",
+      "commande": "chat lancé en accès restreint : il s’arrête, se signale, et le réveil le relance en accès complet sans demande d’élévation",
+      "config": {
+        "hote": "atelier",
+        "deploiement_serveurs": false,
+        "execution": {
+          "sandbox": "danger-full-access",
+          "approvalPolicy": "never"
+        },
+        "appServerFactice": "appserver.jsonl",
+        "appServerFacticeMessage": "⛔ ACCÈS RESTREINT — relance demandée à pilote.mjs"
+      },
+      "avant": [
+        [
+          "chat-travail",
+          "DEV",
+          "mon-api",
+          "#1 essai",
+          "--modele",
+          "claude-opus-5-5",
+          "--issue",
+          "DEV-1",
+          "--consigne",
+          "Traiter DEV-1."
+        ]
+      ],
+      "argv": [
+        "reveil"
+      ],
+      "attendu": {
+        "code": 0,
+        "contient": "\"action\": \"relance-acces\""
+      }
+    },
+    {
+      "id": "chat-livraison-poste-refuse",
+      "commande": "chat de livraison sur le poste refusé explicitement tant que le chat local n’est pas réglé",
+      "config": {
+        "appServerFactice": "as.jsonl"
+      },
+      "argv": [
+        "chat-travail",
+        "DEV",
+        "deployeur",
+        "#0 livraison",
+        "--modele",
+        "claude-opus-5-5",
+        "--livraison"
+      ],
+      "attendu": {
+        "code": 6,
+        "contient": "CHAT LOCAL INDISPONIBLE"
+      }
+    },
+    {
+      "id": "deployeur-signale-livraison",
+      "commande": "campagne à livraison locale : le contexte signale la livraison au lieu de bloquer en silence",
+      "avant": [
+        [
+          "campagne",
+          "composer",
+          "livr",
+          "deployeur",
+          "DEV-9",
+          "--mode",
+          "supervise",
+          "--hote-livraison",
+          "local"
+        ]
+      ],
+      "argv": [
+        "contexte",
+        "livr"
+      ],
+      "attendu": {
+        "code": 0,
+        "contient": "$dev livrer livr depuis le poste"
+      }
+    },
+    {
+      "id": "etat-taches-planifiees",
+      "commande": "$dev etat affiche les tâches planifiées déclarées et leur dernière réussite",
+      "config": {
+        "taches_planifiees": [
+          {
+            "nom": "tache-eval-absente",
+            "frequence": "horaire",
+            "role": "test",
+            "protegee": true
+          }
+        ]
+      },
+      "argv": [
+        "etat"
+      ],
+      "attendu": {
+        "code": 0,
+        "contient": "\"derniere_reussite\""
+      }
+    },
+    {
+      "id": "livrer-refuse-atelier",
+      "commande": "$dev livrer refusé sur atelier (code 6)",
+      "config": {
+        "hote": "atelier",
+        "deploiement_serveurs": false
+      },
+      "avant": [
+        [
+          "campagne",
+          "composer",
+          "livr",
+          "deployeur",
+          "DEV-9",
+          "--mode",
+          "supervise",
+          "--hote-livraison",
+          "local"
+        ]
+      ],
+      "argv": [
+        "livrer",
+        "livr"
+      ],
+      "attendu": {
+        "code": 6,
+        "contient": "LIVRAISON REFUSÉE SUR CET HÔTE"
+      }
+    },
+    {
+      "id": "livrer-sans-go",
+      "commande": "$dev livrer refusé sans GO enregistré (chat_local.actif false, option b)",
+      "config": {
+        "chat_local": {
+          "actif": false,
+          "option": "b"
+        }
+      },
+      "avant": [
+        [
+          "campagne",
+          "composer",
+          "livr",
+          "deployeur",
+          "DEV-9",
+          "--mode",
+          "supervise",
+          "--hote-livraison",
+          "local"
+        ]
+      ],
+      "argv": [
+        "livrer",
+        "livr"
+      ],
+      "attendu": {
+        "code": 6,
+        "contient": "GO ABSENT"
+      }
+    },
+    {
+      "id": "livrer-plan-modifie",
+      "commande": "plan modifié depuis le GO : livraison refusée (chat_local.actif false, option b)",
+      "config": {
+        "chat_local": {
+          "actif": false,
+          "option": "b"
+        }
+      },
+      "avant": [
+        [
+          "campagne",
+          "composer",
+          "livr",
+          "deployeur",
+          "DEV-9",
+          "--mode",
+          "supervise",
+          "--hote-livraison",
+          "local"
+        ],
+        {
+          "fichier": "plan-livraison.md",
+          "contenu": "# Plan\n```json livraison\n{\"cibles\":{\"sb1\":{\"ssh\":\"sb1\"}},\"paquet\":{\"chemin\":\"p.tgz\",\"sha256\":\"00\"},\"retour_arriere\":{\"procedure\":\"r.md\"},\"etapes\":[{\"id\":\"1\",\"cible\":\"sb1\",\"commande\":\"x\",\"retour\":\"y\"}]}\n```\n"
+        },
+        [
+          "livraison-go",
+          "livr",
+          "plan-livraison.md"
+        ],
+        {
+          "fichier": "plan-livraison.md",
+          "contenu": "# Plan\n```json livraison\n{\"cibles\":{\"sb1\":{\"ssh\":\"sb1\"}},\"paquet\":{\"chemin\":\"p.tgz\",\"sha256\":\"00\"},\"retour_arriere\":{\"procedure\":\"r.md\"},\"etapes\":[{\"id\":\"1\",\"cible\":\"sb1\",\"commande\":\"x\",\"retour\":\"y\"}]}\n```\n\n<!-- modifié après le GO -->\n"
+        }
+      ],
+      "argv": [
+        "livraison-executer",
+        "livr"
+      ],
+      "attendu": {
+        "code": 6,
+        "contient": "PLAN MODIFIÉ DEPUIS LE GO"
+      }
+    },
+    {
+      "id": "lancer-cadrage-luna",
+      "commande": "$dev cadrage lancé depuis un chat Luna : chat Opus 🟣 CADRE créé dans 03",
+      "config": {
+        "hote": "atelier",
+        "deploiement_serveurs": false,
+        "execution": {
+          "sandbox": "danger-full-access",
+          "approvalPolicy": "never"
+        },
+        "appServerFactice": "as.jsonl"
+      },
+      "argv": [
+        "lancer",
+        "cadrage",
+        "test-v2-3",
+        "--projet",
+        "deployeur",
+        "--depuis-modele",
+        "gpt-6-luna",
+        "--fiche",
+        "Paul : $dev cadrage test-v2-3 (démonstration v2.3)"
+      ],
+      "attendu": {
+        "code": 0,
+        "contient": "→ ouvert : 🟣 CADRE · deployeur · test-v2-3 (Opus 5.5, 03 Cadrage & prototypes)"
+      }
+    },
+    {
+      "id": "lancer-cadrage-sans-doublon",
+      "commande": "même commande relancée : le chat existant est rouvert, sans doublon",
+      "config": {
+        "hote": "atelier",
+        "deploiement_serveurs": false,
+        "execution": {
+          "sandbox": "danger-full-access",
+          "approvalPolicy": "never"
+        },
+        "appServerFactice": "as.jsonl"
+      },
+      "avant": [
+        [
+          "lancer",
+          "cadrage",
+          "test-v2-3",
+          "--projet",
+          "deployeur",
+          "--depuis-modele",
+          "gpt-6-luna",
+          "--fiche",
+          "Paul : $dev cadrage test-v2-3 (démonstration v2.3)"
+        ]
+      ],
+      "argv": [
+        "lancer",
+        "cadrage",
+        "test-v2-3",
+        "--projet",
+        "deployeur",
+        "--depuis-modele",
+        "gpt-6-luna",
+        "--fiche",
+        "Paul : $dev cadrage test-v2-3 (démonstration v2.3)"
+      ],
+      "attendu": {
+        "code": 0,
+        "contient": "\"action\": \"ouvrir\""
+      }
+    },
+    {
+      "id": "lancer-cadrage-court-sous-agent",
+      "commande": "$dev cadrage-court lancé depuis Luna : passe par un sous-agent",
+      "config": {
+        "hote": "atelier",
+        "deploiement_serveurs": false,
+        "execution": {
+          "sandbox": "danger-full-access",
+          "approvalPolicy": "never"
+        },
+        "appServerFactice": "as.jsonl"
+      },
+      "argv": [
+        "lancer",
+        "cadrage-court",
+        "DEV-1",
+        "--depuis-modele",
+        "gpt-6-luna",
+        "--fiche",
+        "Paul : $dev cadrage-court DEV-1"
+      ],
+      "attendu": {
+        "code": 0,
+        "contient": "\"action\": \"sous_agent\""
+      }
+    },
+    {
+      "id": "menage-clos-archive",
+      "commande": "ménage : chat clos depuis 10 jours archivé par surs",
+      "config": {
+        "hote": "atelier",
+        "deploiement_serveurs": false,
+        "execution": {
+          "sandbox": "danger-full-access",
+          "approvalPolicy": "never"
+        },
+        "appServerFactice": "as.jsonl"
+      },
+      "avant": [
+        {
+          "fichier": "chats-app.json",
+          "contenu": "[{\"id\":\"C1\",\"titre\":\"🔵 DEV · mon-api · #1 essai · ✅\",\"hote\":\"atelier\",\"archive\":false,\"maj\":\"2026-11-10T08:00:00Z\",\"dossier\":\"02 Développement\"}]"
+        },
+        {
+          "fichier": "chats.json",
+          "contenu": "{\"C1\":{\"role\":\"DEV\",\"objet\":\"#1 essai\",\"projet\":\"mon-api\",\"dossier\":\"02 Développement / mon-api\",\"hote\":\"atelier\",\"statut\":\"clos\",\"lien\":{\"type\":\"sujet\",\"id\":\"#1 essai\"}}}"
+        }
+      ],
+      "argv": [
+        "menage",
+        "appliquer",
+        "surs",
+        "--chats-fichier",
+        "chats-app.json"
+      ],
+      "attendu": {
+        "code": 0,
+        "contient": "\"applique_texte\": \"a_archiver:1\""
+      }
+    },
+    {
+      "id": "menage-doublon-non-archive",
+      "commande": "ménage : un doublon n’est pas archivé par surs",
+      "config": {
+        "hote": "atelier",
+        "deploiement_serveurs": false,
+        "execution": {
+          "sandbox": "danger-full-access",
+          "approvalPolicy": "never"
+        },
+        "appServerFactice": "as.jsonl"
+      },
+      "avant": [
+        {
+          "fichier": "chats-app.json",
+          "contenu": "[{\"id\":\"D1\",\"titre\":\"🟣 CADRE · mon-api · refonte\",\"hote\":\"atelier\",\"archive\":false,\"maj\":\"2026-11-19T08:00:00Z\",\"dossier\":\"03 Cadrage & prototypes\"},{\"id\":\"D2\",\"titre\":\"🟣 CADRE · mon-api · refonte\",\"hote\":\"atelier\",\"archive\":false,\"maj\":\"2026-11-18T08:00:00Z\",\"dossier\":\"03 Cadrage & prototypes\"}]"
+        },
+        {
+          "fichier": "chats.json",
+          "contenu": "{\"D1\":{\"role\":\"CADRE\",\"objet\":\"refonte\",\"projet\":\"mon-api\",\"hote\":\"atelier\",\"statut\":\"actif\"},\"D2\":{\"role\":\"CADRE\",\"objet\":\"refonte\",\"projet\":\"mon-api\",\"hote\":\"atelier\",\"statut\":\"actif\"}}"
+        }
+      ],
+      "argv": [
+        "menage",
+        "appliquer",
+        "surs",
+        "--chats-fichier",
+        "chats-app.json"
+      ],
+      "attendu": {
+        "code": 0,
+        "contient": "\"en_attente_texte\": \"doublon:1\""
+      }
+    },
+    {
+      "id": "menage-aide-protege",
+      "commande": "ménage : ❓ AIDE n’est jamais archivé, même avec appliquer tout",
+      "config": {
+        "hote": "atelier",
+        "deploiement_serveurs": false,
+        "execution": {
+          "sandbox": "danger-full-access",
+          "approvalPolicy": "never"
+        },
+        "appServerFactice": "as.jsonl"
+      },
+      "avant": [
+        {
+          "fichier": "chats-app.json",
+          "contenu": "[{\"id\":\"A1\",\"titre\":\"❓ AIDE · workflow\",\"hote\":\"local\",\"archive\":false,\"maj\":\"2026-10-01T08:00:00Z\",\"dossier\":\"00 Accueil\"}]"
+        },
+        {
+          "fichier": "aide.json",
+          "contenu": "{\"chat_id\":\"A1\"}"
+        }
+      ],
+      "argv": [
+        "menage",
+        "appliquer",
+        "tout",
+        "--chats-fichier",
+        "chats-app.json"
+      ],
+      "attendu": {
+        "code": 0,
+        "contient": "\"applique_texte\": \"aucune\""
+      }
+    },
+    {
+      "id": "archi-titre-fixe",
+      "commande": "titre ARCHI : toujours « 🏛 ARCHI · workflow », projet et objet ignorés",
+      "argv": [
+        "titre",
+        "ARCHI",
+        "mon-api",
+        "refonte"
+      ],
+      "attendu": {
+        "code": 0,
+        "contient": "\"titre\": \"🏛 ARCHI · workflow\""
+      }
+    },
+    {
+      "id": "evolution-depuis-aide-ouvre-archi",
+      "commande": "$dev evolution lancé depuis ❓ AIDE (Luna) : rouvre le chat ARCHI enregistré",
+      "avant": [
+        {
+          "fichier": "chats.json",
+          "contenu": "{\"ARCHI1\":{\"role\":\"ARCHI\",\"titre\":\"🏛 ARCHI · workflow\",\"objet\":\"workflow\",\"projet\":\"workflow\",\"dossier\":\"00 Accueil\",\"modele\":\"claude-opus-5-5\",\"hote\":\"local\",\"statut\":\"actif\",\"derniere_activite\":\"2026-11-20T10:00:00Z\"}}"
+        }
+      ],
+      "argv": [
+        "lancer",
+        "evolution",
+        "routage",
+        "visuel",
+        "--depuis-modele",
+        "gpt-6-luna",
+        "--fiche",
+        "Paul : $dev evolution routage visuel"
+      ],
+      "attendu": {
+        "code": 0,
+        "contient": "\"chat\": \"ARCHI1\""
+      }
+    },
+    {
+      "id": "evolution-message-a-poster",
+      "commande": "$dev evolution : la réponse porte le message à poster dans ARCHI (fiche puis commande)",
+      "avant": [
+        {
+          "fichier": "chats.json",
+          "contenu": "{\"ARCHI1\":{\"role\":\"ARCHI\",\"titre\":\"🏛 ARCHI · workflow\",\"objet\":\"workflow\",\"projet\":\"workflow\",\"modele\":\"claude-opus-5-5\",\"hote\":\"local\",\"statut\":\"actif\"}}"
+        }
+      ],
+      "argv": [
+        "lancer",
+        "evolution",
+        "routage",
+        "visuel",
+        "--depuis-modele",
+        "gpt-6-luna",
+        "--fiche",
+        "Paul : nouveau routage visuel"
+      ],
+      "attendu": {
+        "code": 0,
+        "contient": "Paul : nouveau routage visuel\\n\\n$dev evolution routage visuel"
+      }
+    },
+    {
+      "id": "evolution-sans-doublon",
+      "commande": "$dev evolution deux fois sans chat ARCHI : bloc à coller la première fois, aucun doublon la seconde",
+      "avant": [
+        [
+          "lancer",
+          "evolution",
+          "essai",
+          "--depuis-modele",
+          "gpt-6-luna"
+        ]
+      ],
+      "argv": [
+        "lancer",
+        "evolution",
+        "autre",
+        "sujet",
+        "--depuis-modele",
+        "gpt-6-luna"
+      ],
+      "attendu": {
+        "code": 0,
+        "contient": "aucun doublon créé"
+      }
+    },
+    {
+      "id": "archi-absent-bloc",
+      "commande": "$dev archi sans chat ARCHI sur le poste : bloc à coller (titre, dossier 00 Accueil, Opus 5.5)",
+      "argv": [
+        "lancer",
+        "archi",
+        "--depuis-modele",
+        "gpt-6-luna"
+      ],
+      "attendu": {
+        "code": 0,
+        "contient": "\"action\": \"a_creer\""
+      }
+    },
+    {
+      "id": "archi-enregistrer-remplace",
+      "commande": "archi enregistrer : le chat créé à la main remplace l’entrée a_creer, puis evolution l’ouvre",
+      "avant": [
+        [
+          "lancer",
+          "archi",
+          "--depuis-modele",
+          "gpt-6-luna"
+        ],
+        [
+          "archi",
+          "enregistrer",
+          "T-ARCHI"
+        ]
+      ],
+      "argv": [
+        "lancer",
+        "evolution",
+        "x",
+        "--depuis-modele",
+        "gpt-6-luna"
+      ],
+      "attendu": {
+        "code": 0,
+        "contient": "\"chat\": \"T-ARCHI\""
+      }
+    },
+    {
+      "id": "evolution-sans-sujet",
+      "commande": "$dev evolution sans sujet : refusé",
+      "argv": [
+        "lancer",
+        "evolution",
+        "--depuis-modele",
+        "gpt-6-luna"
+      ],
+      "attendu": {
+        "code": 2,
+        "contient": "SUJET ABSENT"
+      }
+    },
+    {
+      "id": "archi-refuse-sur-atelier",
+      "commande": "$dev archi lancé sur atelier : refusé, le chat ARCHI vit sur le poste",
+      "config": {
+        "hote": "atelier",
+        "deploiement_serveurs": false
+      },
+      "argv": [
+        "lancer",
+        "archi",
+        "--depuis-modele",
+        "gpt-6-luna"
+      ],
+      "attendu": {
+        "code": 2,
+        "contient": "CHAT ARCHI SUR LE POSTE"
+      }
+    },
+    {
+      "id": "menage-archi-protege",
+      "commande": "ménage : 🏛 ARCHI dormant n’est jamais archivé, même avec appliquer tout",
+      "config": {
+        "hote": "atelier",
+        "deploiement_serveurs": false,
+        "execution": {
+          "sandbox": "danger-full-access",
+          "approvalPolicy": "never"
+        },
+        "appServerFactice": "as.jsonl"
+      },
+      "avant": [
+        {
+          "fichier": "chats-app.json",
+          "contenu": "[{\"id\":\"R1\",\"titre\":\"🏛 ARCHI · workflow\",\"hote\":\"local\",\"archive\":false,\"maj\":\"2026-10-01T08:00:00Z\",\"dossier\":\"Tasks\"}]"
+        },
+        {
+          "fichier": "chats.json",
+          "contenu": "{\"R1\":{\"role\":\"ARCHI\",\"titre\":\"🏛 ARCHI · workflow\",\"objet\":\"workflow\",\"projet\":\"workflow\",\"dossier\":\"00 Accueil\",\"hote\":\"local\",\"statut\":\"actif\"}}"
+        }
+      ],
+      "argv": [
+        "menage",
+        "appliquer",
+        "tout",
+        "--chats-fichier",
+        "chats-app.json"
+      ],
+      "attendu": {
+        "code": 0,
+        "contient": "\"applique_texte\": \"aucune\""
+      }
+    },
+    {
+      "id": "menage-archi-trop-lourd",
+      "commande": "ménage : 🏛 ARCHI au-delà du seuil est signalé trop lourd, à décider",
+      "config": {
+        "hote": "atelier",
+        "deploiement_serveurs": false,
+        "execution": {
+          "sandbox": "danger-full-access",
+          "approvalPolicy": "never"
+        },
+        "appServerFactice": "as.jsonl"
+      },
+      "avant": [
+        {
+          "fichier": "chats-app.json",
+          "contenu": "[{\"id\":\"R1\",\"titre\":\"🏛 ARCHI · workflow\",\"hote\":\"local\",\"archive\":false,\"maj\":\"2026-11-20T08:00:00Z\",\"dossier\":\"00 Accueil\"}]"
+        },
+        {
+          "fichier": "chats.json",
+          "contenu": "{\"R1\":{\"role\":\"ARCHI\",\"titre\":\"🏛 ARCHI · workflow\",\"objet\":\"workflow\",\"projet\":\"workflow\",\"dossier\":\"00 Accueil\",\"hote\":\"local\",\"statut\":\"actif\",\"taille_contexte\":400000}}"
+        }
+      ],
+      "argv": [
+        "menage",
+        "--chats-fichier",
+        "chats-app.json"
+      ],
+      "attendu": {
+        "code": 0,
+        "contient": "trop_lourd — contexte estimé 400k tokens : ARCHI écrit sa fiche de reprise"
+      }
+    },
+    {
+      "id": "menage-archi-hors-registre",
+      "commande": "ménage : un 🏛 ARCHI créé à la main hors registre est rattaché (action sûre)",
+      "config": {
+        "hote": "atelier",
+        "deploiement_serveurs": false,
+        "execution": {
+          "sandbox": "danger-full-access",
+          "approvalPolicy": "never"
+        },
+        "appServerFactice": "as.jsonl"
+      },
+      "avant": [
+        {
+          "fichier": "chats-app.json",
+          "contenu": "[{\"id\":\"R2\",\"titre\":\"🏛️ ARCHI · workflow\",\"hote\":\"local\",\"archive\":false,\"maj\":\"2026-11-20T08:00:00Z\",\"dossier\":\"00 Accueil\"}]"
+        }
+      ],
+      "argv": [
+        "menage",
+        "--chats-fichier",
+        "chats-app.json"
+      ],
+      "attendu": {
+        "code": 0,
+        "contient": "rattacher au registre (ARCHI · workflow)"
+      }
+    },
+    {
+      "id": "contrat-evolution",
+      "commande": "contrat de $dev evolution : archi.md, chat ARCHI",
+      "argv": [
+        "contrat",
+        "evolution"
+      ],
+      "attendu": {
+        "code": 0,
+        "contient": "\"chat\": \"ARCHI\""
+      }
+    },
+    {
+      "id": "livrer-sans-option-b",
+      "commande": "$dev livrer refusé si chat_local.option n'est pas « b »",
+      "config": {
+        "chat_local": {
+          "actif": false
+        }
+      },
+      "avant": [
+        [
+          "campagne",
+          "composer",
+          "livr",
+          "deployeur",
+          "DEV-9",
+          "--mode",
+          "supervise",
+          "--hote-livraison",
+          "local"
+        ]
+      ],
+      "argv": [
+        "livrer",
+        "livr"
+      ],
+      "attendu": {
+        "code": 6,
+        "contient": "LIVRAISON LOCALE INDISPONIBLE"
+      }
+    },
+    {
+      "id": "etat-chat-local-false",
+      "commande": "etat sur le poste avec chat_local.actif false : chats interactifs indisponibles",
+      "config": {
+        "chat_local": {
+          "actif": false,
+          "option": "b"
+        }
+      },
+      "argv": [
+        "etat"
+      ],
+      "attendu": {
+        "code": 0,
+        "contient": "\"chat_local\": \"indisponible : aucun chat interactif"
+      }
+    },
+    {
+      "id": "contexte-limites-admission",
+      "commande": "contexte d'une campagne : rappelle les limites d'admission actuelles",
+      "config": {
+        "admission": {
+          "dev_max": 6,
+          "lourdes_max": 4,
+          "lourdes_max_hote": 8
+        }
+      },
+      "avant": [
+        [
+          "campagne",
+          "composer",
+          "livr",
+          "deployeur",
+          "DEV-9",
+          "--mode",
+          "supervise",
+          "--hote-livraison",
+          "local"
+        ]
+      ],
+      "argv": [
+        "contexte",
+        "livr"
+      ],
+      "attendu": {
+        "code": 0,
+        "contient": "\"dev_max\": 6"
+      }
+    },
+    {
+      "id": "decision-globale-en-cours",
+      "commande": "decision-globale : ligne GLOBAL inscrite dans chaque campagne en cours, jamais dans un brouillon",
+      "avant": [
+        {
+          "fichier": "campagnes/a.json",
+          "contenu": "{\"id\":\"a\",\"projet\":\"mon-api\",\"mode\":\"auto\",\"statut\":\"en_cours\",\"items\":[]}"
+        },
+        {
+          "fichier": "campagnes/b.json",
+          "contenu": "{\"id\":\"b\",\"projet\":\"mon-api\",\"mode\":\"auto\",\"statut\":\"brouillon\",\"items\":[]}"
+        }
+      ],
+      "argv": [
+        "decision-globale",
+        "Paul : dev_max relevé à 6"
+      ],
+      "attendu": {
+        "code": 0,
+        "contient": "inscrit dans : a ; ignorées (pas en cours) : b"
+      }
+    },
+    {
+      "id": "decision-globale-sans-texte",
+      "commande": "decision-globale sans texte : refusé",
+      "argv": [
+        "decision-globale"
+      ],
+      "attendu": {
+        "code": 2,
+        "contient": "TEXTE ABSENT"
+      }
+    },
+    {
+      "id": "contexte-consigne-limites",
+      "commande": "contexte : la consigne commence par les limites en clair",
+      "config": {
+        "admission": {
+          "dev_max": 6,
+          "lourdes_max": 4,
+          "lourdes_max_hote": 8
+        }
+      },
+      "avant": [
+        [
+          "campagne",
+          "composer",
+          "livr",
+          "deployeur",
+          "DEV-9",
+          "--mode",
+          "supervise",
+          "--hote-livraison",
+          "local"
+        ]
+      ],
+      "argv": [
+        "contexte",
+        "livr"
+      ],
+      "attendu": {
+        "code": 0,
+        "contient": "\"consigne\": \"Limites d'admission actuelles sur cet hôte (poste.local.json) : 6 développements actifs et 4 charges lourdes par campagne, 8 sur l'hôte."
+      }
+    },
+    {
+      "id": "poste-relever-refuse-atelier",
+      "commande": "poste relever sur atelier : refusé, la relève se fait sur le poste",
+      "config": {
+        "hote": "atelier",
+        "deploiement_serveurs": false
+      },
+      "argv": [
+        "poste",
+        "relever"
+      ],
+      "attendu": {
+        "code": 6,
+        "contient": "PASSERELLE SUR LE POSTE"
+      }
+    },
+    {
+      "id": "poste-relever-inactive",
+      "commande": "poste relever sans passerelle active : rien ne se passe",
+      "argv": [
+        "poste",
+        "relever"
+      ],
+      "attendu": {
+        "code": 0,
+        "contient": "passerelle inactive"
+      }
+    },
+    {
+      "id": "poste-deposer-sans-fiche",
+      "commande": "poste deposer sans fiche : refusé",
+      "avant": [
+        [
+          "campagne",
+          "composer",
+          "livr",
+          "deployeur",
+          "DEV-9"
+        ]
+      ],
+      "argv": [
+        "poste",
+        "deposer",
+        "livr",
+        "DEV-9"
+      ],
+      "attendu": {
+        "code": 2,
+        "contient": "FICHE ABSENTE"
+      }
+    },
+    {
+      "id": "poste-file-vide",
+      "commande": "$dev poste : file vide, poste jamais vu",
+      "argv": [
+        "poste",
+        "file"
+      ],
+      "attendu": {
+        "code": 0,
+        "contient": "\"poste_vu_le\": null"
+      }
+    },
+    {
+      "id": "ligne-etat-brouillon",
+      "commande": "ligne-etat d’une campagne en brouillon",
+      "avant": [
+        [
+          "campagne",
+          "composer",
+          "livr",
+          "deployeur",
+          "DEV-9"
+        ]
+      ],
+      "argv": [
+        "ligne-etat",
+        "livr"
+      ],
+      "attendu": {
+        "code": 0,
+        "contient": "⏳ EN ATTENTE · campagne en brouillon, aucun agent lancé · Toi : valider le contrat, puis $dev campagne lancer livr"
+      }
+    },
+    {
+      "id": "etat-chats-tableau",
+      "commande": "$dev etat chats : dernière ligne d’état de chaque chat",
+      "avant": [
+        {
+          "fichier": "chats.json",
+          "contenu": "{\"C9\":{\"role\":\"CADRE\",\"titre\":\"🟣 CADRE · mon-api · refonte\",\"statut\":\"actif\",\"derniere_ligne\":\"⏳ EN ATTENTE · réponses de Paul au lot de questions · Toi : répondre au lot\"}}"
+        }
+      ],
+      "argv": [
+        "etat",
+        "chats"
+      ],
+      "attendu": {
+        "code": 0,
+        "contient": "🟣 CADRE · mon-api · refonte — ⏳ EN ATTENTE · réponses de Paul"
+      }
+    },
+    {
+      "id": "contrat-poste",
+      "commande": "contrat de $dev poste : poste.md",
+      "argv": [
+        "contrat",
+        "poste"
+      ],
+      "attendu": {
+        "code": 0,
+        "contient": "poste.md"
+      }
+    },
+    {
+      "id": "poste-retirer-sans-motif",
+      "commande": "poste retirer sans motif : refusé",
+      "argv": [
+        "poste",
+        "retirer",
+        "DEV-9"
+      ],
+      "attendu": {
+        "code": 2,
+        "contient": "MOTIF ABSENT"
+      }
+    },
+    {
+      "id": "poste-retirer-inconnue",
+      "commande": "poste retirer d’une tâche absente de la file : refusé",
+      "argv": [
+        "poste",
+        "retirer",
+        "DEV-9",
+        "--motif",
+        "recette tablette"
+      ],
+      "attendu": {
+        "code": 2,
+        "contient": "TÂCHE INCONNUE"
+      }
+    },
+    {
+      "id": "etat-chats-stdin",
+      "commande": "$dev etat chats : chats locaux passés sur l’entrée standard (AIDE n’écrit aucun fichier)",
+      "argv": [
+        "etat",
+        "chats",
+        "--chats-stdin"
+      ],
+      "attendu": {
+        "code": 0,
+        "contient": "\"tableau\": []"
+      }
+    }
+  ]
+}

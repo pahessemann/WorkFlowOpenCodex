@@ -1,0 +1,12 @@
+# Livraison depuis le poste — `$dev livrer <campagne> [--a-blanc]`
+
+Portée : une campagne à livraison locale (`hote_livraison: local`, projet de déploiement). Option (b) retenue par Paul le 20/11/2026 : une session `codex exec` en accès complet lance l'exécuteur déterministe `node <pilote> livraison-executer`, qui exécute les commandes du plan et rien d'autre. Réglage du poste : `chat_local.option: "b"` (autorise `$dev livrer`) et `chat_local.actif: false` (aucun chat interactif sur le poste).
+
+1. **Préparation sur atelier** (chat `🟠 SUP`) : le paquet, la procédure de retour arrière et `plan-livraison.md`, qui contient un bloc ````json livraison` : `cibles` (alias ssh, `chemin_disque`, `disque_min_gio`, commande `version`), `paquet` (chemin sur atelier, `sha256`), `retour_arriere.procedure`, `etapes` (`id`, `titre`, `cible`, `commande`, `retour`, `delai_s`), `verification` (`cible`, `commande`, `attendu`). Le chat passe à `⏸ GO`.
+2. **GO de Paul** : sur son instruction seulement, `node <pilote> livraison-go <campagne> <plan-livraison.md>` (sur atelier) enregistre l'empreinte SHA-256 du plan. Un GO ne sert qu'à une livraison réelle.
+3. **Depuis le poste uniquement** : `$dev livrer <campagne>`. Sur atelier, la commande est refusée (code 6). Elle refuse aussi sans GO, si le GO a déjà servi, ou si l'empreinte du plan a changé depuis le GO (`PLAN MODIFIÉ DEPUIS LE GO`).
+4. **Répétition à blanc d'abord**, à chaque lancement : accès SSH en `BatchMode` à chaque cible, espace disque, versions en place, présence et empreinte du paquet, présence de la procédure de retour arrière et d'un retour pour chaque étape. Un seul échec, et la livraison ne démarre pas. `--a-blanc` s'arrête après cette répétition : c'est le test sans déployer.
+5. **Livraison** : étapes du plan, dans l'ordre. À la première erreur, elle s'arrête sans correction ni nouvel essai, passe la campagne à `⛔ BLOQUÉ`, et poste dans le chat `🟠 SUP` l'étape atteinte et la commande de retour arrière correspondante, **sans l'exécuter**.
+6. **Poste éveillé** pendant toute l'exécution si `maintien_eveille` est vrai, puis relâché.
+7. **Suivi** : journal horodaté dans `livrables/livraison/<date>/` du dépôt (`journal.log`, `repetition-a-blanc.json`, `sorties.log`, `verification.json`, `session-codex.jsonl`). Son chemin est posté dans le chat `🟠 SUP` au démarrage, et un message de fin y est posté avec la vérification après livraison (santé des services, versions en place).
+

@@ -1,0 +1,115 @@
+{
+  "version": "2.5.1",
+  "hote": "local",
+  "fuseau": "Europe/Paris",
+  "deploiement_serveurs": true,
+  "etat": "C:\\Users\\<utilisateur>\\.pilote",
+  "worktrees": "D:\\worktrees",
+  "vault": "C:\\Users\\<utilisateur>\\Documents\\vault",
+  "ssh": {
+    "atelier": "atelier"
+  },
+  "windowsHide": true,
+  "tty": false,
+  "maintien_eveille": true,
+  "garde_disque_gio": 2,
+  "codexExecutable": "<chemin de codex.exe>",
+  "transportReveil": "app-server",
+  "execution": {
+    "sandbox": "danger-full-access",
+    "approvalPolicy": "never",
+    "reference": "réglage d'accès appliqué à chaque tour sur cet hôte"
+  },
+  "admission": {
+    "dev_max": 4,
+    "lourdes_max": 1
+  },
+  "projets": {
+    "mon-api": {
+      "chemin": "C:\\Users\\<utilisateur>\\Documents\\Work\\mon-api",
+      "branche_principale": "main",
+      "main_deploie": false,
+      "hors_git": [
+        "AGENTS.override.md"
+      ]
+    }
+  },
+  "modeles": {
+    "cerveau": "claude-opus-5-5",
+    "dev": [
+      "claude-opus-5-5",
+      "claude-sonnet-5-5"
+    ],
+    "controle": [
+      "claude-sonnet-5-5",
+      "gpt-6.2-sol"
+    ],
+    "ouvrier": [
+      "claude-haiku-5-5",
+      "gpt-6-luna"
+    ],
+    "lecteur": {
+      "jusqu_a_100k": "claude-haiku-5-5",
+      "au_dela": "claude-sonnet-5-5",
+      "fallback": "gpt-6.1-terra"
+    },
+    "second_regard": "gpt-6.2-astra",
+    "recours": "claude-fable-5-1",
+    "oeil": "claude-fable-5-1",
+    "reserve_paul": [
+      "claude-fable-5-2"
+    ],
+    "sous_agents": [
+      "claude-haiku-5-5",
+      "claude-opus-5-5",
+      "claude-fable-5-1",
+      "gpt-6-luna"
+    ],
+    "fable_autorise": false,
+    "catalogue": {
+      "claude-opus-5-5": "anthropic/claude-opus-5-5",
+      "claude-sonnet-5-5": "anthropic/claude-sonnet-5-5",
+      "claude-haiku-5-5": "anthropic/claude-haiku-5-5",
+      "claude-fable-5-1": "anthropic/claude-fable-5-1",
+      "claude-fable-5-2": "anthropic/claude-fable-5-2"
+    },
+    "aide": "gpt-6-luna",
+    "archi": "claude-opus-5-5"
+  },
+  "contexte": {
+    "resume_large_max_tokens": 8000,
+    "log_brut_max_tokens": 2000
+  },
+  "pilote": "C:\\Users\\<utilisateur>\\.agents\\skills\\dev\\scripts\\pilote.mjs",
+  "pilote_atelier": "/home/utilisateur/.agents/skills/dev/scripts/pilote.mjs",
+  "chat_local": {
+    "actif": false,
+    "option": "b",
+    "note": "aucun chat interactif sur le poste ; la livraison passe par $dev livrer (session codex exec)"
+  },
+  "registre_distant": "atelier",
+  "chats": {
+    "seuil_contexte": 300000,
+    "dormant_jours": 14,
+    "archive_apres_jours": 7
+  },
+  "menage": {
+    "hebdo": "lundi 08:00"
+  },
+  "passerelle": {
+    "actif": true,
+    "intervalle_min": 10,
+    "delai_max_min": 180,
+    "dossier_travail": "D:\\passerelle-poste"
+  },
+  "taches_planifiees": [
+    {
+      "nom": "pilote-poste-passerelle",
+      "frequence": "à l'ouverture de session, au déverrouillage, puis toutes les 10 minutes",
+      "role": "relève la file des tests Windows du VPS",
+      "commande": "node <pilote> poste relever",
+      "cachee": true,
+      "protegee": true
+    }
+  ]
+}
