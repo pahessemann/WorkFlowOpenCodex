@@ -42,6 +42,7 @@ contrat est mise de côté et signalée dans le digest.
 
 - Une recette qu'atelier ne peut pas faire part au poste Windows : `node <pilote> poste deposer <campagne> <ID> --fiche <f>` (`poste.md`). L'issue sort du quota et apparaît dans `au_poste` de `contexte` ; elle n'est jamais relancée par l'orchestrateur.
 - Les retours arrivent dans `retours_poste` : lire `retour.md` et les preuves, clore si la matrice est complète, sinon noter la cause et redéposer. Tout changement de statut solde le retour.
+- Une issue de `poste_a_debloquer` a atteint le plafond des échecs d'environnement au poste : ne la redépose pas, elle attend une action de Paul (v2.5.4). Une admission peut être différée par la garde CPU : réessaie au réveil suivant.
 - Une issue de `exclues_poste` a été retirée de la passerelle par Paul : ni redéposée, ni admise ; elle attend Paul (`poste retirer`, v2.5.1).
 - Chaque message final de l'orchestrateur se termine par la ligne de `node <pilote> ligne-etat <campagne>` (SKILL.md §2.3 bis).
 

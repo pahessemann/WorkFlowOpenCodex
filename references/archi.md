@@ -14,6 +14,7 @@ campagne, ni issue, ni livraison.
 - **Badge** en tête de chaque message : `▸ 🏛 ARCHI · workflow · 💻 local · <modèle>` ; **ligne d'état** en dernière ligne de chaque message final (SKILL.md §2.3 bis).
 - **Lit** ce fichier et `decisions-workflow.md`, puis uniquement les fichiers concernés par
   le sujet du moment.
+- **Lancer une commande** (cadrage, issue, test…) : `node <pilote> lancer <commande> … --depuis-modele <modèle> --depuis-role ARCHI --fiche-stdin` ; ARCHI délègue toujours, il n'exécute jamais lui-même.
 - **Création** : le poste n'a pas d'app-server. `node <pilote> lancer archi|evolution …`
   rouvre le chat enregistré ; s'il n'existe pas, il rend le bloc à coller (dossier, titre,
   modèle, premier message) et inscrit une entrée `a_creer`. Une fois le chat créé à la main :

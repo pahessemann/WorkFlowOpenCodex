@@ -47,6 +47,22 @@ Pour une tâche que le poste ne doit pas faire (ex. recette sur tablette physiqu
 - la ligne d'état de la campagne dit « Toi : à faire par toi : <ID> (<motif>) », et `⏸ À TOI` quand il ne
   reste que cette part.
 
+## Automatismes de la passerelle (v2.5.4)
+
+- **Imprimante** : pendant chaque tâche, la passerelle met « Microsoft Print to PDF » par défaut, puis
+  restaure l'imprimante d'origine, même si la session échoue (`finally`). Le retour le note. Si l'imprimante
+  PDF manque, rien ne change et le retour le signale. Jamais d'imprimante physique. Réglage :
+  `passerelle.imprimante_pdf` (vrai par défaut).
+- **Plafond des échecs d'environnement** : chaque retour `environnement` incrémente `poste_env_echecs` de
+  l'issue (cause tirée du retour) ; un retour `ok` le remet à zéro. À `passerelle.max_echecs_env` (2), un
+  nouveau dépôt est refusé (`POSTE À DÉBLOQUER`), l'issue apparaît dans `poste_a_debloquer` de `contexte`,
+  et la ligne d'état dit « Toi : débloquer le poste pour <ID> (<cause>) ». Après l'action de Paul :
+  `poste deposer … --forcer`, qui remet le compteur à zéro.
+- **Rendu hors file** : un résultat produit à la main sur le poste se rend en une commande, depuis le poste :
+  `node <pilote> poste rendre --issue <ID> --campagne <nom> --resultat ok|echec|environnement --retour-stdin --preuves <dossier>`.
+  La tâche existante est reprise, sinon une tâche « hors passerelle » est créée (jamais relevée ni remise
+  en file) ; les preuves sont copiées sur atelier avant le rendu.
+
 ## Retour
 
 - `ok` ou `echec` ou `environnement` ; l'issue passe à `poste: retour` et apparaît dans

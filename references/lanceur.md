@@ -7,7 +7,7 @@
 - les commandes déterministes (`digest`, `etat`, `modele`, `aide`, `livrer`, `campagne`, `pause`, `reprendre`, `poste`) s'exécutent sur place, sans modèle.
 - `archi` et `evolution` visent le chat fixe `🏛 ARCHI · workflow` (v2.4, `archi.md`) : pas de routeur. Le chat ARCHI enregistré (y compris en `a_creer`) est toujours rouvert, jamais doublé ; pour `evolution`, la réponse porte le message à y poster (`poster` : fiche de lancement, puis la commande). Sans chat ARCHI : bloc à coller et entrée `a_creer` sur le poste, refus `CHAT ARCHI SUR LE POSTE` sur atelier.
 
-Le chat lanceur ne fait que lancer : il ne cadre pas et ne code pas.
+Le chat lanceur ne fait que lancer : il ne cadre pas et ne code pas. **ARCHI** lance toujours avec `--depuis-role ARCHI` : jamais `executer_ici`, même si son modèle est celui du routeur (v2.5.4).
 
 ## `node <pilote> lancer <commande> [arguments] --depuis-modele <modèle du chat> --fiche-stdin [--projet <p>] [--criticite <c>] [--garder <chat> | --nouveau]`
 

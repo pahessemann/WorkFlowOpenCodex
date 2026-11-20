@@ -1,6 +1,6 @@
 {
-  "version": "2.5.3",
-  "description": "Évaluations du workflow $dev v2.5.3 : un cas par commande, plus les cas limites. Exécuter : node scripts/evals.mjs",
+  "version": "2.5.4",
+  "description": "Évaluations du workflow $dev v2.5.4 : un cas par commande, plus les cas limites. Exécuter : node scripts/evals.mjs",
   "cas": [
     {
       "id": "composer",
@@ -1923,6 +1923,67 @@
       "attendu": {
         "code": 0,
         "contient": "\"tableau\": []"
+      }
+    },
+    {
+      "id": "lanceur-archi-delegue",
+      "commande": "lancer depuis ARCHI (Opus) : jamais exécuté sur place, même si le modèle est celui du routeur",
+      "argv": [
+        "lancer",
+        "cadrage",
+        "transition-paquets",
+        "--depuis-modele",
+        "claude-opus-5-5",
+        "--depuis-role",
+        "ARCHI",
+        "--fiche",
+        "Paul : cadrer la transition"
+      ],
+      "attendu": {
+        "code": 0,
+        "contient": "\"action\": \"a_creer\""
+      }
+    },
+    {
+      "id": "lanceur-opus-execute-ici",
+      "commande": "lancer depuis un chat Opus qui n’est pas ARCHI : exécution sur place",
+      "argv": [
+        "lancer",
+        "cadrage",
+        "transition-paquets",
+        "--depuis-modele",
+        "claude-opus-5-5",
+        "--fiche",
+        "x"
+      ],
+      "attendu": {
+        "code": 0,
+        "contient": "\"action\": \"executer_ici\""
+      }
+    },
+    {
+      "id": "poste-rendre-sans-issue",
+      "commande": "poste rendre sans tâche ni issue : refusé",
+      "argv": [
+        "poste",
+        "rendre",
+        "--resultat",
+        "ok"
+      ],
+      "attendu": {
+        "code": 2,
+        "contient": "ISSUE ABSENTE"
+      }
+    },
+    {
+      "id": "etat-garde-cpu",
+      "commande": "etat affiche la garde CPU",
+      "argv": [
+        "etat"
+      ],
+      "attendu": {
+        "code": 0,
+        "contient": "\"garde_cpu_pct\": 40"
       }
     }
   ]

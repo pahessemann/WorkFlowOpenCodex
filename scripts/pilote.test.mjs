@@ -337,3 +337,66 @@ test('ligne d’état : un poste qui exécute une tâche n’est pas déclaré a
   P.postePrendre(at, { maintenant: new Date(Date.now() - 2 * 3600000) });
   assert.match(P.ligneEtat(at, 'k').ligne, /Toi : rien$/, 'poste occupé depuis 2 h : présent');
 });
+
+test('passerelle 2.5.4 : imprimante PDF basculée puis restaurée, même si la session échoue ; absente : défaut inchangé', () => {
+  const at = configTest({ hote: 'atelier', deploiement_serveurs: false });
+  const fa = path.join(at.etat, 'atelier.json'); fs.writeFileSync(fa, JSON.stringify(at));
+  fs.mkdirSync(path.join(at.etat, 'campagnes'), { recursive: true });
+  fs.writeFileSync(path.join(at.etat, 'campagnes', 'k.json'), JSON.stringify({ id: 'k', projet: 'p', mode: 'auto', statut: 'en_cours', items: [{ type: 'issue_standalone', linear_id: 'DEV-1', statut: 'recette', blocked_by: [] }] }));
+  const imp = path.join(at.etat, 'imprimantes.json'); fs.writeFileSync(imp, JSON.stringify({ defaut: 'HP physique', liste: ['HP physique', 'Microsoft Print to PDF'] }));
+  const session = path.join(at.etat, 'session.mjs');
+  fs.writeFileSync(session, "import fs from 'node:fs'; import path from 'node:path'; const consigne = fs.readFileSync(0, 'utf8'); const imp = JSON.parse(fs.readFileSync(process.env.IMP, 'utf8')); fs.writeFileSync(path.join(process.env.PASSERELLE_TRAVAIL, 'pendant.json'), JSON.stringify({ defaut: imp.defaut, consigne: consigne.includes('la passerelle a déjà mis') })); process.exit(3);");
+  process.env.IMP = imp;
+  const po = configTest({ hote: 'local', atelier_simule: fa, passerelle: { actif: true, dossier_travail: path.join(at.etat, 'travail'), commande_test: [process.execPath, session], imprimante_simulee: imp } });
+  P.posteDeposer(at, 'k', 'DEV-1', { fiche: 'Tests PDF' });
+  const r = P.posteRelever(po);
+  const pendant = JSON.parse(fs.readFileSync(path.join(r.travail, 'pendant.json'), 'utf8'));
+  assert.deepEqual(pendant, { defaut: 'Microsoft Print to PDF', consigne: true }, 'PDF par défaut pendant la tâche, et la consigne le dit');
+  assert.equal(JSON.parse(fs.readFileSync(imp, 'utf8')).defaut, 'HP physique', 'restaurée malgré l’échec de la session');
+  assert.equal(r.resultat, 'environnement'); assert.match(r.imprimante, /restaurée : oui/);
+  fs.writeFileSync(imp, JSON.stringify({ defaut: 'HP physique', liste: ['HP physique'] }));
+  const b = P.basculerImprimante(po); b.restaurer(); assert.match(b.note, /absente du poste/); assert.equal(JSON.parse(fs.readFileSync(imp, 'utf8')).defaut, 'HP physique');
+});
+
+test('passerelle 2.5.4 : plafond des échecs d’environnement, levée par --forcer ou par un résultat ok', () => {
+  const at = configTest({ hote: 'atelier', deploiement_serveurs: false });
+  fs.mkdirSync(path.join(at.etat, 'campagnes'), { recursive: true });
+  fs.writeFileSync(path.join(at.etat, 'campagnes', 'k.json'), JSON.stringify({ id: 'k', projet: 'p', mode: 'auto', statut: 'en_cours', items: [{ type: 'issue_standalone', linear_id: 'DEV-3', statut: 'recette', blocked_by: [] }] }));
+  const tour = (res) => { P.posteDeposer(at, 'k', 'DEV-3', { fiche: 'f' }); return P.posteRendre(at, P.postePrendre(at).tache.id, { resultat: res, retour: '- Anomalie 1 : 403 sur les paquets, jeton read:packages absent\n- Verdict : bloqué' }); };
+  assert.equal(tour('environnement').echecs_environnement, 1);
+  P.statutIssue(at, 'k', 'DEV-3', 'recette'); const r2 = tour('environnement'); assert.equal(r2.a_debloquer_par_paul, true);
+  P.statutIssue(at, 'k', 'DEV-3', 'recette');
+  assert.equal(code(() => P.posteDeposer(at, 'k', 'DEV-3', { fiche: 'f' })), 'POSTE À DÉBLOQUER');
+  assert.match(P.ligneEtat(at, 'k').ligne, /Toi : débloquer le poste pour DEV-3 \(Anomalie 1 : 403 sur les paquets/);
+  assert.match(P.contexte(at, 'k').poste_a_debloquer[0], /^DEV-3 : 2 échecs/);
+  P.posteDeposer(at, 'k', 'DEV-3', { fiche: 'f', forcer: true }); assert.equal(P.issues(P.lireCampagne(at, 'k'))[0].poste_env_echecs, undefined, '--forcer remet le compteur à zéro');
+  P.posteRendre(at, P.postePrendre(at).tache.id, { resultat: 'environnement', retour: 'x' }); P.statutIssue(at, 'k', 'DEV-3', 'recette');
+  P.posteDeposer(at, 'k', 'DEV-3', { fiche: 'f' }); P.posteRendre(at, P.postePrendre(at).tache.id, { resultat: 'ok', retour: 'ok' });
+  assert.equal(P.issues(P.lireCampagne(at, 'k'))[0].poste_env_echecs, undefined, 'un résultat ok remet le compteur à zéro');
+});
+
+test('passerelle 2.5.4 : poste rendre --issue depuis le poste, sans tâche préalable, preuves déposées ; jamais remise en file', () => {
+  const at = configTest({ hote: 'atelier', deploiement_serveurs: false });
+  const fa = path.join(at.etat, 'atelier.json'); fs.writeFileSync(fa, JSON.stringify(at));
+  fs.mkdirSync(path.join(at.etat, 'campagnes'), { recursive: true });
+  fs.writeFileSync(path.join(at.etat, 'campagnes', 'k.json'), JSON.stringify({ id: 'k', projet: 'p', mode: 'auto', statut: 'en_cours', items: [{ type: 'issue_standalone', linear_id: 'DEV-4', statut: 'revue', blocked_by: [] }] }));
+  const preuves = path.join(at.etat, 'manuel', 'retour'); fs.mkdirSync(preuves, { recursive: true }); fs.writeFileSync(path.join(preuves, 'matrice.json'), '[]');
+  const po = configTest({ hote: 'local', atelier_simule: fa });
+  assert.equal(code(() => P.posteRendre(po, null, { resultat: 'ok', retour: 'x' })), 'ATELIER INJOIGNABLE', 'sans issue ni tâche : refus d’atelier (ISSUE ABSENTE)');
+  const r = P.posteRendre(po, null, { resultat: 'ok', retour: 'DEV-4 : recette Windows ok', issue: 'DEV-4', campagne: 'k', preuves });
+  assert.equal(r.tache_creee, true); assert.equal(r.preuves_deposees, true);
+  assert.ok(fs.existsSync(path.join(at.etat, 'poste', 'retours', r.tache, 'preuves', 'matrice.json')));
+  assert.equal(P.contexte(at, 'k').retours_poste[0].issue, 'DEV-4');
+  assert.equal(P.postePrendre(at, { maintenant: new Date(Date.now() + 9 * 3600000) }).tache, null, 'une tâche hors passerelle n’est jamais relevée');
+});
+
+test('admission 2.5.4 : garde CPU sur l’attente moyenne à 60 s ; une issue déjà active n’est pas concernée', () => {
+  const f = path.join(os.tmpdir(), 'pression-' + process.pid);
+  const c = configTest({ admission: { dev_max: 15, lourdes_max: 4, garde_cpu_pct: 40, pression_cpu_fichier: f } });
+  fs.writeFileSync(f, 'some avg10=60.00 avg60=55.20 avg300=30.00 total=1\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=0\n');
+  assert.equal(code(() => P.gardeCpu(c, { statut: 'en_attente' })), 'ADMISSION DIFFÉRÉE');
+  assert.equal(P.gardeCpu(c, { statut: 'revue' }), null);
+  fs.writeFileSync(f, 'some avg10=5.00 avg60=12.50 avg300=10.00 total=1\n'); assert.equal(P.gardeCpu(c, { statut: 'en_attente' }), 12.5);
+  assert.match(P.limitesTexte(c), /attente CPU dépasse 40 %/);
+  fs.rmSync(f, { force: true });
+});

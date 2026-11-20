@@ -1,5 +1,9 @@
 # Changelog du socle public
 
+## 2.5.4 — 20/11/2026
+
+Passerelle poste : imprimante PDF basculée et restaurée automatiquement, plafond des échecs d’environnement, rendu d’un résultat produit à la main. Garde CPU à l’admission. ARCHI délègue toujours au lanceur. 86 évaluations, 46 tests.
+
 ## 2.5.3 — 20/11/2026
 
 Plus de développements en parallèle par campagne ; plafond des charges lourdes de l’hôte inchangé, car c’est lui qui protège le CPU.

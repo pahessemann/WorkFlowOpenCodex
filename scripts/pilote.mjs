@@ -15,7 +15,7 @@ export const ETATS_ISSUE = ['en_attente', 'preflight', 'en_cours', 'revue', 'rec
 export const ETATS_CAMPAGNE = ['brouillon', 'en_cours', 'en_pause', 'close'];
 export const CRITICITES = ['leger', 'standard', 'sensible'];
 export const MAX_ESSAIS = 3;
-export const VERSION = '2.5.3';
+export const VERSION = '2.5.4';
 const PASTILLES = { AUTO: '🟢', SUP: '🟠', MS: '🔷', DEV: '🔵', CADRE: '🟣', PROTO: '🎨', TEST: '🧪', RELAIS: '⚙️', BILAN: '📘', AIDE: '❓', ARCHI: '🏛' };
 const DOSSIERS = { AUTO: '01 Campagnes', SUP: '01 Campagnes', MS: '01 Campagnes', DEV: '02 Développement', CADRE: '03 Cadrage & prototypes', PROTO: '03 Cadrage & prototypes', TEST: '04 Relais & maintenance', RELAIS: '04 Relais & maintenance', BILAN: '04 Relais & maintenance', AIDE: '00 Accueil', ARCHI: '00 Accueil' };
 export const TITRE_ARCHI = '🏛 ARCHI · workflow';
@@ -216,7 +216,7 @@ export function essai(cfg, nom, id, resultat) {
 }
 export function reprise(cfg, nom, id, sha, branche) { return modifierCampagne(cfg, nom, (c) => { const i = trouverIssue(c, id); i.sha_reprise = sha; i.branche_reprise = branche; return { issue: id, sha_reprise: sha, branche_reprise: branche }; }); }
 // Limites d'admission en clair : message de reprise, digest et contexte (v2.4.3).
-export function limitesTexte(cfg) { const a = cfg.admission || {}; return 'Limites d\'admission actuelles sur cet hôte (poste.local.json) : ' + (a.dev_max || 4) + ' développements actifs et ' + (a.lourdes_max || 1) + ' charges lourdes par campagne' + (a.lourdes_max_hote ? ', ' + a.lourdes_max_hote + ' sur l\'hôte' : '') + '. Elles priment sur les chiffres de ta consigne initiale et sur toute décision antérieure du journal ; une place libre sous ces limites s\'utilise sans attendre.'; }
+export function limitesTexte(cfg) { const a = cfg.admission || {}; return 'Limites d\'admission actuelles sur cet hôte (poste.local.json) : ' + (a.dev_max || 4) + ' développements actifs et ' + (a.lourdes_max || 1) + ' charges lourdes par campagne' + (a.lourdes_max_hote ? ', ' + a.lourdes_max_hote + ' sur l\'hôte' : '') + '. Elles priment sur les chiffres de ta consigne initiale et sur toute décision antérieure du journal ; une place libre sous ces limites s\'utilise sans attendre. Admission différée tant que l\'attente CPU dépasse ' + (a.garde_cpu_pct ?? 40) + ' % sur 60 s (pilote.mjs le refuse lui-même).'; }
 // Ligne GLOBAL inscrite par 🏛 ARCHI dans le journal de chaque campagne en cours, après un GO de Paul (archi.md).
 export function decisionGlobale(cfg, texte) { if (!String(texte || '').trim()) refuser('TEXTE ABSENT', 'usage : pilote.mjs decision-globale <texte> | --texte-stdin'); const toutes = listerCampagnes(cfg); const enCours = toutes.filter((c) => c.statut === 'en_cours').map((c) => c.id); const ignorees = toutes.filter((c) => c.statut !== 'en_cours').map((c) => c.id);
   for (const n of enCours) decision(cfg, n, 'GLOBAL', texte); return { inscrit: enCours, ignorees, resume: 'inscrit dans : ' + (enCours.join(', ') || 'aucune') + ' ; ignorées (pas en cours) : ' + (ignorees.join(', ') || 'aucune') }; }
@@ -224,7 +224,7 @@ export function decision(cfg, nom, id, texte) { lireCampagne(cfg, nom); const f 
 export function contexte(cfg, nom) {
   const c = lireCampagne(cfg, nom); const l = issues(c); const par = {};
   for (const i of l) (par[i.statut] ||= []).push(i.linear_id + (i.sha_reprise ? '@reprise:' + i.sha_reprise.slice(0, 8) : '') + (i.attempts ? ' essais:' + i.attempts : ''));
-  return { campagne: c.id, projet: c.projet, mode: c.mode, statut: c.statut, signalements: signalementsLivraison(cfg, c), hote_execution: c.hote_execution, ...avancement(c), par_statut: par, admission: { dev_max: cfg.admission?.dev_max || 4, lourdes_max: cfg.admission?.lourdes_max || 1, ...(cfg.admission?.lourdes_max_hote ? { lourdes_max_hote: cfg.admission.lourdes_max_hote } : {}), regle: limitesTexte(cfg) }, a_relancer: l.filter((i) => ACTIFS_ISSUE.includes(i.statut) && !auPoste(i)).map((i) => i.linear_id), exclues_poste: l.filter((i) => i.poste_exclu && i.statut !== 'close').map((i) => i.linear_id + ' : ' + i.poste_exclu), au_poste: l.filter(auPoste).map((i) => i.linear_id + ' (' + i.poste + ')'), retours_poste: l.filter((i) => i.poste === 'retour').map((i) => ({ issue: i.linear_id, resultat: i.poste_resultat, retour: i.poste_retour })), ligne_etat: ligneEtat(cfg, nom).ligne, a_recetter: l.filter((i) => i.statut === 'fusionnee').map((i) => i.linear_id), consigne: limitesTexte(cfg) + ' Aucun agent concurrent : relancer seulement les issues listées dans a_relancer, depuis leur fiche ; chaque issue de a_recetter reçoit sa recette propre (critères de sa fiche, charge lourde), puis passe à close si elle réussit. Une issue de au_poste attend le poste Windows : ne la relance pas. Chaque retour de retours_poste : lis retour.md et les preuves, clos l’issue si la matrice est complète, sinon note la cause (pilote.mjs decision) et redépose-la (pilote.mjs poste deposer) ; tout changement de statut solde le retour. Une issue de exclues_poste attend Paul (motif indiqué) : ne la redépose pas au poste et ne l’admets pas.' };
+  return { campagne: c.id, projet: c.projet, mode: c.mode, statut: c.statut, signalements: signalementsLivraison(cfg, c), hote_execution: c.hote_execution, ...avancement(c), par_statut: par, admission: { dev_max: cfg.admission?.dev_max || 4, lourdes_max: cfg.admission?.lourdes_max || 1, ...(cfg.admission?.lourdes_max_hote ? { lourdes_max_hote: cfg.admission.lourdes_max_hote } : {}), regle: limitesTexte(cfg) }, a_relancer: l.filter((i) => ACTIFS_ISSUE.includes(i.statut) && !auPoste(i)).map((i) => i.linear_id), exclues_poste: l.filter((i) => i.poste_exclu && i.statut !== 'close').map((i) => i.linear_id + ' : ' + i.poste_exclu), poste_a_debloquer: l.filter((i) => aDebloquerPoste(cfg, i)).map((i) => i.linear_id + ' : ' + i.poste_env_echecs + ' échecs d’environnement (' + (i.poste_env_cause || 'voir le retour') + ')'), au_poste: l.filter(auPoste).map((i) => i.linear_id + ' (' + i.poste + ')'), retours_poste: l.filter((i) => i.poste === 'retour').map((i) => ({ issue: i.linear_id, resultat: i.poste_resultat, retour: i.poste_retour })), ligne_etat: ligneEtat(cfg, nom).ligne, a_recetter: l.filter((i) => i.statut === 'fusionnee').map((i) => i.linear_id), consigne: limitesTexte(cfg) + ' Aucun agent concurrent : relancer seulement les issues listées dans a_relancer, depuis leur fiche ; chaque issue de a_recetter reçoit sa recette propre (critères de sa fiche, charge lourde), puis passe à close si elle réussit. Une issue de au_poste attend le poste Windows : ne la relance pas. Chaque retour de retours_poste : lis retour.md et les preuves, clos l’issue si la matrice est complète, sinon note la cause (pilote.mjs decision) et redépose-la (pilote.mjs poste deposer) ; tout changement de statut solde le retour. Une issue de exclues_poste attend Paul (motif indiqué) : ne la redépose pas au poste et ne l’admets pas. Une issue de poste_a_debloquer attend une action de Paul sur le poste : ne la redépose pas (pilote.mjs le refuse).' };
 }
 export function digest(cfg, nom) {
   const c = lireCampagne(cfg, nom); const l = issues(c); const depuis = Date.now() - 86400000;
@@ -312,6 +312,7 @@ export function ouvrir(cfg, nom, id, { compte, fiche, livrable, aBlanc } = {}) {
   }
   if (aBlanc) return { issue: id, nature, a_blanc: true, routage, reparations, signalements, statut: i.statut };
   if (i.poste_exclu) refuser('ADMISSION DIFFÉRÉE', id + ' attend Paul : ' + i.poste_exclu, 5);
+  gardeCpu(cfg, i);
   const l = issues(c), actifs = actifsAdmission(l, id);
   if (actifs.length >= (cfg.admission.dev_max || 4)) refuser('ADMISSION DIFFÉRÉE', 'limite de ' + cfg.admission.dev_max + ' développements actifs atteinte', 5);
   const ouvertes = (i.blocked_by || []).filter((d) => !['fusionnee', 'close'].includes(l.find((x) => x.linear_id === d)?.statut));
@@ -528,13 +529,13 @@ function registresFusionnes(cfg) {
   if (!cfg.registre_distant) return local;
   try { const d = viaAtelier(cfg, ['chats']); return { ...Object.fromEntries(Object.entries(d).map(([k, v]) => [k, { ...v, chat_id: k, hote: v.hote || 'atelier' }])), ...local }; } catch { return local; }
 }
-export async function lancerCommande(cfg, { commande, args = [], depuisModele = null, fiche = '', projet = null, criticite = null, garder = null, nouveau = false }) {
+export async function lancerCommande(cfg, { commande, args = [], depuisModele = null, depuisRole = null, fiche = '', projet = null, criticite = null, garder = null, nouveau = false }) {
   const spec = LANCEUR[commande]; if (!spec) refuser('COMMANDE INCONNUE', '$dev ' + commande);
   if (spec.fixe) return lancerArchi(cfg, { commande, args, fiche });
   const ligneCommande = '$dev ' + [commande, ...args].join(' ');
   if (spec.direct) return { action: 'executer_ici', commande: ligneCommande, consigne: 'commande déterministe : node <pilote> ' + [commande, ...args].join(' ') + ', aucun modèle requis' };
   const r = router(cfg, { tache: spec.tache, criticite: spec.criticite || criticite || 'standard' });
-  const ici = depuisModele && String(depuisModele).replace(/^[a-z]+\//, '') === r.modele;
+  const ici = depuisModele && String(depuisModele).replace(/^[a-z]+\//, '') === r.modele && String(depuisRole || '').toUpperCase() !== 'ARCHI'; // ARCHI conçoit et délègue : il n'exécute jamais une commande lui-même
   if (ici) return { action: 'executer_ici', commande: ligneCommande, modele: r.modele, consigne: 'le modèle du chat courant est celui du routeur : exécuter ici' };
   const resume = String(fiche || '').split('\n').filter((l) => l.trim()).slice(0, 15).join('\n');
   if (spec.inline) {
@@ -935,7 +936,7 @@ export function contrat(commande) {
 export function etat(cfg, nom) {
   const libre = os.freemem() / 2 ** 30; let disque = null;
   try { const s = fs.statfsSync(cfg.etat); disque = Math.round((s.bavail * s.bsize) / 2 ** 30 * 100) / 100; } catch {}
-  const base = { pilote: cfg.pilote || null, pilote_existe: !!cfg.pilote && fs.existsSync(cfg.pilote), hote: cfg.hote, deploiement_serveurs: !!cfg.deploiement_serveurs, ram_libre_gio: Math.round(libre * 100) / 100, disque_etat_libre_gio: disque, garde_disque_gio: cfg.garde_disque_gio || null, sous_agents: cfg.modeles.sous_agents || [], admission: cfg.admission, chat_local: chatLocalDisponible(cfg) ? 'disponible' : 'indisponible : ' + MESSAGE_CHAT_LOCAL, taches_planifiees: etatTaches(cfg), passerelle: (() => { try { return posteFile(cfg); } catch (e) { return { erreur: e.message }; } })() };
+  const base = { pilote: cfg.pilote || null, pilote_existe: !!cfg.pilote && fs.existsSync(cfg.pilote), hote: cfg.hote, deploiement_serveurs: !!cfg.deploiement_serveurs, ram_libre_gio: Math.round(libre * 100) / 100, disque_etat_libre_gio: disque, garde_disque_gio: cfg.garde_disque_gio || null, sous_agents: cfg.modeles.sous_agents || [], admission: cfg.admission, chat_local: chatLocalDisponible(cfg) ? 'disponible' : 'indisponible : ' + MESSAGE_CHAT_LOCAL, taches_planifiees: etatTaches(cfg), pression_cpu_60s: pressionCpu(cfg), garde_cpu_pct: cfg.admission?.garde_cpu_pct ?? 40, passerelle: (() => { try { return posteFile(cfg); } catch (e) { return { erreur: e.message }; } })() };
   if (nom) return { ...base, campagne: contexte(cfg, nom) };
   return { ...base, campagnes: listerCampagnes(cfg).map((c) => ({ id: c.id, statut: c.statut, mode: c.mode, ...avancement(c), titre: titreCampagne(c).titre })) };
 }
@@ -1030,7 +1031,9 @@ export function ligneEtat(cfg, nom) {
   const bloquees = l.filter((i) => i.statut === 'bloquee'); const attente = l.filter((i) => i.statut === 'en_attente' && !i.poste_exclu);
   const eligibles = attente.filter((i) => (i.blocked_by || []).every((d) => ['fusionnee', 'close'].includes(st[d] || 'close')));
   const noteBloq = bloquees.length ? ' ; ⛔ ' + bloquees.length + ' bloquée(s) : ' + liste(bloquees) : '';
-  const toiPaul = exclus.length ? 'à faire par toi : ' + exclus.slice(0, 2).map((i) => i.linear_id + ' (' + i.poste_exclu + ')').join(', ') : 'rien';
+  const debloquer = l.filter((i) => aDebloquerPoste(cfg, i));
+  const toiParts = [...(exclus.length ? ['à faire par toi : ' + exclus.slice(0, 2).map((i) => i.linear_id + ' (' + i.poste_exclu + ')').join(', ')] : []), ...(debloquer.length ? ['débloquer le poste pour ' + debloquer.slice(0, 2).map((i) => i.linear_id + ' (' + (i.poste_env_cause || 'voir le retour') + ')').join(', ')] : [])];
+  const toiPaul = toiParts.length ? toiParts.join(' ; ') : 'rien';
   const vu = lireJson(path.join(cfg.etat, 'poste', 'vu.json'), null); const posteOccupe = lireTaches(cfg).some((t) => t.statut === 'en_cours'); const posteAbsent = !posteOccupe && (!vu || Date.now() - Date.parse(vu.le) > 3600000);
   let ligne;
   if (c.statut === 'close') ligne = formatLigne('✅', 'campagne close (' + avancement(c).closes + '/' + l.length + ' issues closes)');
@@ -1068,12 +1071,13 @@ export function posteDeposer(cfg, nom, id, { fiche = '', criticite = null, prior
   if (cfg.hote === 'local' && (cfg.registre_distant || cfg.atelier_simule)) return appelAtelier(cfg, ['poste', 'deposer', nom, id, '--fiche-stdin', '--priorite', String(priorite), ...(criticite ? ['--criticite', criticite] : []), ...(reglages.length ? ['--reglages', reglages.join(';')] : []), ...(forcer ? ['--forcer'] : [])], fiche);
   if (!String(fiche).trim()) refuser('FICHE ABSENTE', 'la fiche de délégation est obligatoire (--fiche <f> ou --fiche-stdin) : SHA, étapes, attendu, critères');
   const c = lireCampagne(cfg, nom); const i = trouverIssue(c, id);
+  if (!forcer && (i.poste_env_echecs || 0) >= maxEchecsEnv(cfg)) refuser('POSTE À DÉBLOQUER', id + ' : ' + i.poste_env_echecs + ' échecs d’environnement au poste (dernière cause : ' + (i.poste_env_cause || 'voir le retour') + ') ; redépôt seulement après l’action de Paul, avec --forcer');
   if (i.poste_exclu && !forcer) refuser('POSTE EXCLU', id + ' a été retirée de la passerelle : ' + i.poste_exclu + ' (nouveau dépôt seulement sur instruction de Paul : --forcer)');
   if (lireTaches(cfg).some((t) => t.campagne === nom && t.issue === id && ['en_file', 'en_cours'].includes(t.statut))) refuser('TÂCHE DÉJÀ EN FILE', id + ' attend déjà le poste');
   const maintenant = new Date().toISOString();
   const t = { id: 'P' + Date.now().toString(36) + '-' + id, campagne: nom, issue: id, projet: i.projet || c.projet, criticite: criticite || i.criticite || 'standard', priorite: Number(priorite) || 5, reglages, fiche: String(fiche), statut: 'en_file', depose_le: maintenant, essais_env: 0, historique: [{ le: maintenant, action: 'déposée' }] };
   verrou(cfg, () => ecrireTache(cfg, t)); marquerIssuePoste(cfg, t, 'en_file');
-  if (forcer && i.poste_exclu) modifierCampagne(cfg, nom, (cc) => { delete trouverIssue(cc, id).poste_exclu; });
+  if (forcer && (i.poste_exclu || i.poste_env_echecs)) modifierCampagne(cfg, nom, (cc) => { const x = trouverIssue(cc, id); delete x.poste_exclu; delete x.poste_env_echecs; delete x.poste_env_cause; });
   return { tache: t.id, issue: id, statut: 'en_file', regle: 'l’issue sort du quota dev_max tant qu’elle attend le poste' };
 }
 export function postePrendre(cfg, { poste = 'poste', maintenant = new Date() } = {}) {
@@ -1081,25 +1085,34 @@ export function postePrendre(cfg, { poste = 'poste', maintenant = new Date() } =
   verrou(cfg, () => {
     ecrireJson(dossierPoste(cfg, 'vu.json'), { poste, le });
     const toutes = lireTaches(cfg);
-    for (const t of toutes.filter((x) => x.statut === 'en_cours' && maintenant - Date.parse(x.pris_le) > delai)) {
+    for (const t of toutes.filter((x) => x.statut === 'en_cours' && !x.hors_passerelle && maintenant - Date.parse(x.pris_le) > delai)) {
       t.essais_env = (t.essais_env || 0) + 1; t.statut = t.essais_env >= MAX_ESSAIS ? 'bloque' : 'en_file'; t.historique.push({ le, action: 'délai dépassé : ' + (t.statut === 'bloque' ? 'bloquée' : 'remise en file') }); ecrireTache(cfg, t); expirees.push(t);
     }
     const file = toutes.filter((x) => x.statut === 'en_file').sort((a, b) => a.priorite - b.priorite || String(a.depose_le).localeCompare(String(b.depose_le)));
     if (file[0]) { prise = file[0]; Object.assign(prise, { statut: 'en_cours', pris_le: le, poste }); prise.historique.push({ le, action: 'prise par ' + poste }); ecrireTache(cfg, prise); }
   });
+  for (const t of expirees.filter((x) => x.statut === 'bloque')) compterEchecEnv(cfg, t, 'délai dépassé ' + MAX_ESSAIS + ' fois sur le poste');
   for (const t of expirees) marquerIssuePoste(cfg, t, t.statut === 'bloque' ? 'retour' : 'en_file', t.statut === 'bloque' ? { poste_resultat: 'environnement', poste_retour: 'délai dépassé ' + MAX_ESSAIS + ' fois : tâche bloquée' } : {});
   if (!prise) return { tache: null, expirees: expirees.map((t) => t.id) };
   marquerIssuePoste(cfg, prise, 'en_cours'); const depot = dossierPoste(cfg, 'retours', prise.id); fs.mkdirSync(depot, { recursive: true });
   return { tache: prise, depot, expirees: expirees.map((t) => t.id) };
 }
-export function posteRendre(cfg, tid, { resultat, retour = '', ligne = null } = {}) {
+export function posteRendre(cfg, tid, { resultat, retour = '', ligne = null, issue = null, campagne = null, preuves = null } = {}) {
   if (!['ok', 'echec', 'environnement'].includes(resultat)) refuser('RÉSULTAT INCONNU', String(resultat) + ' (ok, echec ou environnement)');
+  if (cfg.hote === 'local' && (cfg.registre_distant || cfg.atelier_simule)) {
+    const p = appelAtelier(cfg, ['poste', 'preparer-rendu', ...(tid ? ['--tache', tid] : []), ...(issue ? ['--issue', issue] : []), ...(campagne ? ['--campagne', campagne] : [])]);
+    let ok = null; if (preuves) { if (!fs.existsSync(preuves)) refuser('PREUVES ABSENTES', preuves); if (cfg.atelier_simule) { fs.cpSync(preuves, path.join(p.depot, 'preuves'), { recursive: true }); ok = true; } else ok = spawnSync('scp', ['-q', '-r', '-o', 'BatchMode=yes', preuves, cfg.ssh.atelier + ':' + p.depot + '/preuves'], { encoding: 'utf8', windowsHide: true, timeout: 600000 }).status === 0; }
+    const r = appelAtelier(cfg, ['poste', 'rendre', p.tache, '--resultat', resultat, '--retour-stdin', ...(ligne ? ['--ligne', ligne] : [])], String(retour || '') + (preuves && !ok ? '\n⚠ Preuves non déposées sur atelier : elles restent sur le poste dans ' + preuves : ''));
+    return { ...r, tache_creee: p.cree, preuves_deposees: ok };
+  }
+  if (!tid) tid = postePreparerRendu(cfg, { issue, campagne }).tache;
   let t; const le = new Date().toISOString();
   verrou(cfg, () => { t = lireJson(dossierPoste(cfg, 'file', tid + '.json'), null); if (!t) refuser('TÂCHE INCONNUE', tid); Object.assign(t, { statut: 'rendu', resultat, rendu_le: le, ligne }); t.historique.push({ le, action: 'rendue : ' + resultat }); ecrireTache(cfg, t); });
   const depot = dossierPoste(cfg, 'retours', tid); fs.mkdirSync(depot, { recursive: true }); fs.writeFileSync(path.join(depot, 'retour.md'), String(retour || 'Aucun retour écrit.') + '\n');
   let essaiCompte = null; if (resultat === 'echec') { try { essaiCompte = essai(cfg, t.campagne, t.issue, 'echec'); } catch {} }
   marquerIssuePoste(cfg, t, 'retour', { poste_resultat: resultat, poste_retour: path.join(depot, 'retour.md') });
-  return { tache: tid, issue: t.issue, resultat, retour: path.join(depot, 'retour.md'), preuves: path.join(depot, 'preuves'), essai: resultat === 'echec' ? essaiCompte : 'non compté' };
+  let echecsEnv = null; if (resultat === 'environnement') echecsEnv = compterEchecEnv(cfg, t, causeRetour(retour)); else if (resultat === 'ok') { try { modifierCampagne(cfg, t.campagne, (c) => { const i = trouverIssue(c, t.issue); delete i.poste_env_echecs; delete i.poste_env_cause; }); } catch {} }
+  return { tache: tid, issue: t.issue, resultat, retour: path.join(depot, 'retour.md'), preuves: path.join(depot, 'preuves'), essai: resultat === 'echec' ? essaiCompte : 'non compté', ...(echecsEnv !== null ? { echecs_environnement: echecsEnv, a_debloquer_par_paul: echecsEnv >= maxEchecsEnv(cfg) } : {}) };
 }
 export function posteRetirer(cfg, cible, { motif = '', campagne = null } = {}) {
   if (cfg.hote === 'local' && (cfg.registre_distant || cfg.atelier_simule)) return appelAtelier(cfg, ['poste', 'retirer', cible, '--motif', motif, ...(campagne ? ['--campagne', campagne] : [])]);
@@ -1123,24 +1136,24 @@ export function posteFile(cfg) {
   const l = lireTaches(cfg); const vu = lireJson(dossierPoste(cfg, 'vu.json'), null); const n = (s) => l.filter((t) => t.statut === s);
   return { en_file: n('en_file').map((t) => t.issue + ' (' + t.campagne + ')'), en_cours: n('en_cours').map((t) => t.issue + ' depuis ' + t.pris_le), bloquees: n('bloque').map((t) => t.issue), retirees: n('retiree').map((t) => t.issue + ' : ' + t.motif), rendues_24h: l.filter((t) => t.statut === 'rendu' && Date.now() - Date.parse(t.rendu_le) < 86400000).map((t) => t.issue + ' : ' + t.resultat), poste_vu_le: vu?.le || null };
 }
-function consignePoste(cfg, t, travail) {
+function consignePoste(cfg, t, travail, imprimantePdf = false) {
   return ['Tu es la session de la passerelle poste du workflow $dev v' + VERSION + ', sur le poste Windows de Paul. Tâche ' + t.id + ' : ' + t.issue + ' (campagne ' + t.campagne + ', projet ' + t.projet + ').', '', 'Règles absolues :',
     '- N’ouvre, ne consulte ni n’utilise aucun gestionnaire de mots de passe. Aucun secret, jeton, DSN, mot de passe ni donnée RH dans les journaux, le retour ou les preuves : uniquement les données synthétiques des dispositifs.',
     '- Aucune base partagée, aucun serveur cible, aucun déploiement, aucune fusion, aucune clôture d’issue, aucune écriture dans Linear.',
     '- Worktrees et caches sur D: (' + (cfg.worktrees || 'D:\\worktrees') + '), jamais sur C: ; arrête-toi si C: passe sous ' + (cfg.garde_disque_gio || 2) + ' Gio.',
     '- Suppression : Corbeille uniquement (Microsoft.VisualBasic.FileIO.FileSystem, SendToRecycleBin).',
-    '- Réglages Windows permis pour cette tâche, toujours restaurés à la fin même en cas d’échec (try/finally), valeur d’origine notée dans le retour : ' + (t.reglages?.length ? t.reglages.join(' ; ') : 'aucun') + '. Imprimante : uniquement « Microsoft Print to PDF », jamais une imprimante physique.',
+    '- Réglages Windows permis pour cette tâche, toujours restaurés à la fin même en cas d’échec (try/finally), valeur d’origine notée dans le retour : ' + (t.reglages?.length ? t.reglages.join(' ; ') : 'aucun') + '. Imprimante : ' + (imprimantePdf ? 'la passerelle a déjà mis « Microsoft Print to PDF » par défaut et la restaurera après toi ; ne change pas l’imprimante' : 'uniquement « Microsoft Print to PDF »') + ', jamais une imprimante physique.',
     '- Pour chaque étape : commande exacte, code de sortie, chemin du journal. Une étape en échec : arrête-toi, ne contourne pas le dispositif.', '', 'Fiche de la tâche :', t.fiche, '', 'Livrables, dans ' + travail + ' :',
     '1. preuves\\ : journaux, matrice (JSON, une ligne par critère : ok, non_applicable justifié ou echec), commandes.jsonl.',
     '2. retour.md : 15 lignes au plus : issue, SHA testé, versions des outils, codes de sortie, chemin des preuves, anomalies, verdict proposé (prêt pour clôture, ou bloqué avec la cause), réglages modifiés et restaurés.',
     '3. resultat.json : {"resultat":"ok"} si tous les critères sont ok ou non applicables justifiés ; {"resultat":"echec"} si le code de la branche est en cause ; {"resultat":"environnement"} si c’est le poste ou un outil (non compté comme essai).', '',
     REGLE_LIGNE_ETAT + ' Ici, ta tâche est finie quand tu écris cette ligne : ✅ TERMINÉ si le résultat est ok, ⛔ BLOQUÉ si c’est echec ou environnement (avec la cause en une phrase), et « Toi : rien » : c’est l’orchestrateur de la campagne qui relit le retour et décide de la clôture.'].join('\n');
 }
-function executerTachePoste(cfg, t, travail) {
+function executerTachePoste(cfg, t, travail, imprimantePdf = false) {
   const r = router(cfg, { tache: 'tests', criticite: t.criticite || 'standard' }); const sortie = path.join(travail, 'dernier-message.md'); const e = cfg.execution || {}; const test = cfg.passerelle?.commande_test;
   const [exe, ...args] = test || [cfg.codexExecutable, 'exec', '--skip-git-repo-check', '-s', e.sandbox || 'danger-full-access', '-c', 'approval_policy="' + (e.approvalPolicy || 'never') + '"', '-m', r.catalogue, '-C', travail, '-o', sortie];
   if (!exe) refuser('CODEX INTROUVABLE', 'codexExecutable manquant dans poste.local.json');
-  const x = spawnSync(exe, args, { input: consignePoste(cfg, t, travail), encoding: 'utf8', windowsHide: true, cwd: travail, timeout: (cfg.passerelle?.delai_max_min || 180) * 60000, env: { ...process.env, PASSERELLE_TRAVAIL: travail } });
+  const x = spawnSync(exe, args, { input: consignePoste(cfg, t, travail, imprimantePdf), encoding: 'utf8', windowsHide: true, cwd: travail, timeout: (cfg.passerelle?.delai_max_min || 180) * 60000, env: { ...process.env, PASSERELLE_TRAVAIL: travail } });
   return { code: x.status, modele: r.modele, dernier: fs.existsSync(sortie) ? fs.readFileSync(sortie, 'utf8') : (x.stdout || '') };
 }
 // Sur le poste : relève une tâche de la file d'atelier (tâche planifiée pilote-poste-passerelle), une seule à la fois.
@@ -1156,16 +1169,16 @@ export function posteRelever(cfg) {
     if (!r.tache) return { action: 'aucune', raison: 'file vide', expirees: r.expirees };
     const t = r.tache; const travail = path.join(p.dossier_travail || path.join(cfg.etat, 'passerelle'), t.id); fs.mkdirSync(path.join(travail, 'preuves'), { recursive: true });
     if (!p.commande_test) { try { os.setPriority(0, os.constants.priority.PRIORITY_BELOW_NORMAL); } catch {} }
-    const eveil = maintenirEveille(cfg); let x;
-    try { x = executerTachePoste(cfg, t, travail); } finally { eveil.relacher(); }
+    const eveil = maintenirEveille(cfg); const imp = basculerImprimante(cfg); let x;
+    try { x = executerTachePoste(cfg, t, travail, imp.active); } finally { imp.restaurer(); eveil.relacher(); }
     let resultat = lireJson(path.join(travail, 'resultat.json'), {})?.resultat; if (!['ok', 'echec', 'environnement'].includes(resultat)) resultat = 'environnement';
-    const retour = fs.existsSync(path.join(travail, 'retour.md')) ? fs.readFileSync(path.join(travail, 'retour.md'), 'utf8') : 'Aucun retour écrit par la session (code ' + x.code + ') : compté comme échec d’environnement.';
+    const retour = (fs.existsSync(path.join(travail, 'retour.md')) ? fs.readFileSync(path.join(travail, 'retour.md'), 'utf8') : 'Aucun retour écrit par la session (code ' + x.code + ') : compté comme échec d’environnement.') + (imp.note ? '\n- ' + imp.note + ' (passerelle)' : '');
     const ligne = lireLigneEtat(x.dernier)?.ligne || null;
     let preuves = false;
     if (cfg.atelier_simule) { fs.cpSync(path.join(travail, 'preuves'), path.join(r.depot, 'preuves'), { recursive: true }); preuves = true; }
     else { const s = spawnSync('scp', ['-q', '-r', '-o', 'BatchMode=yes', path.join(travail, 'preuves'), cfg.ssh.atelier + ':' + r.depot + '/'], { encoding: 'utf8', windowsHide: true, timeout: 600000 }); preuves = s.status === 0; }
     const rendu = appelAtelier(cfg, ['poste', 'rendre', t.id, '--resultat', resultat, '--retour-stdin', ...(ligne ? ['--ligne', ligne] : [])], retour + (preuves ? '' : '\n⚠ Preuves non déposées sur atelier : elles restent sur le poste dans ' + travail));
-    return { action: 'tache', tache: t.id, issue: t.issue, modele: x.modele, code: x.code, resultat, preuves_deposees: preuves, travail, ligne, essai: rendu.essai };
+    return { action: 'tache', tache: t.id, issue: t.issue, modele: x.modele, code: x.code, resultat, preuves_deposees: preuves, travail, ligne, essai: rendu.essai, imprimante: imp.note, ...(rendu.echecs_environnement ? { echecs_environnement: rendu.echecs_environnement } : {}) };
   } finally { fs.rmSync(vl, { force: true }); }
 }
 export function posteInstaller(cfg) {
@@ -1206,8 +1219,61 @@ async function suivreLigne(cfg, s, chat, info, lu) {
 export function signalementsPoste(cfg, c) {
   const l = issues(c); const out = []; const vu = lireJson(path.join(cfg.etat, 'poste', 'vu.json'), null); const enFile = l.filter((i) => i.poste === 'en_file');
   if (enFile.length && !lireTaches(cfg).some((t) => t.statut === 'en_cours') && (!vu || Date.now() - Date.parse(vu.le) > 86400000)) out.push('poste Windows non vu depuis ' + (vu ? Math.round((Date.now() - Date.parse(vu.le)) / 3600000) + ' h' : 'sa mise en service') + ' : ' + enFile.length + ' tâche(s) en file (' + enFile.map((i) => i.linear_id).join(', ') + ')');
+  for (const i of l.filter((x) => aDebloquerPoste(cfg, x))) out.push('poste à débloquer par Paul : ' + i.linear_id + ' (' + i.poste_env_echecs + ' échecs d’environnement : ' + (i.poste_env_cause || 'voir le retour') + ')');
   for (const i of l.filter((x) => x.poste === 'retour' && x.poste_resultat === 'environnement')) out.push('poste : ' + i.linear_id + ' en échec d’environnement (non compté comme essai)');
   return out;
+}
+
+// ---------- v2.5.4 : imprimante PDF automatique, plafond des échecs d'environnement, rendu hors file, garde CPU ----------
+export const IMPRIMANTE_PDF = 'Microsoft Print to PDF';
+function imprimanteOps(cfg) {
+  const sim = cfg.passerelle?.imprimante_simulee;
+  if (sim) return { lire: () => lireJson(sim, {}).defaut || null, existe: (n) => (lireJson(sim, {}).liste || []).includes(n), definir: (n) => { const e = lireJson(sim, {}); e.defaut = n; e.historique = [...(e.historique || []), n]; ecrireJson(sim, e); return true; } };
+  if (process.platform !== 'win32') return null;
+  const ps = (c) => (spawnSync('powershell.exe', ['-NoProfile', '-Command', c], { encoding: 'utf8', windowsHide: true, timeout: 60000 }).stdout || '').trim();
+  const q = (s) => "'" + String(s).replace(/'/g, "''") + "'";
+  return { lire: () => ps('(Get-CimInstance Win32_Printer | Where-Object Default | Select-Object -First 1).Name') || null,
+    existe: (n) => ps('(Get-CimInstance Win32_Printer | Where-Object Name -eq ' + q(n) + ' | Measure-Object).Count') === '1',
+    definir: (n) => ps('$p = Get-CimInstance Win32_Printer | Where-Object Name -eq ' + q(n) + '; if ($p) { (Invoke-CimMethod -InputObject $p -MethodName SetDefaultPrinter).ReturnValue } else { 1 }') === '0' };
+}
+// Bascule l'imprimante par défaut sur « Microsoft Print to PDF » le temps d'une tâche de la passerelle (AGENTS.md : tests d'impression), puis la restaure.
+export function basculerImprimante(cfg) {
+  const etat = { note: null, restauree: null, active: false, restaurer: () => null };
+  if (cfg.passerelle?.imprimante_pdf === false) return etat;
+  const ops = imprimanteOps(cfg); if (!ops) return etat;
+  let avant = null; try { avant = ops.lire(); } catch {}
+  if (!ops.existe(IMPRIMANTE_PDF)) { etat.note = 'Imprimante : « ' + IMPRIMANTE_PDF + ' » absente du poste, défaut inchangé (prérequis manquant).'; return etat; }
+  if (avant === IMPRIMANTE_PDF) { etat.note = 'Imprimante : « ' + IMPRIMANTE_PDF + ' » était déjà l’imprimante par défaut.'; etat.active = true; return etat; }
+  if (!ops.definir(IMPRIMANTE_PDF)) { etat.note = 'Imprimante : bascule vers « ' + IMPRIMANTE_PDF + ' » refusée par Windows, défaut inchangé.'; return etat; }
+  etat.active = true;
+  etat.restaurer = () => { let ok = false; try { ok = !!avant && ops.definir(avant) && ops.lire() === avant; } catch {} etat.restauree = ok; etat.note = 'Imprimante : « ' + avant + ' » → « ' + IMPRIMANTE_PDF + ' » le temps de la tâche, restaurée : ' + (ok ? 'oui' : 'NON, à vérifier sur le poste') + '.'; return ok; };
+  return etat;
+}
+const maxEchecsEnv = (cfg) => cfg.passerelle?.max_echecs_env ?? 2;
+export const aDebloquerPoste = (cfg, i) => (i.poste_env_echecs || 0) >= maxEchecsEnv(cfg) && !auPoste(i) && i.statut !== 'close';
+function causeRetour(texte) { const l = String(texte || '').split(/\r?\n/).map((x) => x.replace(/^[-*#\s]+/, '').trim()).filter(Boolean); return (l.find((x) => /verdict|anomalie|cause/i.test(x)) || l[0] || 'voir le retour').slice(0, 180); }
+function compterEchecEnv(cfg, t, cause) { let n = 0; try { modifierCampagne(cfg, t.campagne, (c) => { const i = trouverIssue(c, t.issue); i.poste_env_echecs = (i.poste_env_echecs || 0) + 1; i.poste_env_cause = cause; n = i.poste_env_echecs; }); } catch {} return n; }
+// Rendu d'un résultat produit hors passerelle (chat manuel du poste) : rattache ou crée la tâche, sans changer l'état de l'issue.
+export function postePreparerRendu(cfg, { issue = null, campagne = null, tache = null } = {}) {
+  const depotDe = (id) => { const d = dossierPoste(cfg, 'retours', id); fs.mkdirSync(d, { recursive: true }); return d; };
+  if (tache) { const t = lireJson(dossierPoste(cfg, 'file', tache + '.json'), null); if (!t) refuser('TÂCHE INCONNUE', tache); return { tache: t.id, depot: depotDe(t.id), cree: false }; }
+  if (!issue || !campagne) refuser('ISSUE ABSENTE', 'usage : pilote.mjs poste rendre --issue <ID> --campagne <nom> --resultat <r> --retour-stdin [--preuves <dossier>]');
+  const viv = lireTaches(cfg).find((t) => t.campagne === campagne && t.issue === issue && ['en_file', 'en_cours'].includes(t.statut));
+  if (viv) return { tache: viv.id, depot: depotDe(viv.id), cree: false };
+  const c = lireCampagne(cfg, campagne); const i = trouverIssue(c, issue); const le = new Date().toISOString();
+  const t = { id: 'P' + Date.now().toString(36) + '-' + issue, campagne, issue, projet: i.projet || c.projet, criticite: i.criticite || 'standard', priorite: 5, reglages: [], fiche: 'Résultat produit hors passerelle (chat du poste), rendu par poste rendre --issue.', statut: 'en_cours', hors_passerelle: true, depose_le: le, pris_le: le, poste: 'hors passerelle', essais_env: 0, historique: [{ le, action: 'créée pour un rendu hors passerelle' }] };
+  verrou(cfg, () => ecrireTache(cfg, t));
+  return { tache: t.id, depot: depotDe(t.id), cree: true };
+}
+// Garde CPU à l'admission : attente CPU moyenne sur 60 s (PSI Linux) ; absente sous Windows.
+export function pressionCpu(cfg) {
+  const f = cfg.admission?.pression_cpu_fichier || ['/sys/fs/cgroup/cpu.pressure', '/proc/pressure/cpu'].find((x) => fs.existsSync(x));
+  if (!f || !fs.existsSync(f)) return null; const m = fs.readFileSync(f, 'utf8').match(/^some .*avg60=([\d.]+)/m); return m ? Number(m[1]) : null;
+}
+export function gardeCpu(cfg, i) {
+  if (i && i.statut !== 'en_attente') return null; const g = cfg.admission?.garde_cpu_pct ?? 40; const p = pressionCpu(cfg);
+  if (p !== null && p > g) refuser('ADMISSION DIFFÉRÉE', 'attente CPU de ' + p + ' % sur 60 s, au-dessus de la garde de ' + g + ' % : admission reportée au prochain réveil', 5);
+  return p;
 }
 
 // ---------- CLI ----------
@@ -1239,7 +1305,8 @@ export function executer(argv, cfg = null) {
     case 'poste': { const s = a[0];
       if (s === 'deposer') return posteDeposer(C(), a[1], a[2], { fiche: o['fiche-stdin'] ? fs.readFileSync(0, 'utf8') : (o.fiche && o.fiche !== true && fs.existsSync(o.fiche) ? fs.readFileSync(o.fiche, 'utf8') : ''), criticite: o.criticite || null, priorite: o.priorite || 5, reglages: o.reglages && o.reglages !== true ? String(o.reglages).split(';').map((x) => x.trim()).filter(Boolean) : [], forcer: !!o.forcer });
       if (s === 'prendre') return postePrendre(C(), { poste: o.poste || 'poste' });
-      if (s === 'rendre') return posteRendre(C(), a[1], { resultat: o.resultat, retour: o['retour-stdin'] ? fs.readFileSync(0, 'utf8') : '', ligne: o.ligne && o.ligne !== true ? o.ligne : null });
+      if (s === 'rendre') return posteRendre(C(), a[1] || (o.tache && o.tache !== true ? o.tache : null), { resultat: o.resultat, retour: o['retour-stdin'] ? fs.readFileSync(0, 'utf8') : '', ligne: o.ligne && o.ligne !== true ? o.ligne : null, issue: o.issue && o.issue !== true ? o.issue : null, campagne: o.campagne && o.campagne !== true ? o.campagne : null, preuves: o.preuves && o.preuves !== true ? o.preuves : null });
+      if (s === 'preparer-rendu') return postePreparerRendu(C(), { issue: o.issue || null, campagne: o.campagne || null, tache: o.tache || null });
       if (s === 'retirer') return posteRetirer(C(), a[1], { motif: o.motif && o.motif !== true ? o.motif : a.slice(2).join(' '), campagne: o.campagne || null });
       if (s === 'relever') return posteRelever(C());
       if (s === 'installer') return posteInstaller(C());
@@ -1271,7 +1338,7 @@ export function executer(argv, cfg = null) {
     case 'livraison-info': return infoLivraison(C(), a[0]);
     case 'livraison-marquer': return marquerLivraison(C(), a[0], JSON.parse(fs.readFileSync(0, 'utf8')));
     case 'poster': return posterSup(C(), a[0], o['texte-stdin'] ? fs.readFileSync(0, 'utf8') : String(o.texte || ''));
-    case 'lancer': return lancerCommande(C(), { commande: a[0], args: a.slice(1), depuisModele: o['depuis-modele'] || null, fiche: o['fiche-stdin'] ? fs.readFileSync(0, 'utf8') : o['fiche-fichier'] ? fs.readFileSync(o['fiche-fichier'], 'utf8') : String(o.fiche || ''), projet: o.projet || null, criticite: o.criticite || null, garder: o.garder || null, nouveau: !!o.nouveau });
+    case 'lancer': return lancerCommande(C(), { commande: a[0], args: a.slice(1), depuisModele: o['depuis-modele'] || null, depuisRole: o['depuis-role'] && o['depuis-role'] !== true ? o['depuis-role'] : null, fiche: o['fiche-stdin'] ? fs.readFileSync(0, 'utf8') : o['fiche-fichier'] ? fs.readFileSync(o['fiche-fichier'], 'utf8') : String(o.fiche || ''), projet: o.projet || null, criticite: o.criticite || null, garder: o.garder || null, nouveau: !!o.nouveau });
     case 'menage': { const rel = (f) => path.isAbsolute(f) ? f : path.join(C().etat, f); const ch = o['chats-fichier'] ? lireJson(rel(o['chats-fichier']), []) : o.chats ? JSON.parse(o.chats) : null; const lin = o['linear-fichier'] ? lireJson(rel(o['linear-fichier']), {}) : {}; if (o['archive-apres-jours'] !== undefined) C().chats = { ...(C().chats || {}), archive_apres_jours: Number(o['archive-apres-jours']) }; if (a[0] === 'appliquer') return appliquerMenage(C(), a[1] || 'surs', { chats: ch, linear: lin }); return analyserMenage(C(), { chats: ch || [], linear: lin }); }
     case 'chats': return lireRegistreChats(C());
     case 'recreer-chat': return modifierCampagne(C(), a[0], (cc) => { cc.recreer_chat = true; return { campagne: a[0], recreer_chat: true, regle: 'recréé par le réveil au prochain point stable, jamais au milieu d’une issue' }; });
