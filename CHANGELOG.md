@@ -1,5 +1,9 @@
 # Changelog du socle public
 
+## 2.11.2 — 21/11/2026
+
+Correctif d’affichage : une issue fusionnée qui attend sa recette reste visible dans le bloc d’état (rubrique des agents, « à recetter »). 97 évaluations, 72 tests.
+
 ## 2.11.1 — 21/11/2026
 
 Correctif : la règle de clôture après fusion vérifie la tête réelle du travail (worktree de l’issue), et non plus seulement la branche distante, qui pouvait être restée à son point de départ et passer pour fusionnée. 97 évaluations, 72 tests.

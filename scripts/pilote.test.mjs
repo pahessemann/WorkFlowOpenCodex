@@ -811,6 +811,7 @@ test('2.10 : bloc d’état rendu par le script, Toi en premier, dernière ligne
   assert.equal(e.ligne, '▶ EN COURS · 2 agent(s) au travail · 2 à venir · 1 bloquée(s) · Toi : 1 action(s), voir 👤 Toi');
   { const f = P.ligneEtat(at, 'k'); assert.equal(P.executer(['ligne-etat', 'k', '--texte'], at).__texte, f.bloc + '\n\n' + f.ligne); }
   assert.match(e.detail, /décider pour DEV-4/, 'la ligne détaillée reste disponible');
+  P.statutIssue(at, 'k', 'DEV-3', 'fusionnee'); assert.match(P.ligneEtat(at, 'k').bloc, /🤖 Agents \(2\) : DEV-2 démarrage · DEV-3 à recetter/, '2.11.2 : une issue fusionnée à recetter reste visible');
   P.statutIssue(at, 'k', 'DEV-4', 'en_cours');
   assert.doesNotMatch(P.ligneEtat(at, 'k').bloc, /👤 Toi/, 'rubrique absente quand Paul n’a rien à faire'); assert.match(P.ligneEtat(at, 'k').ligne, /Toi : rien$/);
 });
