@@ -15,7 +15,7 @@ export const ETATS_ISSUE = ['en_attente', 'preflight', 'en_cours', 'revue', 'rec
 export const ETATS_CAMPAGNE = ['brouillon', 'en_cours', 'en_pause', 'close'];
 export const CRITICITES = ['leger', 'standard', 'sensible'];
 export const MAX_ESSAIS = 3;
-export const VERSION = '2.8.3';
+export const VERSION = '2.8.4';
 const PASTILLES = { AUTO: '🟢', SUP: '🟠', MS: '🔷', DEV: '🔵', CADRE: '🟣', PROTO: '🎨', TEST: '🧪', RELAIS: '⚙️', BILAN: '📘', AIDE: '❓', ARCHI: '🏛' };
 const DOSSIERS = { AUTO: '01 Campagnes', SUP: '01 Campagnes', MS: '01 Campagnes', DEV: '02 Développement', CADRE: '03 Cadrage & prototypes', PROTO: '03 Cadrage & prototypes', TEST: '04 Relais & maintenance', RELAIS: '04 Relais & maintenance', BILAN: '04 Relais & maintenance', AIDE: '00 Accueil', ARCHI: '00 Accueil' };
 export const TITRE_ARCHI = '🏛 ARCHI · workflow';
@@ -209,11 +209,11 @@ export function verifierPreuveRecette(id, preuve) {
   if (fautes.length) refuser('RECETTE INCOMPLÈTE', fautes.length + ' critère(s) de ' + id + ' sans contrôle réussi ou sans justification : ' + fautes.map((k) => k.critere || '?').slice(0, 5).join(' | '), 5);
   return m.criteres.length;
 }
-export function statutIssue(cfg, nom, id, statut, preuve, { attend = null, quoi = null } = {}) {
+export function statutIssue(cfg, nom, id, statut, preuve, { attend = null, quoi = null, sansFusion = null } = {}) {
   nom = redirigerCampagne(cfg, nom, id);
   if (!ETATS_ISSUE.includes(statut)) refuser('STATUT INCONNU', statut + ' (liste fermée : ' + ETATS_ISSUE.join(', ') + ')');
   if (attend) verifierArret(statut, attend, quoi);
-  if (statut === 'close') { const c0 = lireCampagne(cfg, nom); const i0 = issues(c0).find((x) => x.linear_id === id); if (i0?.empile_sur?.length) { const st0 = statutsAvecSoeurs(cfg, c0); const att = i0.empile_sur.filter((d) => !['close', 'fusionnee'].includes(st0[d])); if (att.length) refuser('CLÔTURE PRÉMATURÉE', id + ' est empilée sur ' + att.join(', ') + ' : clôture après leur fusion ou clôture, puis pilote.mjs desempiler'); } } // v2.8
+  if (statut === 'close') { const c0 = lireCampagne(cfg, nom); const i0 = issues(c0).find((x) => x.linear_id === id); if (i0?.empile_sur?.length) { const st0 = statutsAvecSoeurs(cfg, c0); const att = i0.empile_sur.filter((d) => !['close', 'fusionnee'].includes(st0[d])); if (att.length) refuser('CLÔTURE PRÉMATURÉE', id + ' est empilée sur ' + att.join(', ') + ' : clôture après leur fusion ou clôture, puis pilote.mjs desempiler'); } if (i0) { const fu = verifierFusion(cfg, c0, i0, { sansFusion }); if (fu.motif && sansFusion) decision(cfg, nom, id, 'Clôture sans fusion (v2.8.4) : ' + fu.motif); } } // v2.8-2.8.4
   const nbCriteres = statut === 'close' ? verifierPreuveRecette(id, preuve) : 0;
   const res = modifierCampagne(cfg, nom, (c) => { const i = trouverIssue(c, id); const avant = i.statut; if (statut === 'close' && i.empile_sur?.length) { const st0 = statutsAvecSoeurs(cfg, c); const att = i.empile_sur.filter((d) => !['close', 'fusionnee'].includes(st0[d])); if (att.length) refuser('CLÔTURE PRÉMATURÉE', id + ' est empilée sur ' + att.join(', ') + ' : clôture après leur fusion ou clôture, puis pilote.mjs desempiler'); } i.statut = statut; if (i.poste === 'retour') { delete i.poste; delete i.poste_tache; delete i.poste_resultat; delete i.poste_retour; } if (statut === 'close') { i.close_le = new Date().toISOString(); i.preuve_recette = path.resolve(preuve); i.criteres_couverts = nbCriteres; } else if (statut !== 'fusionnee') { delete i.close_le; delete i.preuve_recette; }
     if (attend) i.arret = { attend, quoi: net(quoi).slice(0, 240), le: new Date().toISOString() }; else if (avant !== statut) delete i.arret; // un changement de statut sans --attend lève l'arrêt (v2.6)
@@ -1135,6 +1135,20 @@ export function garderEveilSecteur(cfg, enAttente) {
   return { action: 'rien', etat: sauv ? 'veille coupée sur secteur' : 'réglage d’origine' };
 }
 
+// ---------- v2.8.4 : pas de clôture d'une issue autonome sans fusion dans la branche principale ----------
+export function verifierFusion(cfg, c, i, { sansFusion = null } = {}) {
+  if (sansFusion && sansFusion !== true && net(sansFusion)) return { verifie: false, motif: net(sansFusion) };
+  if (i.milestone || i.nature === 'livrable' || !(i.branche_reprise || i.branche)) return { verifie: false, motif: 'non applicable (milestone, livrable ou sans branche)' };
+  const projet = (cfg.projets || {})[i.projet || c.projet]; if (!projet?.chemin || !fs.existsSync(path.join(projet.chemin, '.git'))) return { verifie: false, motif: 'dépôt absent sur cet hôte' };
+  const princ = projet.branche_principale || 'main'; const br = i.branche_reprise || i.branche; const id = i.linear_id;
+  git(projet.chemin, 'fetch', '-q', 'origin', princ); git(projet.chemin, 'fetch', '-q', 'origin', br);
+  const ref = ['origin/' + br, br].find((r) => git(projet.chemin, 'rev-parse', '--verify', '-q', r).code === 0);
+  if (ref && git(projet.chemin, 'merge-base', '--is-ancestor', ref, 'origin/' + princ).code === 0) return { verifie: true, branche: br, cible: princ, par: 'historique' };
+  if (cfg.gh !== false) { const url = git(projet.chemin, 'remote', 'get-url', 'origin').out; const depot = (url.match(/github\.com[:/](.+?)(\.git)?$/) || [])[1];
+    if (depot) { const r = spawnSync('gh', ['pr', 'list', '--repo', depot, '--state', 'merged', '--head', br, '--base', princ, '--json', 'number,mergeCommit'], { encoding: 'utf8', windowsHide: true, timeout: 30000 }); try { const l = JSON.parse(r.stdout || '[]'); if (l.length) return { verifie: true, branche: br, cible: princ, par: 'PR #' + l[0].number + ' fusionnée' }; } catch {} } }
+  refuser('CLÔTURE SANS FUSION', id + ' : la branche ' + br + ' n’est pas fusionnée dans ' + princ + ' (' + (ref ? 'absente de son historique' : 'introuvable') + ', aucune PR fusionnée) ; ouvrir la PR vers ' + princ + ', la fusionner, puis clore. Issue sans code livré : --sans-fusion "<motif>".');
+}
+
 // ---------- charges lourdes : verrou réel (lourdes_max par campagne) ----------
 function pidVivant(pid) { try { process.kill(pid, 0); return true; } catch (e) { return e.code === 'EPERM'; } }
 export function prendreCreneauLourd(cfg, nom, { attenteMax = 4 * 3600000, pas = 5000, libelle = '', priorite = 0 } = {}) {
@@ -1639,7 +1653,7 @@ function executerBrut(argv, cfg = null) {
     }
     case 'pause': return changerStatutCampagne(C(), a[0], 'en_pause');
     case 'reprendre': return lancer(C(), a[0]);
-    case 'statut': return statutIssue(C(), a[0], a[1], a[2], a[3], { attend: o.attend && o.attend !== true ? o.attend : (o.attend === true ? 'inconnue' : null), quoi: o.quoi });
+    case 'statut': return statutIssue(C(), a[0], a[1], a[2], a[3], { attend: o.attend && o.attend !== true ? o.attend : (o.attend === true ? 'inconnue' : null), quoi: o.quoi, sansFusion: o['sans-fusion'] ?? null });
     case 'arret': return qualifierArret(C(), a[0], a[1], { attend: o.attend, quoi: o.quoi, lever: !!o.lever });
     case 'point': { const r = point(C(), a); return o.texte ? { __texte: r.rendu } : r; }
     case 'essai': return essai(C(), a[0], a[1], a[2]);

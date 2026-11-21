@@ -98,5 +98,8 @@ examine le `WIP` de `branche_reprise` avant de coder.
   base par défaut. Profondeur maximale : `admission.empilement_max` (3). Plusieurs dépendances du même dépôt en recette : attendre.
 - Clôture d'une issue empilée refusée tant que sa dépendance n'est pas fusionnée ou close (`CLÔTURE PRÉMATURÉE`). Si la
   dépendance repasse en développement, les issues empilées reviennent en `en_attente` (`sha_reprise` conservé, ligne au journal).
+- Clôture refusée tant que la branche de l'issue n'est pas fusionnée dans la branche principale de son dépôt (`CLÔTURE SANS FUSION`, v2.8.4) :
+  fusionner la PR d'abord. Issue sans code livré (analyse, décision, livrable seul) : `statut … close <matrice> --sans-fusion "<motif>"`.
+  Ne s'applique ni aux issues de milestone, ni aux livrables, ni aux issues sans branche.
 - Après fusion de la dépendance (`a_rebaser`) : rebase sur la cible, PR rétablie vers la cible, `pilote.mjs desempiler <c> <ID>`.
 - Charges lourdes : `pilote.mjs lourde <c> --issue <ID> -- <commande>` ; priorité = issues retenues, +1000 sur la chaîne critique.

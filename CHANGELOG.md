@@ -1,5 +1,9 @@
 # Changelog du socle public
 
+## 2.8.4 — 21/11/2026
+
+Une issue de campagne ne peut plus être close tant que sa branche n’est pas fusionnée dans la branche principale de son dépôt : la commande répond « CLÔTURE SANS FUSION ». Une issue qui ne livre pas de code se clôt avec `--sans-fusion "<motif>"`, inscrit au journal. 97 évaluations, 67 tests.
+
 ## 2.8.3 — 21/11/2026
 
 Le réveil relance toutes les 20 minutes un orchestrateur au repos tant qu’une admission est possible (place libre, CPU sous la garde, issue admissible). `ouvrir --dry-run` est un synonyme de `--a-blanc` ; un nom de campagne absent donne un message explicite. 97 évaluations, 66 tests.

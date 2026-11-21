@@ -724,3 +724,23 @@ test('2.8.3 : orchestrateur au repos avec une admission possible relancé après
   const dep = path.join(at.etat, 'depot'); fs.mkdirSync(dep); at.projets = { p: { chemin: dep } };
   const r = P.executer(['ouvrir', 'k', 'DEV-2', '--dry-run', '--fiche', 'fiche'], at); assert.equal(r.a_blanc, true); assert.equal(P.issues(P.lireCampagne(at, 'k'))[1].statut, 'en_attente', 'aucun effet');
 });
+
+
+test('2.8.4 : clôture refusée tant que la branche d’une issue autonome n’est pas fusionnée dans la branche principale ; --sans-fusion journalisé', () => {
+  const at = configTest({ hote: 'atelier', deploiement_serveurs: false, gh: false });
+  const g = (cwd, ...a) => { const r = spawnSync('git', ['-C', cwd, ...a], { encoding: 'utf8' }); if (r.status) throw new Error(a.join(' ') + ' : ' + r.stderr); return r.stdout.trim(); };
+  const nu = path.join(at.etat, 'origine.git'); spawnSync('git', ['init', '-q', '--bare', '-b', 'master', nu]);
+  const dep = path.join(at.etat, 'depot'); spawnSync('git', ['clone', '-q', nu, dep]); g(dep, 'config', 'user.email', 't@t'); g(dep, 'config', 'user.name', 't');
+  g(dep, 'checkout', '-q', '-b', 'master'); fs.writeFileSync(path.join(dep, 'a.txt'), '1'); g(dep, 'add', '.'); g(dep, 'commit', '-q', '-m', 'base'); g(dep, 'push', '-q', '-u', 'origin', 'master');
+  g(dep, 'checkout', '-q', '-b', 'codex/issue-DEV-1'); fs.writeFileSync(path.join(dep, 'b.txt'), '2'); g(dep, 'add', '.'); g(dep, 'commit', '-q', '-m', 'dev'); g(dep, 'push', '-q', '-u', 'origin', 'codex/issue-DEV-1');
+  at.projets = { p: { chemin: dep, branche_principale: 'master' } };
+  fs.mkdirSync(path.join(at.etat, 'campagnes'), { recursive: true });
+  fs.writeFileSync(path.join(at.etat, 'campagnes', 'k.json'), JSON.stringify({ id: 'k', projet: 'p', mode: 'auto', statut: 'en_cours', items: [{ type: 'issue_standalone', linear_id: 'DEV-1', statut: 'recette', branche: 'codex/issue-DEV-1', blocked_by: [] }, { type: 'issue_standalone', linear_id: 'DEV-2', statut: 'recette', branche: 'codex/issue-DEV-2', blocked_by: [] }] }));
+  const mat = (id) => { const f = path.join(at.etat, id + '.json'); fs.writeFileSync(f, JSON.stringify({ issue: id, criteres: [{ critere: 'c', statut: 'ok', preuve: 'p' }] })); return f; };
+  assert.equal(code(() => P.statutIssue(at, 'k', 'DEV-1', 'close', mat('DEV-1'))), 'CLÔTURE SANS FUSION');
+  g(dep, 'checkout', '-q', 'master'); g(dep, 'merge', '-q', '--no-ff', '-m', 'Merge pull request #1', 'codex/issue-DEV-1'); g(dep, 'push', '-q', 'origin', 'master');
+  let r; try { r = P.statutIssue(at, 'k', 'DEV-1', 'close', mat('DEV-1')); } catch (e) { if (e.titre !== 'RECETTE INCOMPLÈTE') throw e; r = null; }
+  if (r) assert.equal(r.statut, 'close');
+  assert.equal(code(() => P.statutIssue(at, 'k', 'DEV-2', 'close', mat('DEV-2'))), 'CLÔTURE SANS FUSION', 'branche introuvable');
+  assert.equal(P.verifierFusion(at, P.lireCampagne(at, 'k'), P.issues(P.lireCampagne(at, 'k'))[1], { sansFusion: 'revue sans diff' }).motif, 'revue sans diff');
+});
