@@ -15,7 +15,7 @@ export const ETATS_ISSUE = ['en_attente', 'preflight', 'en_cours', 'revue', 'rec
 export const ETATS_CAMPAGNE = ['brouillon', 'en_cours', 'en_pause', 'close'];
 export const CRITICITES = ['leger', 'standard', 'sensible'];
 export const MAX_ESSAIS = 3;
-export const VERSION = '2.9';
+export const VERSION = '2.9.1';
 const PASTILLES = { AUTO: '🟢', SUP: '🟠', MS: '🔷', DEV: '🔵', CADRE: '🟣', PROTO: '🎨', TEST: '🧪', RELAIS: '⚙️', BILAN: '📘', AIDE: '❓', ARCHI: '🏛' };
 const DOSSIERS = { AUTO: '01 Campagnes', SUP: '01 Campagnes', MS: '01 Campagnes', DEV: '02 Développement', CADRE: '03 Cadrage & prototypes', PROTO: '03 Cadrage & prototypes', TEST: '04 Relais & maintenance', RELAIS: '04 Relais & maintenance', BILAN: '04 Relais & maintenance', AIDE: '00 Accueil', ARCHI: '00 Accueil' };
 export const TITRE_ARCHI = '🏛 ARCHI · workflow';
@@ -1318,7 +1318,7 @@ export function ligneEtat(cfg, nom) {
   else if (c.statut === 'en_pause') ligne = formatLigne('⏳', 'campagne en pause', '$dev reprendre ' + nom + ' quand tu veux');
   else if (c.livraison_echec) ligne = formatLigne('⛔', 'livraison arrêtée : ' + String(c.livraison_echec.message || '').split('\n')[0], 'lire le journal de livraison, puis décider');
   else if (c.attente_go) ligne = formatLigne('⏸', 'GO attendu avant la livraison', c.hote_livraison === 'local' ? 'donner ton GO, puis $dev livrer ' + nom + ' depuis le poste' : 'donner ton GO dans ce chat');
-  else if (l.length && bloquees.length && l.every((i) => ['close', 'bloquee'].includes(i.statut))) ligne = formatLigne('⛔', 'toutes les issues restantes sont bloquées : ' + liste(bloquees), 'reprendre une issue dans son chat 🔵 DEV');
+  else if (l.length && bloquees.length && l.every((i) => ['close', 'bloquee'].includes(i.statut))) ligne = formatLigne(pourPaul.length ? '⏸' : '⛔', 'toutes les issues restantes sont bloquées : ' + liste(bloquees), toiParts.length ? toiPaul : 'reprendre une issue dans son chat 🔵 DEV'); // v2.9.1
   else if (travail.length || retours.length || dehors.length) {
     const parts = []; if (travail.length) parts.push(travail.length + ' issue(s) en travail (' + liste(travail, (i) => i.linear_id + ' ' + i.statut) + ')');
     if (dehors.length) parts.push(dehors.length + ' en attente hors agents (' + liste(dehors, (i) => i.linear_id + ' : ' + ATTENTES[i.arret.attend]) + ')');
@@ -1326,7 +1326,7 @@ export function ligneEtat(cfg, nom) {
     ligne = formatLigne(travail.length || retours.length ? '▶' : pourPaul.length ? '⏸' : '⏳', parts.join(' ; ') + noteBloq + ' ; reprise automatique au prochain réveil', toiPaul);
   } else if (poste.length) ligne = formatLigne('⏳', 'retour du poste Windows attendu pour ' + liste(poste) + noteBloq, posteAbsent ? 'ouvrir ta session sur le poste pour que la passerelle relève la file' : toiPaul);
   else if (eligibles.length) ligne = formatLigne('▶', 'admission de ' + liste(eligibles) + ' au prochain réveil' + noteBloq, toiPaul);
-  else if (attente.length) ligne = formatLigne('⏳', attente.length + ' issue(s) attendent leurs dépendances' + noteBloq, bloquees.length ? 'reprendre les issues bloquées pour débloquer la suite' : toiPaul);
+  else if (attente.length) ligne = formatLigne(pourPaul.length ? '⏸' : '⏳', attente.length + ' issue(s) attendent leurs dépendances' + noteBloq, toiParts.length ? toiPaul : bloquees.length ? 'reprendre les issues bloquées pour débloquer la suite' : toiPaul); // v2.9.1 : ce que Paul doit faire prime
   else if (exclus.length) ligne = formatLigne('⏸', 'il ne reste que ta part : ' + liste(exclus) + noteBloq, toiPaul);
   else ligne = formatLigne('✅', 'toutes les issues sont closes', '$dev cloture ' + nom);
   return { campagne: nom, ligne };

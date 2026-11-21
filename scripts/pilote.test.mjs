@@ -786,5 +786,9 @@ test('2.9 : places libérées par l’attente extérieure, CADREUR REQUIS, cadre
   assert.equal(await P.cadreursAuto(at, k(), { maintenant: new Date(+t0 + 130 * 60000), lanceur }), null, 'le journal a bougé : nouvel état');
   P.statutIssue(at, 'k', 'DEV-2', 'en_cours'); P.statutIssue(at, 'k', 'DEV-1', 'en_cours');
   assert.match(P.ligneEtat(at, 'k').ligne, /Toi : rien/, 'attente levée');
+  fs.writeFileSync(path.join(at.etat, 'campagnes', 'm.json'), JSON.stringify({ id: 'm', projet: 'p', mode: 'auto', statut: 'en_cours', items: [it('DEV-8', 'bloquee'), it('DEV-9', 'en_attente', { blocked_by: ['DEV-8'] })] }));
+  assert.match(P.ligneEtat(at, 'm').ligne, /^⏳ .*Toi : reprendre les issues bloquées/);
+  P.executer(['arret', 'm', 'DEV-8', '--attend', 'paul', '--quoi', 'lancer la phase 2 depuis le poste', '--reserve', 'production et identifiants de Paul'], at);
+  assert.match(P.ligneEtat(at, 'm').ligne, /^⏸ .*Toi : décider pour DEV-8 \(lancer la phase 2 depuis le poste\)/, '2.9.1 : l’action de Paul prime sur le message générique');
 });
 

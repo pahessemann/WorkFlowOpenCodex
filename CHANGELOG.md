@@ -1,5 +1,9 @@
 # Changelog du socle public
 
+## 2.9.1 — 21/11/2026
+
+Correctif : quand le reste d’une campagne attend ses dépendances, la ligne d’état affiche l’action attendue de Paul (⏸) au lieu d’un message générique. 97 évaluations, 69 tests.
+
 ## 2.9 — 21/11/2026
 
 Plus d’attente sans travail. Une issue qui attend Paul, le poste ou l’environnement libère sa place d’admission (le total ouvert reste borné). Une issue ne peut attendre Paul qu’après la conclusion d’un cadreur de déblocage, sauf motif réservé déclaré (`--reserve`). Le réveil lance lui-même les cadreurs quand une campagne n’a pas bougé depuis deux heures. La ligne d’état nomme ce que Paul doit décider. 97 évaluations, 69 tests.
