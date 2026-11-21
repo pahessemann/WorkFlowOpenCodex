@@ -85,7 +85,7 @@
   "chat_local": {
     "actif": false,
     "option": "b",
-    "note": "aucun chat interactif sur le poste ; la livraison passe par $dev livrer (session codex exec)"
+    "note": "aucun chat interactif sur le poste ; la livraison passe par $dev livrer (exécuteur au premier plan)"
   },
   "registre_distant": "atelier",
   "chats": {

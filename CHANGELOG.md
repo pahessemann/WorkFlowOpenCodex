@@ -1,5 +1,9 @@
 # Changelog du socle public
 
+## 2.8.2 — 21/11/2026
+
+`$dev livrer` lance directement l’exécuteur de livraison, au premier plan, avec la progression affichée : la session intermédiaire, qui coupait les étapes longues au bout d’une dizaine de secondes, est supprimée. Le réveil relance un orchestrateur dès qu’une admission redevient possible (2.8.1). 97 évaluations, 65 tests.
+
 ## 2.8 — 21/11/2026
 
 Chaîne critique raccourcie : admission empilée (une issue démarre sur la branche de sa dépendance dès la revue favorable, profondeur 3, clôture après la dépendance, désempilement automatique si elle échoue), chaîne critique et issues admissibles dans le contexte de l’orchestrateur, file des charges lourdes par priorité, poste Windows maintenu éveillé sur secteur tant que des tests l’attendent. 97 évaluations, 63 tests.

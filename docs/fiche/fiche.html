@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<title>Workflow $dev v2.8 — Fiche d'utilisation</title>
+<title>Workflow $dev v2.8.2 — Fiche d'utilisation</title>
 <style>
   @page { size: A4; margin: 12mm 13mm 10mm 13mm; }
   * { box-sizing: border-box; }
@@ -40,7 +40,7 @@
 </head>
 <body>
 
-<h1>Workflow <code style="font-size:16pt">$dev</code> v2.8 — fiche d'utilisation</h1>
+<h1>Workflow <code style="font-size:16pt">$dev</code> v2.8.2 — fiche d'utilisation</h1>
 <div class="sub">Paul cadre, les agents exécutent. Poste Windows <span class="emo">💻</span> + VPS atelier <span class="emo">☁️</span> · Linear = source de vérité</div>
 
 <div class="grid">
@@ -108,7 +108,7 @@
     <table>
       <tr><th style="width:16%">Profil</th><th>Comportement</th><th style="width:28%">Pour quoi</th></tr>
       <tr><td><span class="emo">🟢</span> <b>AUTO</b> (défaut)</td><td>Tout s'enchaîne, nuit et week-end compris : issues, fusions dans le Milestone, recette, PR finale. Fusion vers <code>main</code> automatique si la recette est verte, la revue favorable et <code>main_deploie: false</code>.</td><td>Les campagnes de développement</td></tr>
-      <tr><td><span class="emo">🟠</span> <b>SUP</b></td><td>Comme AUTO, plus <b>un seul arrêt, juste avant la livraison</b>. Tout est prêt à ce moment-là : PR, recette verte, paquet et <code>plan-livraison.md</code>, procédure de retour arrière. Après ton GO, tu lances <code>$dev livrer</code> depuis le poste (aucun chat de travail sur le poste : une session <code>codex exec</code> en accès complet) : il refait toujours une répétition à blanc, exécute seulement le plan validé et s'arrête à la première erreur, sans retour arrière automatique.</td><td>Projets qui déploient sur des serveurs (projet de déploiement). Déploiement <b>depuis le poste local uniquement</b>.</td></tr>
+      <tr><td><span class="emo">🟠</span> <b>SUP</b></td><td>Comme AUTO, plus <b>un seul arrêt, juste avant la livraison</b>. Tout est prêt à ce moment-là : PR, recette verte, paquet et <code>plan-livraison.md</code>, procédure de retour arrière. Après ton GO, tu lances <code>$dev livrer</code> depuis le poste (aucun chat de travail sur le poste : l'exécuteur tourne au premier plan, depuis PowerShell) : il refait toujours une répétition à blanc, exécute seulement le plan validé et s'arrête à la première erreur, sans retour arrière automatique.</td><td>Projets qui déploient sur des serveurs (projet de déploiement). Déploiement <b>depuis le poste local uniquement</b>.</td></tr>
     </table>
   </div>
 
@@ -219,6 +219,6 @@
 
 </div>
 
-<footer>Workflow $dev v2.8 · référence complète : SKILL.md, references/modeles.md et references/decisions-workflow.md · novembre 2026</footer>
+<footer>Workflow $dev v2.8.2 · référence complète : SKILL.md, references/modeles.md et references/decisions-workflow.md · novembre 2026</footer>
 </body>
 </html>

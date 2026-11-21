@@ -15,7 +15,7 @@ export const ETATS_ISSUE = ['en_attente', 'preflight', 'en_cours', 'revue', 'rec
 export const ETATS_CAMPAGNE = ['brouillon', 'en_cours', 'en_pause', 'close'];
 export const CRITICITES = ['leger', 'standard', 'sensible'];
 export const MAX_ESSAIS = 3;
-export const VERSION = '2.8.0';
+export const VERSION = '2.8.2';
 const PASTILLES = { AUTO: '🟢', SUP: '🟠', MS: '🔷', DEV: '🔵', CADRE: '🟣', PROTO: '🎨', TEST: '🧪', RELAIS: '⚙️', BILAN: '📘', AIDE: '❓', ARCHI: '🏛' };
 const DOSSIERS = { AUTO: '01 Campagnes', SUP: '01 Campagnes', MS: '01 Campagnes', DEV: '02 Développement', CADRE: '03 Cadrage & prototypes', PROTO: '03 Cadrage & prototypes', TEST: '04 Relais & maintenance', RELAIS: '04 Relais & maintenance', BILAN: '04 Relais & maintenance', AIDE: '00 Accueil', ARCHI: '00 Accueil' };
 export const TITRE_ARCHI = '🏛 ARCHI · workflow';
@@ -426,6 +426,7 @@ export async function posterSup(cfg, nom, texte) {
   const c = lireCampagne(cfg, nom); if (!c.chat) return { campagne: nom, poste: false, raison: 'campagne sans chat' };
   const { connecter } = await import('./appserver.mjs'); const s = await connecter(cfg);
   try { const lu = await s.call('thread/read', { threadId: c.chat, includeTurns: true }).catch(() => null); const t = (lu?.thread?.turns || []).at(-1);
+    if (!lu?.thread || lu.thread.status?.type === 'notLoaded') { const e = cfg.execution || {}; await s.call('thread/resume', { threadId: c.chat, model: c.chat_modele, approvalPolicy: e.approvalPolicy || 'never', sandbox: e.sandbox || 'workspace-write' }).catch(() => null); } // v2.8.2 : chat recréé ou non chargé
     const entree = '📦 Message de pilote.mjs (livraison, information) — note-le au journal, n\'exécute rien sur les serveurs :\n' + texte;
     const r = t?.status === 'inProgress' ? await s.call('turn/steer', { threadId: c.chat, expectedTurnId: t.id, input: [{ type: 'text', text: entree }] }).catch(() => null) : null;
     if (!r) await s.call('turn/start', { threadId: c.chat, model: c.chat_modele, effort: 'low', ...parametresTour(cfg), input: [{ type: 'text', text: entree }] });
@@ -442,7 +443,7 @@ export function maintenirEveille(cfg) {
   const e = spawn('powershell.exe', ['-NoProfile', '-WindowStyle', 'Hidden', '-Command', ps], { detached: true, stdio: 'ignore', windowsHide: true }); e.unref();
   return { actif: true, pid: e.pid, relacher: () => { try { process.kill(e.pid); } catch {} } };
 }
-export async function executerLivraison(cfg, nom, { aBlanc = false, journal = null } = {}) {
+export async function executerLivraison(cfg, nom, { aBlanc = false, journal = null, echo = false } = {}) {
   if (!cfg.deploiement_serveurs) refuser('LIVRAISON REFUSÉE SUR CET HÔTE', 'hôte ' + cfg.hote + ' : $dev livrer s\'exécute uniquement depuis le poste', 6);
   const info = infoLivraison(cfg, nom);
   if (info.hote_livraison !== 'local') refuser('LIVRAISON NON LOCALE', nom + ' ne livre pas depuis le poste', 6);
@@ -453,7 +454,7 @@ export async function executerLivraison(cfg, nom, { aBlanc = false, journal = nu
   const racine = (cfg.projets?.[info.projet] || {}).chemin || cfg.etat;
   const dossier = journal || path.join(racine, 'livrables', 'livraison', new Date().toISOString().replace(/[:T]/g, '-').slice(0, 16));
   fs.mkdirSync(dossier, { recursive: true }); fs.writeFileSync(path.join(dossier, 'plan-livraison.md'), info.plan_texte);
-  const fj = path.join(dossier, 'journal.log'); const log = (m) => fs.appendFileSync(fj, new Date().toISOString() + ' ' + m + '\n');
+  const fj = path.join(dossier, 'journal.log'); const log = (m) => { fs.appendFileSync(fj, new Date().toISOString() + ' ' + m + '\n'); if (echo) process.stderr.write(new Date().toLocaleTimeString('fr-FR') + ' ' + String(m).split('\n')[0].slice(0, 180) + '\n'); }; // v2.8.2 : progression visible dans la fenêtre
   const eveil = maintenirEveille(cfg);
   const fin = async (codeSortie, message, echec) => { log(message.split('\n')[0]); await posterSup(cfg, nom, message).catch((e) => log('message SUP impossible : ' + e.message)); marquerLivraison(cfg, nom, echec ? { livraison_echec: { le: new Date().toISOString(), message: message.slice(0, 500) } } : { livraison: aBlanc ? { derniere_repetition: new Date().toISOString() } : { livree_le: new Date().toISOString() }, livraison_echec: null }); eveil.relacher(); log('maintien éveillé relâché'); return { campagne: nom, a_blanc: aBlanc, code: codeSortie, journal: dossier, message }; };
   try {
@@ -494,22 +495,18 @@ export async function executerLivraison(cfg, nom, { aBlanc = false, journal = nu
     return await fin(vko.length ? 9 : 0, (vko.length ? '⛔ Livraison exécutée, mais la vérification signale ' + vko.length + ' écart(s) ; aucune correction tentée.' : '✅ Livraison ' + nom + ' terminée.') + '\nSanté : ' + verif.map((x) => (x.ok ? 'ok ' : 'ÉCART ') + x.cible + ' · ' + x.titre).join(' ; ') + '\nVersions en place : ' + JSON.stringify(vApres) + '\nJournal : ' + dossier, vko.length > 0);
   } catch (e) { eveil.relacher(); throw e; }
 }
-export function livrer(cfg, nom, { aBlanc = false } = {}) {
+export async function livrer(cfg, nom, { aBlanc = false } = {}) {
   if (!cfg.deploiement_serveurs) refuser('LIVRAISON REFUSÉE SUR CET HÔTE', 'hôte ' + cfg.hote + ' : $dev livrer s\'exécute uniquement depuis le poste', 6);
-  // option b : livraison par session codex exec ; chat_local.actif (chats interactifs sur le poste) reste false et n'intervient pas ici.
-  if (cfg.chat_local?.option !== 'b') refuser('LIVRAISON LOCALE INDISPONIBLE', 'chat_local.option doit valoir "b" dans poste.local.json (livraison par session codex exec en accès complet)', 6);
+  // v2.8.2 : l'exécuteur déterministe tourne directement, au premier plan, sans session codex exec (son outil de commande l'avait coupé au bout d'environ 10 s le 21/11).
+  if (cfg.chat_local?.option !== 'b') refuser('LIVRAISON LOCALE INDISPONIBLE', 'chat_local.option doit valoir "b" dans poste.local.json (livraison autorisée depuis le poste)', 6);
   const info = infoLivraison(cfg, nom);
   if (!info.livraison?.sha256) refuser('GO ABSENT', nom + ' : aucun GO de livraison enregistré', 6);
   if (!info.plan_texte || sha256(info.plan_texte) !== info.livraison.sha256) refuser('PLAN MODIFIÉ DEPUIS LE GO', 'empreinte différente de celle validée au GO', 6);
   if (info.livraison.utilise && !aBlanc) refuser('GO DÉJÀ UTILISÉ', 'nouveau GO de Paul requis', 6);
   const racine = (cfg.projets?.[info.projet] || {}).chemin || cfg.etat;
-  const dossier = path.join(racine, 'livrables', 'livraison', new Date().toISOString().replace(/[:T]/g, '-').slice(0, 16)); fs.mkdirSync(dossier, { recursive: true });
-  const cmd = 'node "' + (cfg.pilote || path.join(RACINE, 'scripts', 'pilote.mjs')) + '" livraison-executer ' + nom + (aBlanc ? ' --a-blanc' : '') + ' --journal "' + dossier + '"';
-  const consigne = 'Tu es la session de livraison ' + nom + ' sur le poste (workflow $dev v2.2, option b). Exécute exactement cette commande, une seule fois, puis rends sa sortie JSON telle quelle :\n' + cmd + '\nN\'exécute aucune autre commande, ne corrige rien, ne relance rien, ne lance aucun retour arrière, même en cas d\'échec.';
-  const out = fs.openSync(path.join(dossier, 'session-codex.jsonl'), 'a');
-  const p = spawn(cfg.codexExecutable, ['exec', '--skip-git-repo-check', '-s', 'danger-full-access', '-c', 'approval_policy="never"', '--json', '-m', catalogue(cfg, cfg.modeles.ouvrier?.[1] || 'gpt-6-luna'), '-C', dossier, '-o', path.join(dossier, 'session-fin.md'), consigne], { detached: true, stdio: ['ignore', out, out], windowsHide: true });
-  p.unref(); fs.closeSync(out);
-  return { campagne: nom, a_blanc: aBlanc, journal: dossier, session_pid: p.pid, commande: cmd, plan_sha256: info.livraison.sha256.slice(0, 12) };
+  const dossier = path.join(racine, 'livrables', 'livraison', new Date().toISOString().replace(/[:T]/g, '-').slice(0, 16) + (aBlanc ? '-a-blanc' : ''));
+  const r = await executerLivraison(cfg, nom, { aBlanc, journal: dossier, echo: true });
+  return { ...r, plan_sha256: info.livraison.sha256.slice(0, 12) };
 }
 
 // ---------- v2.3 : registre des chats, lanceur, ménage ----------
@@ -728,7 +725,7 @@ export async function appliquerMenage(cfg, selection = 'surs', { chats = null, m
 
 export const ligneMenage = (cfg) => { const a = lireJson(path.join(cfg.etat, 'menage', 'attente.json'), {}); return a.n > 0 ? ['Ménage : ' + a.n + ' actions en attente de décision'] : []; };
 // ---------- chats de travail sur le poste (livraisons) et tâches planifiées déclarées ----------
-export const MESSAGE_CHAT_LOCAL = 'aucun chat interactif n’est créé sur le poste ; une livraison passe uniquement par $dev livrer <campagne> (option b : session codex exec en accès complet, plan figé au GO, répétition à blanc d’abord)';
+export const MESSAGE_CHAT_LOCAL = 'aucun chat interactif n’est créé sur le poste ; une livraison passe uniquement par $dev livrer <campagne> (exécuteur déterministe au premier plan, plan figé au GO, répétition à blanc d’abord)';
 export function chatLocalDisponible(cfg) { return !!cfg.chat_local?.actif; }
 export function signalementsLivraison(cfg, c) { if (c.hote_livraison !== 'local') return []; if (c.livraison_echec) return ['⛔ livraison de ' + c.id + ' arrêtée : ' + String(c.livraison_echec.message || '').split('\n')[0]]; return ['livraison de ' + c.id + ' : préparer plan-livraison.md sur atelier, ⏸ GO de Paul (livraison-go), puis $dev livrer ' + c.id + ' depuis le poste ; ' + MESSAGE_CHAT_LOCAL]; }
 const fichierTache = (cfg, nom) => path.join(cfg.etat, 'taches', nom + '.json');
@@ -983,7 +980,9 @@ export function empreinteReprise(cfg, c) {
   const parts = l.map((i) => [i.linear_id, i.statut, i.poste || '', i.poste_resultat || '', i.attempts || 0, i.arret?.le || '', i.worktree && ACTIFS_ISSUE.includes(i.statut) && fs.existsSync(i.worktree) ? git(i.worktree, 'rev-parse', 'HEAD').out : '']);
   const j = path.join(dossierCampagnes(cfg), c.id + '.decisions.md'); const taille = fs.existsSync(j) ? fs.statSync(j).size : 0;
   const taches = lireTaches(cfg).filter((t) => t.campagne === c.id).map((t) => t.id + ':' + t.statut);
-  return sha256(JSON.stringify([parts, taille, taches, c.statut, !!c.attente_go])).slice(0, 16);
+  const p = cfg.admission?.garde_cpu_pct ?? 40; const cpu = pressionCpu(cfg); const stE = statutsAvecSoeurs(cfg, c); // v2.8.1 : une admission redevenue possible (place libre, garde CPU repassée, dépendance prête) compte comme un changement
+  const peutAdmettre = actifsAdmission(l, null, !!c.voie_recette?.chat).length < (cfg.admission?.dev_max || 4) && (cpu === null || cpu <= p) && l.some((i) => i.statut === 'en_attente' && !i.poste_exclu && admissibilite(cfg, c, i, stE).ok);
+  return sha256(JSON.stringify([parts, taille, taches, c.statut, !!c.attente_go, peutAdmettre])).slice(0, 16);
 }
 // Décide d'une reprise pour un orchestrateur au repos : changement d'état → reprise (au plus toutes les intervalleMin) ; sinon une fois par heure.
 export function decisionReprise(cfg, c, { maintenant = new Date(), intervalleMin = 10 } = {}) {
@@ -1675,7 +1674,7 @@ function executerBrut(argv, cfg = null) {
     case 'acces-restreint': return accesRestreint(C(), a[0]);
     case 'relancer-chat': return relancerChat(C(), a[0], { motif: o.motif || 'relance demandée' });
     case 'livrables': { if (a[0] === 'proteges') return { proteges: livrablesProteges(C()) }; if (a[0] === 'a-rapatrier') return { a_rapatrier: livrablesARapatrier(C()) }; if (a[0] === 'marquer') return marquerLivrables(C(), a[1], a[2], a[3]); if (a[0] === 'rapatrier') return rapatrierLivrables(C()); refuser('COMMANDE INCONNUE', 'livrables ' + a[0]); }
-    case 'livrer': return livrer(C(), a[0], { aBlanc: !!o['a-blanc'] });
+    case 'livrer': return livrer(C(), a[0], { aBlanc: !!o['a-blanc'] }).then((r) => { process.exitCode = r.code; return r; });
     case 'livraison-executer': return executerLivraison(C(), a[0], { aBlanc: !!o['a-blanc'], journal: o.journal || null }).then((r) => { process.exitCode = r.code; return r; });
     case 'livraison-go': return goLivraison(C(), a[0], a[1]);
     case 'livraison-info': return infoLivraison(C(), a[0]);

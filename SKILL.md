@@ -3,7 +3,7 @@ name: dev-orchestrator
 description: Orchestrateur de campagnes autonomes et supervisées (Linear Milestones et Issues) : composition à froid, chats identifiables d'un coup d'œil, routage économe des modèles et exécution hybride (PC local / VPS atelier).
 ---
 
-# Orchestrateur Dev — Workflow opérationnel (v2.8)
+# Orchestrateur Dev — Workflow opérationnel (v2.8.2)
 
 Ce skill régit l'orchestration des travaux via `pilote.mjs`, sur le poste local Windows et sur le VPS `atelier` (Linux).
 
@@ -101,7 +101,7 @@ Trois repères fixes, générés par `pilote.mjs titre` et jamais saisis à la m
 
 **Création des chats de travail.** Tout chat de travail (`🔵 DEV`, `🔷 MS`, `🧪 TEST`, `🟣 CADRE`, `🎨 PROTO`, campagnes) est créé **uniquement** par `pilote.mjs` via l'app-server de l'hôte d'exécution, avec le réglage d'accès de `poste.local.json` (`execution` ; sur atelier : accès complet, approbations jamais), appliqué aussi à chaque reprise : `node <pilote> chat-travail <RÔLE> <projet> <objet> --modele <id du routeur> [--issue <ID>] [--campagne <nom>] [--cwd <dossier>] --consigne-fichier <f>` ; campagnes : `node <pilote> chat <campagne>`. Depuis le poste, la création est déléguée à `pilote.mjs` d'atelier par SSH. Jamais par l'outil de création de chat de l'application. L'agent range ensuite le chat dans le dossier rendu (`dossier`).
 
-**Chats de travail sur le poste.** Aucun chat de travail interactif n'est créé sur le poste (`chat_local.actif: false`, option b retenue par Paul le 20/11/2026) : `chat-travail --hote local` et `--livraison` sont toujours refusés (`CHAT LOCAL INDISPONIBLE`). Une livraison passe uniquement par `$dev livrer <campagne>`, autorisé par `chat_local.option: "b"` (session `codex exec` en accès complet, `livraison.md`) ; sans cette option, refus `LIVRAISON LOCALE INDISPONIBLE`. Une campagne à livraison locale le signale dans son contexte et son digest : la livraison est préparée sur atelier puis exécutée par Paul depuis le poste après le GO. Seuls `❓ AIDE` et `🏛 ARCHI` vivent sur le poste, créés à la main à partir d'un bloc à coller s'ils manquent.
+**Chats de travail sur le poste.** Aucun chat de travail interactif n'est créé sur le poste (`chat_local.actif: false`, option b retenue par Paul le 20/11/2026) : `chat-travail --hote local` et `--livraison` sont toujours refusés (`CHAT LOCAL INDISPONIBLE`). Une livraison passe uniquement par `$dev livrer <campagne>`, autorisé par `chat_local.option: "b"` (exécuteur déterministe lancé directement, au premier plan, depuis PowerShell ou un terminal du poste ; plus de session `codex exec` depuis la v2.8.2, `livraison.md`) ; sans cette option, refus `LIVRAISON LOCALE INDISPONIBLE`. Une campagne à livraison locale le signale dans son contexte et son digest : la livraison est préparée sur atelier puis exécutée par Paul depuis le poste après le GO. Seuls `❓ AIDE` et `🏛 ARCHI` vivent sur le poste, créés à la main à partir d'un bloc à coller s'ils manquent.
 
 **Accès restreint.** Un chat de travail qui constate un accès plus restreint que celui de l'hôte ne demande **jamais** d'élévation : il exécute `node <pilote> acces-restreint <chat>`, termine son tour par « ⛔ ACCÈS RESTREINT — relance demandée à pilote.mjs », et le réveil (`pilote.mjs reveil`, vérification toutes les 10 min sur atelier ; un orchestrateur au repos n'est relancé que si l'état de sa campagne a changé, sinon une fois par heure, v2.6.5) ou `node <pilote> relancer-chat <chat>` le relance avec le bon réglage (3 relances au plus, puis circuit-breaker).
 

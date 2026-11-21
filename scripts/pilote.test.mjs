@@ -677,3 +677,31 @@ test('2.8 : veille sur secteur coupée tant que la file du poste n’est pas vid
   assert.equal(P.garderEveilSecteur(configTest({ atelier_simule: '/x' }), 3).action, 'rien', 'jamais en simulation');
 });
 
+test('2.8.1 : le retour sous la garde CPU avec une place libre et une issue admissible déclenche la reprise', () => {
+  const f = path.join(os.tmpdir(), 'pression-281-' + process.pid);
+  const at = configTest({ hote: 'atelier', deploiement_serveurs: false, admission: { dev_max: 2, lourdes_max: 1, garde_cpu_pct: 40, pression_cpu_fichier: f } });
+  fs.mkdirSync(path.join(at.etat, 'campagnes'), { recursive: true });
+  fs.writeFileSync(path.join(at.etat, 'campagnes', 'k.json'), JSON.stringify({ id: 'k', projet: 'p', mode: 'auto', statut: 'en_cours', chat: 'C', items: [{ type: 'issue_standalone', linear_id: 'DEV-1', statut: 'revue', blocked_by: [] }, { type: 'issue_standalone', linear_id: 'DEV-2', statut: 'en_attente', blocked_by: [] }] }));
+  fs.writeFileSync(f, 'some avg10=70.00 avg60=60.00 avg300=50.00 total=1\n'); const sature = P.empreinteReprise(at, P.lireCampagne(at, 'k'));
+  fs.writeFileSync(f, 'some avg10=5.00 avg60=6.00 avg300=20.00 total=1\n'); const libre = P.empreinteReprise(at, P.lireCampagne(at, 'k'));
+  assert.notEqual(sature, libre, 'garde repassée : changement');
+  fs.writeFileSync(f, 'some avg10=5.00 avg60=7.00 avg300=20.00 total=1\n'); assert.equal(P.empreinteReprise(at, P.lireCampagne(at, 'k')), libre, 'variation sous la garde : pas de changement');
+  fs.rmSync(f, { force: true });
+});
+
+
+
+test('2.8.2 : $dev livrer lance l’exécuteur directement, au premier plan, sans session codex exec', async () => {
+  const c = configTest({ deploiement_serveurs: true, maintien_eveille: false, chat_local: { actif: false, option: 'b' }, codexExecutable: '/inexistant/codex', projets: {} }); c.appServerFactice = path.join(c.etat, 'as.jsonl');
+  const journalSsh = path.join(c.etat, 'ssh.jsonl'); const scenario = path.join(c.etat, 'scenario.json'); fs.writeFileSync(scenario, JSON.stringify({ journal: journalSsh }));
+  process.env.FAUX_SSH_SCENARIO = scenario; c.ssh_commande = [process.execPath, fileURLToPath(new URL('./faux-ssh.mjs', import.meta.url))];
+  const paquet = path.join(c.etat, 'paquet.tgz'); fs.writeFileSync(paquet, 'octets'); const retour = path.join(c.etat, 'retour.md'); fs.writeFileSync(retour, '# retour');
+  P.composer(c, { nom: 'livd', projet: 'deployeur', ids: ['DEV-9'], mode: 'supervise', hoteLivraison: 'local' });
+  const plan = path.join(c.etat, 'plan-livraison.md');
+  fs.writeFileSync(plan, '# Plan\n\n' + '```json livraison\n' + JSON.stringify({ cibles: { s: { ssh: 's', chemin_disque: '/', disque_min_gio: 1, version: 'cat /srv/VERSION' } }, paquet: { chemin: paquet, sha256: P.sha256Fichier(paquet) }, retour_arriere: { procedure: retour }, etapes: [{ id: '1', titre: 'copie', cible: 's', commande: 'deposer-paquet', retour: 'R1' }], verification: [] }) + '\n```\n');
+  P.goLivraison(c, 'livd', plan);
+  const ab = await P.livrer(c, 'livd', { aBlanc: true }); assert.equal(ab.code, 0); assert.equal(ab.session_pid, undefined, 'aucune session codex exec'); assert.match(ab.journal, /-a-blanc$/);
+  const r = await P.livrer(c, 'livd'); assert.equal(r.code, 0); assert.match(r.message, /terminée/);
+  assert.ok(fs.readFileSync(journalSsh, 'utf8').includes('deposer-paquet'), 'les étapes sont exécutées par l’exécuteur lui-même');
+  await assert.rejects(P.livrer(c, 'livd'), (e) => e.titre === 'GO DÉJÀ UTILISÉ');
+});
