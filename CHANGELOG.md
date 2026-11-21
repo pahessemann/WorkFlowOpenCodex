@@ -1,5 +1,9 @@
 # Changelog du socle public
 
+## 2.7 — 21/11/2026
+
+Consommation réduite : Sonnet pour le développement et la revue de criticité standard (Opus en sensible et à l’escalade), relances des orchestrateurs seulement sur changement d’état (sinon une fois par heure), recréation des orchestrateurs à 150 k tokens, compression du contexte à 200 k. Campagnes plus rapides : `campagne scinder` (campagnes sœurs avec dépendances croisées et redirection des issues transférées), voie de recette dédiée (`campagne voie-recette`, `recettes`), tri des issues par nombre d’issues retenues. Versions 2.6.3 à 2.6.5 : cadreur de déblocage avant tout blocage, relances corrigées. 95 évaluations, 58 tests.
+
 ## 2.6.2 — 20/11/2026
 
 Archivage automatique des chats terminés par le réveil du VPS, une heure après la fin (jamais l’accueil, l’architecte, une campagne en cours ni un chat actif). Commande `campagne ajouter` pour inscrire une issue dans une campagne en cours, avec son motif. Correctif 2.6.1 : un fichier JSON étranger dans le dossier des campagnes faisait planter le ménage. 93 évaluations, 53 tests.

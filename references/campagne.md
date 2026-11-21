@@ -40,10 +40,15 @@ contrat est mise de côté et signalée dans le digest.
   (`test.md`). PR finale vers `main` : automatique si recette verte, revue favorable et
   `main_deploie: false` ; sinon `⏸ GO`.
 - Toute décision prise seul : une ligne dans `.pilote/campagnes/<nom>.decisions.md`.
+- Avant tout blocage : cadreur de déblocage (`blocages.md`, v2.6.3) ; l'orchestrateur lance avec `--depuis-role AUTO`
+  (ou `SUP`), le lanceur ne lui répond jamais `executer_ici`.
 - Issue à ajouter en cours de campagne (cadreur, décision de Paul) : `pilote.mjs campagne ajouter <campagne> <ID…>
   --motif "<décision ou clause du contrat>" [--bloquee-par ID,ID] [--milestone slug]`, jamais en modifiant le JSON
   à la main ; la ligne au journal est écrite par le script (v2.6.2).
 - Digest quotidien : `$dev digest <nom>` (Haiku, 15 lignes).
+- Réveil (v2.6.5) : vérification toutes les 10 min, sans token. Un orchestrateur au repos est relancé si l'état de sa
+  campagne a changé (statut, retour du poste, ligne de journal, commit d'une issue active), sinon une fois par heure
+  (`reveil.relance_sans_changement_min`, 60). Ne termine donc pas un tour en laissant des issues de `a_relancer` sans agent.
 
 ## Passerelle poste et ligne d'état (v2.5)
 
@@ -71,3 +76,14 @@ examine le `WIP` de `branche_reprise` avant de coder.
 **Charge lourde (verrou réel)** : suite de tests complète, build complet, Docker, runtime de recette ou migration SQL se lance uniquement par `node <pilote> lourde <campagne> -- <commande>`. Plusieurs en parallèle selon l'hôte : sur atelier, 4 par campagne (`admission.lourdes_max`), 6 au total sur l'hôte (`lourdes_max_hote`, pour garder de la marge de CPU) et seulement si 6 Gio de mémoire restent disponibles (`garde_ram_lourde_gio`) ; sur le poste, 1. Au-delà, la commande attend son tour. Les tests ciblés d'une issue n'en sont pas.
 
 **Chat d'orchestration** : créé uniquement par `node <pilote> chat <campagne>` (app-server, accès de l'hôte, consigne avec la règle d'accès restreint) et repris par `pilote.mjs reveil` avec le même réglage. Les chats de travail des issues passent par `node <pilote> chat-travail`.
+
+## Campagnes sœurs et voie de recette (v2.7)
+
+- `pilote.mjs campagne scinder <c> --projet <p>[,<q>] --vers <nouvelle>` : les items de ces projets (milestones entiers)
+  passent dans une campagne sœur, même contrat, journal copié, tâches du poste suivies. `transferts` redirige toute
+  commande (`statut`, `essai`, `decision`, `ouvrir`…) visant une issue transférée ; les dépendances sont lues dans les deux
+  campagnes (`statutsAvecSoeurs`). Ouvrir ensuite le chat de la sœur : `pilote.mjs chat <nouvelle>`.
+- Admission : `dev_max` 6 par orchestrateur sur atelier (plafond réel des sous-agents) ; le parallélisme vient des
+  campagnes sœurs et de la voie de recette.
+- Orchestrateur recréé au point stable dès 150 k tokens de contexte (`chats.seuil_orchestrateur`) ; sur atelier, Codex
+  compresse le contexte à 200 k tokens (`model_auto_compact_token_limit` dans ``/.codex/config.toml`).

@@ -18,3 +18,13 @@
 **Charge lourde (verrou réel)** : suite de tests complète, build complet, Docker, runtime de recette ou migration SQL se lance uniquement par `node <pilote> lourde <campagne> -- <commande>`. Plusieurs en parallèle selon l'hôte : sur atelier, 4 par campagne (`admission.lourdes_max`), 6 au total sur l'hôte (`lourdes_max_hote`, pour garder de la marge de CPU) et seulement si 6 Gio de mémoire restent disponibles (`garde_ram_lourde_gio`) ; sur le poste, 1. Au-delà, la commande attend son tour. Les tests ciblés d'une issue n'en sont pas.
 
 **Chat de travail** : créé par `node <pilote> chat-travail TEST <projet> <objet> --modele <node <pilote> modele recette-milestone <criticite> <volumetrie>> --consigne-fichier <f>`, jamais par l'outil de création de chat de l'application ; accès de l'hôte appliqué à chaque tour ; en accès restreint, aucune demande d'élévation (SKILL.md §2).
+
+## Voie de recette dédiée (v2.7)
+
+`$dev campagne voie-recette <campagne>` ouvre un chat `🧪 TEST · <projet> · recettes <campagne>` (Sonnet). L'orchestrateur passe
+en `recette` une issue dont le code est fait et la revue favorable ; la voie prend ces issues et les `fusionnee`
+(`node <pilote> recettes <campagne>`, triées par nombre d'issues retenues), joue leur recette par sous-agents (6 au plus,
+charges lourdes par `pilote.mjs lourde`, Windows par la passerelle), puis clôt avec la matrice ou renvoie l'issue en
+`en_cours` avec la cause au journal. Ces issues ne comptent pas dans les places de l'orchestrateur. Le réveil relance la
+voie comme un orchestrateur (sur changement, sinon une fois par heure) ; elle n'est jamais archivée tant que la campagne
+est en cours.

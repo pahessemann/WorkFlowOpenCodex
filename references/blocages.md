@@ -6,6 +6,12 @@
   est interrompu (motif « circuit-breaker »).
 - **Qui débloque (v2.6)** : toute issue arrêtée porte `--attend paul|agents|poste|env --quoi "<cause>"`
   (`pilote.mjs statut` ou `pilote.mjs arret`) ; `$dev point` la classe ainsi, sinon « à qualifier » (`point.md`).
+- **Cadreur avant blocage (v2.6.3, consigne de Paul du 20/11)** : avant de passer une issue `bloquee` (hors action
+  irréversible), l'orchestrateur lance un cadreur de déblocage : `pilote.mjs lancer cadrage deblocage-<ID> --depuis-role AUTO
+  --projet <projet> --nouveau --fiche-stdin` (blocage, essais, options). Mandat de Paul : le cadreur décide par défaut
+  (« à confirmer »), publie au besoin une issue corrective (`campagne ajouter`) et écrit sa conclusion au journal.
+  L'issue reste `en_attente` (`arret --attend agents --quoi "cadrage de déblocage"`) ; elle ne passe `bloquee --attend paul`
+  que si le cadreur conclut à un motif réservé à Paul, avec sa réponse proposée.
 - **Escalade** : `pilote.mjs escalade <criticite> <essai> [bug|architecture]`
   (`modeles.md` §5). Redescendre au modèle nominal dès que le correctif est validé.
 - **Timeout environnement** : réseau, SSH, Docker ou permissions bloqués plus de

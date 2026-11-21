@@ -50,7 +50,7 @@ Tarifs par million de tokens (entrée / sortie / lecture de cache).
 
 ## 1 bis. Disponibilité en sous-agent
 
-Tous les modèles ne peuvent pas être lancés en sous-agent. La liste fait foi dans `poste.local.json` (`modeles.sous_agents`). Aujourd'hui : Haiku, Opus, Fable 5.1, Luna (Fable 5.2 y figure, mais il est exclu du routage).
+Tous les modèles ne peuvent pas être lancés en sous-agent. La liste fait foi dans `poste.local.json` (`modeles.sous_agents`). Aujourd'hui : Haiku, Sonnet (depuis la v2.7, vérifié sur atelier le 21/11/2026), Opus, Fable 5.1, Luna (Fable 5.2 y figure, mais il est exclu du routage).
 
 Quand la matrice désigne un modèle **absent de cette liste** pour une tâche exécutée en sous-agent, le routeur applique ces substitutions :
 
@@ -162,3 +162,10 @@ En `large`, le routeur renvoie **deux modèles** :
 `fable_autorise` ne concerne que l'escalade (essai 3). Les choix visuels utilisent Fable 5.1 dans tous les cas.
 
 Changer de modèle cerveau, dev, contrôle ou œil se fait **à un seul endroit** : ce bloc. La matrice ne référence que des rôles.
+
+## v2.7 — Sonnet en criticité standard
+
+Décision de Paul du 21/11/2026 (mesure : 746 M tokens d'entrée Opus en 24 h sur atelier) : `dev` `standard` passe sur
+**Sonnet 5.5** (fallback Opus), et la revue `standard` en sous-agent reste sur Sonnet démarré à neuf, sans substitution par
+Opus puisque Sonnet est disponible en sous-agent. Escalade `standard` : essai 1 Sonnet, essai 2 Opus (ou Astra pour un bug
+subtil), essai 3 Astra ou Fable. Opus reste le modèle du `sensible` et du cadrage.

@@ -18,11 +18,12 @@ export function configTest(extra = {}) {
 }
 const code = (fn) => { try { fn(); return 0; } catch (e) { assert.ok(e instanceof P.Refus, e.stack); return e.titre; } };
 
-test('les 5 cas de routage exigés', () => {
+test('les 5 cas de routage exigés (v2.7 : Sonnet en standard)', () => {
   const c = configTest();
-  assert.equal(P.router(c, { tache: 'dev', criticite: 'standard', volumetrie: 'compact' }).modele, OPUS);
+  assert.equal(P.router(c, { tache: 'dev', criticite: 'standard', volumetrie: 'compact' }).modele, SONNET);
+  assert.equal(P.router(c, { tache: 'dev', criticite: 'sensible', volumetrie: 'compact' }).modele, OPUS);
   const large = P.router(c, { tache: 'dev', criticite: 'standard', volumetrie: 'large', entree: 40000 });
-  assert.equal(large.lecteur, HAIKU); assert.equal(large.executant, OPUS); assert.equal(large.budget_resume_tokens, 8000);
+  assert.equal(large.lecteur, HAIKU); assert.equal(large.executant, SONNET); assert.equal(large.budget_resume_tokens, 8000);
   assert.equal(P.router(c, { tache: 'tests', criticite: 'sensible', volumetrie: 'compact' }).modele, OPUS);
   assert.equal(P.router(c, { tache: 'pilotage', criticite: 'leger', volumetrie: 'compact' }).modele, HAIKU);
   const revue = P.router(c, { tache: 'revue', criticite: 'standard', volumetrie: 'large', entree: 30000 });
@@ -539,3 +540,89 @@ test('2.6.2 : campagne ajouter : issue admissible, motif obligatoire, doublon si
   P.modifierCampagne(at, 'k', (c) => { c.statut = 'close'; });
   assert.equal(code(() => P.ajouterIssues(at, 'k', ['DEV-7'], { motif: 'm' })), 'CAMPAGNE CLOSE');
 });
+
+
+test('2.6.5 : relance sur changement d’état, sinon une fois par heure ; état mémorisé à la fin du tour', () => {
+  const at = configTest({ hote: 'atelier', deploiement_serveurs: false });
+  fs.mkdirSync(path.join(at.etat, 'campagnes'), { recursive: true });
+  fs.writeFileSync(path.join(at.etat, 'campagnes', 'k.json'), JSON.stringify({ id: 'k', projet: 'p', mode: 'auto', statut: 'en_cours', chat: 'C1', dernier_reveil: new Date(Date.now() - 20 * 60000).toISOString(), items: [{ type: 'issue_standalone', linear_id: 'DEV-1', statut: 'revue', blocked_by: [] }, { type: 'issue_standalone', linear_id: 'DEV-2', statut: 'en_attente', blocked_by: [] }] }));
+  const c0 = () => P.lireCampagne(at, 'k'); const t = (min) => new Date(Date.now() + min * 60000);
+  assert.equal(P.decisionReprise(at, c0()).relancer, true, 'campagne sans état mémorisé : reprise');
+  P.modifierCampagne(at, 'k', (c) => { c.empreinte_repos = null; });
+  let d = P.decisionReprise(at, c0()); assert.equal(d.relancer, false); assert.equal(d.memoriser, true, 'premier passage après le tour : état mémorisé');
+  P.modifierCampagne(at, 'k', (c) => { c.empreinte_repos = d.empreinte; c.repos_le = new Date().toISOString(); });
+  d = P.decisionReprise(at, c0(), { maintenant: t(30) }); assert.equal(d.relancer, false); assert.match(d.raison, /aucun changement depuis 30 min/);
+  assert.equal(P.decisionReprise(at, c0(), { maintenant: t(61) }).relancer, true, 'relance horaire');
+  P.decision(at, 'k', 'DEV-1', 'retour du poste');
+  d = P.decisionReprise(at, c0(), { maintenant: t(11) }); assert.equal(d.relancer, true); assert.equal(d.raison, 'changement détecté');
+  P.modifierCampagne(at, 'k', (c) => { c.dernier_reveil = new Date().toISOString(); c.empreinte_repos = null; });
+  assert.equal(P.decisionReprise(at, c0(), { maintenant: t(5) }).raison, 'reprise récente');
+  at.reveil = { relance_sans_changement_min: 45 }; P.modifierCampagne(at, 'k', (c) => { c.empreinte_repos = P.empreinteReprise(at, c); c.repos_le = new Date().toISOString(); });
+  assert.equal(P.decisionReprise(at, c0(), { maintenant: t(46) }).relancer, true, 'intervalle réglable');
+});
+
+// ---------- v2.7 : routage Sonnet, scission, voie de recette ----------
+test('2.7 : Sonnet en standard (sous-agent compris), Opus en sensible et dès le 2ᵉ essai', () => {
+  const c = configTest(); c.modeles.sous_agents = [HAIKU, OPUS, SONNET, FABLE51, 'gpt-6-luna'];
+  assert.equal(P.router(c, { tache: 'dev', criticite: 'standard', sousAgent: true }).modele, SONNET);
+  assert.equal(P.router(c, { tache: 'revue', criticite: 'standard', sousAgent: true }).modele, SONNET);
+  assert.equal(P.router(c, { tache: 'dev', criticite: 'sensible', sousAgent: true }).modele, OPUS);
+  assert.equal(P.escalade(c, { criticite: 'standard', essai: 1, sousAgent: true }).modele, SONNET);
+  assert.equal(P.escalade(c, { criticite: 'standard', essai: 2, sousAgent: true }).modele, OPUS);
+  assert.equal(P.escalade(c, { criticite: 'sensible', essai: 1, sousAgent: true }).modele, OPUS);
+  const sans = configTest(); assert.equal(P.router(sans, { tache: 'dev', criticite: 'standard', sousAgent: true }).modele, OPUS, 'Sonnet absent des sous-agents : Opus');
+});
+
+function campagneScission() {
+  const at = configTest({ hote: 'atelier', deploiement_serveurs: false, admission: { dev_max: 6, lourdes_max: 4 } });
+  fs.mkdirSync(path.join(at.etat, 'campagnes'), { recursive: true });
+  const il = (id, statut, x = {}) => ({ type: 'issue_standalone', linear_id: id, statut, blocked_by: [], ...x });
+  fs.writeFileSync(path.join(at.etat, 'campagnes', 'cmp.json'), JSON.stringify({ id: 'cmp', projet: 'front', mode: 'auto', statut: 'en_cours', contrat: '/c.md', contrat_valide: true, chat: 'C-CMP', items: [
+    il('API-1', 'revue', { projet: 'api' }), il('API-2', 'en_attente', { projet: 'api', blocked_by: ['API-1'] }), il('FR-1', 'en_attente', { blocked_by: ['API-1'] }), il('FR-2', 'recette'), il('FR-3', 'fusionnee', { blocked_by: [] }), il('FR-4', 'en_attente', { blocked_by: ['FR-2'] }),
+    { type: 'milestone', linear_id: 'MS-A', slug: 'ms-a', issues: [il('API-3', 'en_cours', { projet: 'api' })] }, { type: 'milestone', linear_id: 'MS-X', slug: 'ms-x', issues: [il('FR-9', 'en_attente'), il('API-9', 'en_attente', { projet: 'api' })] }] }));
+  fs.writeFileSync(path.join(at.etat, 'campagnes', 'cmp.decisions.md'), '- 2026-11-21T08:00:00.000Z · FR-2 · historique\n');
+  return at;
+}
+test('2.7 : campagne scinder : milestone mixte refusé, issues transférées, statuts redirigés, dépendances suivies entre sœurs', () => {
+  const at = campagneScission();
+  assert.equal(code(() => P.scinderCampagne(at, 'cmp', { projets: ['api'], vers: 'cmp-api' })), 'MILESTONE MIXTE');
+  P.modifierCampagne(at, 'cmp', (c) => { c.items = c.items.filter((it) => it.linear_id !== 'MS-X'); });
+  const tp = P.posteDeposer(at, 'cmp', 'API-1', { fiche: 'recette Windows' });
+  const r = P.scinderCampagne(at, 'cmp', { projets: ['api'], vers: 'cmp-api' });
+  assert.deepEqual(r.deplacees.sort(), ['API-1', 'API-2', 'API-3', 'MS-A']); assert.deepEqual(r.taches_poste, [tp.tache]);
+  const a = P.lireCampagne(at, 'cmp-api'), f = P.lireCampagne(at, 'cmp');
+  assert.equal(a.chat, undefined); assert.equal(a.contrat, '/c.md'); assert.deepEqual(a.soeurs, ['cmp']); assert.deepEqual(f.soeurs, ['cmp-api']);
+  assert.equal(P.issues(f).some((i) => /^API/.test(i.linear_id)), false);
+  assert.match(fs.readFileSync(path.join(at.etat, 'campagnes', 'cmp-api.decisions.md'), 'utf8'), /FR-2 · historique[\s\S]*GLOBAL · Scission/);
+});
+test('2.7 : après scission, une commande sur l’ancienne campagne est redirigée ; FR-1 attend API-1 dans la campagne sœur', () => {
+  const at = campagneScission();
+  P.modifierCampagne(at, 'cmp', (c) => { c.items = c.items.filter((it) => it.linear_id !== 'MS-X'); });
+  P.scinderCampagne(at, 'cmp', { projets: ['api'], vers: 'cmp-api' });
+  const s = P.statutIssue(at, 'cmp', 'API-3', 'revue'); assert.equal(s.campagne, 'cmp');
+  assert.equal(P.issues(P.lireCampagne(at, 'cmp-api')).find((i) => i.linear_id === 'API-3').statut, 'revue', 'statut écrit dans la campagne sœur');
+  P.decision(at, 'cmp', 'API-3', 'note redirigée');
+  assert.match(fs.readFileSync(path.join(at.etat, 'campagnes', 'cmp-api.decisions.md'), 'utf8'), /API-3 · note redirigée/);
+  const cli = P.executer(['essai', 'cmp', 'API-3', 'echec'], at); assert.equal(cli.attempts, 1);
+  assert.equal(P.retenues(at, P.lireCampagne(at, 'cmp-api'))['API-1'], 2, 'API-2 et FR-1 (sœur) attendent API-1');
+  P.modifierCampagne(at, 'cmp', (c) => { for (const i of c.items) if (['FR-2', 'FR-3'].includes(i.linear_id)) i.statut = 'close'; });
+  assert.doesNotMatch(P.ligneEtat(at, 'cmp').ligne, /admission de FR-1/, 'FR-1 non éligible tant qu’API-1 n’est pas close');
+  P.modifierCampagne(at, 'cmp-api', (c) => { c.items.find((i) => i.linear_id === 'API-1').statut = 'close'; });
+  assert.match(P.ligneEtat(at, 'cmp').ligne, /admission de FR-1/);
+});
+test('2.7 : voie de recette : issues en recette hors des places, triées par issues retenues, ligne d’état propre', () => {
+  const at = campagneScission();
+  P.modifierCampagne(at, 'cmp', (c) => { c.voie_recette = { chat: 'C-TEST', modele: 'anthropic/claude-sonnet-5-5' }; });
+  const k = P.contexte(at, 'cmp');
+  assert.equal(k.a_relancer.includes('FR-2'), false, 'FR-2 appartient à la voie'); assert.deepEqual(k.a_recetter, []); assert.equal(k.voie_recette, 'C-TEST');
+  assert.match(k.consigne, /Voie de recette dédiée/); assert.equal(k.a_relancer[0], 'API-1', 'API-1 débloque le plus d’issues');
+  assert.equal(P.actifsAdmission(P.issues(P.lireCampagne(at, 'cmp')), null, true).some((i) => i.linear_id === 'FR-2'), false);
+  const v = P.recettesVoie(at, 'cmp');
+  assert.deepEqual(v.a_recetter.map((x) => x.issue), ['FR-2', 'FR-3'], 'FR-2 retient FR-4'); assert.equal(v.a_recetter[0].retient, 1);
+  assert.match(v.ligne, /^▶ EN COURS · 2 issue\(s\) à recetter \(FR-2, FR-3\)/); assert.match(v.consigne, /Tu ne développes rien/);
+  P.modifierCampagne(at, 'cmp', (c) => { c.items.find((i) => i.linear_id === 'FR-2').statut = 'close'; c.items.find((i) => i.linear_id === 'FR-3').statut = 'close'; });
+  assert.match(P.recettesVoie(at, 'cmp').ligne, /^⏳ EN ATTENTE · aucune issue à recetter/);
+  fs.writeFileSync(path.join(at.etat, 'chats.json'), JSON.stringify({ 'C-TEST': { role: 'TEST', titre: '🧪 TEST · front · recettes cmp · ✅', hote: 'atelier', statut: 'clos', campagne: 'cmp', voie_recette: true, derniere_ligne_le: new Date(Date.now() - 5 * 3600000).toISOString() } }));
+  assert.deepEqual(P.chatsAArchiver(at), [], 'la voie d’une campagne en cours n’est jamais archivée');
+});
+

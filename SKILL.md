@@ -3,7 +3,7 @@ name: dev-orchestrator
 description: Orchestrateur de campagnes autonomes et supervisées (Linear Milestones et Issues) : composition à froid, chats identifiables d'un coup d'œil, routage économe des modèles et exécution hybride (PC local / VPS atelier).
 ---
 
-# Orchestrateur Dev — Workflow opérationnel (v2.6)
+# Orchestrateur Dev — Workflow opérationnel (v2.7)
 
 Ce skill régit l'orchestration des travaux via `pilote.mjs`, sur le poste local Windows et sur le VPS `atelier` (Linux).
 
@@ -34,6 +34,8 @@ Paul intervient **une fois, au cadrage**. Ensuite, les agents travaillent seuls 
 | Commande | Action / contrat | Type de chat |
 | :--- | :--- | :--- |
 | `$dev campagne composer <nom> <projet> <MS\|ID...>` | Créer ou enrichir une campagne en **brouillon**, sans agent | inline |
+| `$dev campagne scinder <campagne> --projet <p> --vers <nouvelle>` | Scinder une campagne en cours en campagnes sœurs par projet, chacune avec son orchestrateur ; dépendances suivies entre sœurs, commandes visant une issue transférée redirigées (v2.7) | inline |
+| `$dev campagne voie-recette <campagne>` | Ouvrir la voie de recette dédiée (chat `🧪 TEST`, Sonnet) : elle prend les issues en recette ou fusionnées, joue leur recette et les clôt, hors des places de l'orchestrateur (`test.md`, v2.7) | `TEST` |
 | `$dev campagne ajouter <campagne> <ID…> --motif "…"` | Ajouter une issue à une campagne **en cours** (ou en pause), avec la décision ou la clause du contrat qui la couvre ; options `--projet`, `--criticite`, `--bloquee-par`, `--milestone` ; ligne au journal, admission au prochain réveil (v2.6.2) | inline |
 | `$dev campagne lancer <nom> [auto\|supervise]` | Resynchroniser Linear, vérifier les dépendances, démarrer (`campagne.md`) | `AUTO` / `SUP` |
 | `$dev milestone <projet> <ms-id>` | Exécuter un Milestone isolé (`execution.md`) | `MS` |
@@ -101,7 +103,7 @@ Trois repères fixes, générés par `pilote.mjs titre` et jamais saisis à la m
 
 **Chats de travail sur le poste.** Aucun chat de travail interactif n'est créé sur le poste (`chat_local.actif: false`, option b retenue par Paul le 20/11/2026) : `chat-travail --hote local` et `--livraison` sont toujours refusés (`CHAT LOCAL INDISPONIBLE`). Une livraison passe uniquement par `$dev livrer <campagne>`, autorisé par `chat_local.option: "b"` (session `codex exec` en accès complet, `livraison.md`) ; sans cette option, refus `LIVRAISON LOCALE INDISPONIBLE`. Une campagne à livraison locale le signale dans son contexte et son digest : la livraison est préparée sur atelier puis exécutée par Paul depuis le poste après le GO. Seuls `❓ AIDE` et `🏛 ARCHI` vivent sur le poste, créés à la main à partir d'un bloc à coller s'ils manquent.
 
-**Accès restreint.** Un chat de travail qui constate un accès plus restreint que celui de l'hôte ne demande **jamais** d'élévation : il exécute `node <pilote> acces-restreint <chat>`, termine son tour par « ⛔ ACCÈS RESTREINT — relance demandée à pilote.mjs », et le réveil (`pilote.mjs reveil`, toutes les 10 min sur atelier) ou `node <pilote> relancer-chat <chat>` le relance avec le bon réglage (3 relances au plus, puis circuit-breaker).
+**Accès restreint.** Un chat de travail qui constate un accès plus restreint que celui de l'hôte ne demande **jamais** d'élévation : il exécute `node <pilote> acces-restreint <chat>`, termine son tour par « ⛔ ACCÈS RESTREINT — relance demandée à pilote.mjs », et le réveil (`pilote.mjs reveil`, vérification toutes les 10 min sur atelier ; un orchestrateur au repos n'est relancé que si l'état de sa campagne a changé, sinon une fois par heure, v2.6.5) ou `node <pilote> relancer-chat <chat>` le relance avec le bon réglage (3 relances au plus, puis circuit-breaker).
 
 ### 2.1 Titre du chat : rôle, projet, objet, état
 
@@ -349,6 +351,7 @@ Dès que le correctif est validé, **redescendre au niveau nominal**.
 * **Droits d'écriture dans Linear** : seuls `$dev cadrage` et `$dev cadrage-court` écrivent le **contenu** d'une issue (titre, description, critères d'acceptation, découpage). Les autres étapes n'écrivent que l'état, des commentaires et le bilan. Un agent ne réécrit jamais les critères de l'issue qu'il traite : s'il les juge faux, il le signale dans le digest, rubrique « À confirmer ».
 * **Journal de décisions** (`.pilote/campagnes/<nom>.decisions.md`) : chaque choix fait sans Paul y est consigné en une ligne (issue, décision, règle appliquée, comment revenir en arrière). Paul le parcourt dans le digest et peut annuler une décision a posteriori. Quand une règle commune change après un GO de Paul (limite d'admission, par exemple), `🏛 ARCHI` inscrit une ligne `GLOBAL · Paul (…) : …` dans le journal de chaque campagne en cours (`node <pilote> decision-globale <texte>`, sur l'hôte d'exécution).
 * **Qui débloque (v2.6)** : quand un orchestrateur arrête une issue (`bloquee`, ou `revue`/`recette` qui attend autre chose que son travail), il le dit : `pilote.mjs statut … --attend paul|agents|poste|env --quoi "<cause ; pour Paul : action exacte et réponse proposée>"`, ou `pilote.mjs arret …` sans changer le statut. `$dev point` s'en sert ; une issue arrêtée sans ce champ y apparaît « à qualifier » (`point.md`).
+* **Cadreur avant blocage (v2.6.3)** : une campagne ne bloque une issue qu'après un cadreur de déblocage (`pilote.mjs lancer cadrage deblocage-<ID> --depuis-role AUTO …`), qui décide par défaut sous mandat de Paul ou publie un correctif ; seule une conclusion « réservé à Paul » (irréversible, hors mandat) bloque l'issue, avec la réponse proposée (`blocages.md`).
 * **Questions non bloquantes** : une question qui ne relève pas des 3 motifs n'arrête jamais une issue. L'agent prend l'option par défaut, la journalise et la place dans le digest, rubrique « À confirmer ».
 * **Digest quotidien** : un message par campagne et par jour dans son chat, généré par Haiku, 15 lignes maximum (avancement, issues closes, décisions prises seul, `⛔`). Pas d'autre notification hors des 3 motifs.
 
