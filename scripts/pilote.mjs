@@ -15,7 +15,7 @@ export const ETATS_ISSUE = ['en_attente', 'preflight', 'en_cours', 'revue', 'rec
 export const ETATS_CAMPAGNE = ['brouillon', 'en_cours', 'en_pause', 'close'];
 export const CRITICITES = ['leger', 'standard', 'sensible'];
 export const MAX_ESSAIS = 3;
-export const VERSION = '2.11';
+export const VERSION = '2.11.1';
 const PASTILLES = { AUTO: '🟢', SUP: '🟠', MS: '🔷', DEV: '🔵', CADRE: '🟣', PROTO: '🎨', TEST: '🧪', RELAIS: '⚙️', BILAN: '📘', AIDE: '❓', ARCHI: '🏛' };
 const DOSSIERS = { AUTO: '01 Campagnes', SUP: '01 Campagnes', MS: '01 Campagnes', DEV: '02 Développement', CADRE: '03 Cadrage & prototypes', PROTO: '03 Cadrage & prototypes', TEST: '04 Relais & maintenance', RELAIS: '04 Relais & maintenance', BILAN: '04 Relais & maintenance', AIDE: '00 Accueil', ARCHI: '00 Accueil' };
 export const TITRE_ARCHI = '🏛 ARCHI · workflow';
@@ -1180,10 +1180,18 @@ export function verifierFusion(cfg, c, i, { sansFusion = null } = {}) {
   const princ = projet.branche_principale || 'main'; const br = i.branche_reprise || i.branche; const id = i.linear_id;
   git(projet.chemin, 'fetch', '-q', 'origin', princ); git(projet.chemin, 'fetch', '-q', 'origin', br);
   const ref = ['origin/' + br, br].find((r) => git(projet.chemin, 'rev-parse', '--verify', '-q', r).code === 0);
-  if (ref && git(projet.chemin, 'merge-base', '--is-ancestor', ref, 'origin/' + princ).code === 0) return { verifie: true, branche: br, cible: princ, par: 'historique' };
-  if (cfg.gh !== false) { const url = git(projet.chemin, 'remote', 'get-url', 'origin').out; const depot = (url.match(/github\.com[:/](.+?)(\.git)?$/) || [])[1];
+  // v2.11.1 : la tête réelle du travail (worktree de l'issue s'il existe) doit être dans la branche principale ; une branche distante restée à son point de départ ne prouve rien
+  const wt = i.worktree && fs.existsSync(path.join(i.worktree, '.git')) ? i.worktree : null; const tete = wt ? git(wt, 'rev-parse', 'HEAD').out.trim() : null;
+  const refSha = ref ? git(projet.chemin, 'rev-parse', ref).out.trim() : null; const aVerifier = tete || refSha;
+  if (aVerifier && git(projet.chemin, 'merge-base', '--is-ancestor', aVerifier, 'origin/' + princ).code === 0) return { verifie: true, branche: br, cible: princ, par: tete ? 'historique (tête du worktree ' + tete.slice(0, 8) + ')' : 'historique' };
+  if (tete) { // travail rebasé après la fusion de la PR, ou fusion par squash : commits équivalents, ou fichiers de l'issue identiques dans la branche principale
+    const ch = git(projet.chemin, 'cherry', 'origin/' + princ, tete).out.split('\n').filter(Boolean);
+    if (ch.length && ch.every((l) => l.startsWith('-'))) return { verifie: true, branche: br, cible: princ, par: 'commits équivalents déjà dans ' + princ };
+    const mb = git(projet.chemin, 'merge-base', tete, 'origin/' + princ).out.trim(); const fic = mb ? git(projet.chemin, 'diff', '--name-only', mb, tete).out.split('\n').filter(Boolean) : [];
+    if (fic.length && git(projet.chemin, 'diff', '--quiet', tete, 'origin/' + princ, '--', ...fic).code === 0) return { verifie: true, branche: br, cible: princ, par: 'contenu du worktree identique dans ' + princ }; }
+  if (cfg.gh !== false && (!tete || tete === refSha)) { const url = git(projet.chemin, 'remote', 'get-url', 'origin').out; const depot = (url.match(/github\.com[:/](.+?)(\.git)?$/) || [])[1];
     if (depot) { const r = spawnSync('gh', ['pr', 'list', '--repo', depot, '--state', 'merged', '--head', br, '--base', princ, '--json', 'number,mergeCommit'], { encoding: 'utf8', windowsHide: true, timeout: 30000 }); try { const l = JSON.parse(r.stdout || '[]'); if (l.length) return { verifie: true, branche: br, cible: princ, par: 'PR #' + l[0].number + ' fusionnée' }; } catch {} } }
-  refuser('CLÔTURE SANS FUSION', id + ' : la branche ' + br + ' n’est pas fusionnée dans ' + princ + ' (' + (ref ? 'absente de son historique' : 'introuvable') + ', aucune PR fusionnée) ; ouvrir la PR vers ' + princ + ', la fusionner, puis clore. Issue sans code livré : --sans-fusion "<motif>".');
+  refuser('CLÔTURE SANS FUSION', id + ' : ' + (tete && tete !== refSha ? 'la tête du worktree (' + tete.slice(0, 8) + ') n’est ni poussée sur ' + br + ' ni fusionnée dans ' + princ : 'la branche ' + br + ' n’est pas fusionnée dans ' + princ + ' (' + (ref ? 'absente de son historique' : 'introuvable') + ', aucune PR fusionnée)') + ' ; ouvrir la PR vers ' + princ + ', la fusionner, puis clore. Issue sans code livré : --sans-fusion "<motif>".');
 }
 
 // ---------- charges lourdes : verrou réel (lourdes_max par campagne) ----------

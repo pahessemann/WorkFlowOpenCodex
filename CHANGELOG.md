@@ -1,5 +1,9 @@
 # Changelog du socle public
 
+## 2.11.1 — 21/11/2026
+
+Correctif : la règle de clôture après fusion vérifie la tête réelle du travail (worktree de l’issue), et non plus seulement la branche distante, qui pouvait être restée à son point de départ et passer pour fusionnée. 97 évaluations, 72 tests.
+
 ## 2.11 — 21/11/2026
 
 `pilote.mjs executant demander|etat` : une campagne dépose une demande d’action réservée à l’humain (installation root, commandes du serveur de déploiement, livraison sous mandat), traitée par un exécutant installé sur l’hôte et propre à chaque installation (non publié). Le bloc d’état montre ces demandes, et un refus remonte dans « ce que tu dois faire ». Le réveil relance les orchestrateurs dont des issues admises ne bougent plus, et signale le poste éteint. 97 évaluations, 71 tests.

@@ -841,3 +841,29 @@ test('2.11 : demandes à l’exécutant de l’hôte, rubrique 🛠, refus remon
   assert.equal(dr.relancer, true); assert.match(dr.raison, /issues admises sans mouvement depuis 25 min/);
 });
 
+
+
+test('2.11.1 : clôture refusée quand la tête du worktree n’est ni poussée ni fusionnée, même si la branche distante est restée à son point de départ', () => {
+  const at = configTest({ hote: 'atelier', deploiement_serveurs: false, gh: false });
+  const g = (cwd, ...a) => { const r = spawnSync('git', ['-C', cwd, ...a], { encoding: 'utf8' }); if (r.status) throw new Error(a.join(' ') + ' : ' + r.stderr); return r.stdout.trim(); };
+  const nu = path.join(at.etat, 'origine.git'); spawnSync('git', ['init', '-q', '--bare', '-b', 'main', nu]);
+  const dep = path.join(at.etat, 'depot'); spawnSync('git', ['clone', '-q', nu, dep]); g(dep, 'config', 'user.email', 't@t'); g(dep, 'config', 'user.name', 't');
+  g(dep, 'checkout', '-q', '-b', 'main'); fs.writeFileSync(path.join(dep, 'a.txt'), '1'); g(dep, 'add', '.'); g(dep, 'commit', '-q', '-m', 'base'); g(dep, 'push', '-q', '-u', 'origin', 'main');
+  g(dep, 'branch', 'codex/issue-DEV-1'); g(dep, 'push', '-q', 'origin', 'codex/issue-DEV-1');
+  const wt = path.join(at.etat, 'wt'); g(dep, 'worktree', 'add', '-q', wt, 'codex/issue-DEV-1'); g(wt, 'config', 'user.email', 't@t'); g(wt, 'config', 'user.name', 't');
+  fs.writeFileSync(path.join(wt, 'b.txt'), '2'); g(wt, 'add', '.'); g(wt, 'commit', '-q', '-m', 'travail recetté, non poussé');
+  at.projets = { p: { chemin: dep, branche_principale: 'main' } };
+  fs.mkdirSync(path.join(at.etat, 'campagnes'), { recursive: true });
+  fs.writeFileSync(path.join(at.etat, 'campagnes', 'k.json'), JSON.stringify({ id: 'k', projet: 'p', mode: 'auto', statut: 'en_cours', items: [{ type: 'issue_standalone', linear_id: 'DEV-1', statut: 'recette', branche: 'codex/issue-DEV-1', worktree: wt, blocked_by: [] }] }));
+  const i = () => P.issues(P.lireCampagne(at, 'k'))[0];
+  assert.equal(code(() => P.verifierFusion(at, P.lireCampagne(at, 'k'), i())), 'CLÔTURE SANS FUSION', 'branche distante au point de départ : ne prouve rien');
+  g(wt, 'push', '-q', 'origin', 'codex/issue-DEV-1');
+  assert.equal(code(() => P.verifierFusion(at, P.lireCampagne(at, 'k'), i())), 'CLÔTURE SANS FUSION', 'poussée mais pas fusionnée');
+  g(dep, 'checkout', '-q', 'main'); g(dep, 'merge', '-q', '--no-ff', '-m', 'Merge pull request #1', 'origin/codex/issue-DEV-1'); g(dep, 'push', '-q', 'origin', 'main');
+  assert.match(P.verifierFusion(at, P.lireCampagne(at, 'k'), i()).par, /tête du worktree/);
+  g(wt, 'commit', '-q', '--amend', '-m', 'même travail, réécrit après la fusion');
+  assert.match(P.verifierFusion(at, P.lireCampagne(at, 'k'), i()).par, /équivalents|identique/, 'travail réécrit, contenu déjà fusionné');
+  fs.writeFileSync(path.join(wt, 'c.txt'), '3'); g(wt, 'add', '.'); g(wt, 'commit', '-q', '-m', 'travail en plus, jamais fusionné');
+  assert.equal(code(() => P.verifierFusion(at, P.lireCampagne(at, 'k'), i())), 'CLÔTURE SANS FUSION', 'un commit en plus non fusionné reste refusé');
+});
+
