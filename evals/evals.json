@@ -2071,7 +2071,9 @@
           "--attend",
           "paul",
           "--quoi",
-          "fournir le compte (proposé : compte _2)"
+          "fournir le compte (proposé : compte _2)",
+          "--reserve",
+          "secret à fournir par Paul"
         ]
       ],
       "attendu": {

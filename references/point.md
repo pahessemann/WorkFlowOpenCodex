@@ -31,6 +31,9 @@ autre chose que son propre travail) :
 - `pilote.mjs statut <campagne> <ID> <statut> --attend paul|agents|poste|env --quoi "<cause courte>"` ;
 - `pilote.mjs arret <campagne> <ID> --attend … --quoi …` qualifie sans changer le statut (ni solder un retour
   du poste) ; `--lever` efface l'arrêt.
+- `--attend paul` exige une ligne « Conclusion du cadreur : … » au journal de l'issue (`CADREUR REQUIS`, v2.9), sauf
+  `--reserve "<motif>"` (irréversible ou root, secret à fournir, hors mandat). La ligne d'état liste ces issues dans
+  « Toi : décider pour … », et `places` donne aussi `ouvertes` / `ouvertes_max`.
 - Pour `paul`, `--quoi` donne l'action exacte et, pour une décision, la réponse proposée :
   « Choisir le moteur Word (proposé : HtmlToOpenXml) ».
 - Un changement de statut sans `--attend` lève l'arrêt. `contexte` liste `a_qualifier` (issues `bloquee`

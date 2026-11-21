@@ -757,3 +757,34 @@ test('2.8.5 : badge par options nommées ; badge ou décision incomplets refusé
   const j = path.join(at.etat, 'campagnes', 'k.decisions.md'); assert.ok(!fs.existsSync(j) || !fs.readFileSync(j, 'utf8').includes('undefined'));
   P.executer(['decision', 'k', 'DEV-1', 'choix', 'noté'], at); assert.match(fs.readFileSync(j, 'utf8'), /DEV-1 · choix noté/);
 });
+
+
+test('2.9 : places libérées par l’attente extérieure, CADREUR REQUIS, cadreurs lancés par le réveil, ligne d’état honnête', async () => {
+  const at = configTest({ hote: 'atelier', deploiement_serveurs: false, gh: false });
+  fs.mkdirSync(path.join(at.etat, 'campagnes'), { recursive: true });
+  const it = (id, statut, extra = {}) => ({ type: 'issue_standalone', linear_id: id, statut, blocked_by: [], ...extra });
+  fs.writeFileSync(path.join(at.etat, 'campagnes', 'k.json'), JSON.stringify({ id: 'k', projet: 'p', mode: 'auto', statut: 'en_cours', items: [it('DEV-1', 'revue'), it('DEV-2', 'revue'), it('DEV-3', 'recette'), it('DEV-4', 'en_attente', { blocked_by: ['DEV-1'] })] }));
+  assert.equal(code(() => P.statutIssue(at, 'k', 'DEV-1', 'revue', null, { attend: 'paul', quoi: 'choisir A ou B' })), 'CADREUR REQUIS');
+  assert.equal(code(() => P.executer(['arret', 'k', 'DEV-1', '--attend', 'paul', '--quoi', 'choisir'], at)), 'CADREUR REQUIS');
+  P.executer(['arret', 'k', 'DEV-2', '--attend', 'paul', '--quoi', 'lancer la commande root', '--irreversible', 'commande sudo sur atelier'], at);
+  P.decision(at, 'k', 'DEV-1', 'cadrage de déblocage ouvert (deblocage-DEV-1)');
+  assert.equal(code(() => P.statutIssue(at, 'k', 'DEV-1', 'revue', null, { attend: 'paul', quoi: 'x' })), 'CADREUR REQUIS', 'une ouverture de cadrage ne vaut pas conclusion');
+  P.decision(at, 'k', 'DEV-1', 'Conclusion du cadreur : option A retenue sauf avis contraire ; réservé à Paul : oui');
+  P.statutIssue(at, 'k', 'DEV-1', 'revue', null, { attend: 'paul', quoi: 'confirmer option A' });
+  const l = P.issues(P.lireCampagne(at, 'k'));
+  assert.deepEqual(P.actifsAdmission(l).map((i) => i.linear_id), ['DEV-3'], 'les issues qui attendent Paul libèrent leur place');
+  assert.equal(P.ouvertesAdmission(l).length, 3); assert.equal(P.ouvertesMax(at), 8);
+  const ligne = P.ligneEtat(at, 'k').ligne; assert.match(ligne, /^▶/); assert.match(ligne, /2 en attente hors agents/); assert.match(ligne, /Toi : .*décider pour DEV-1 \(confirmer option A\)/);
+  const lances = []; const lanceur = async (cfg, o) => { lances.push(o); return { action: 'cree', chat: 'chat-' + o.args[0] }; };
+  const t0 = new Date('2026-11-21T00:00:00Z'); const k = () => P.lireCampagne(at, 'k');
+  assert.equal(await P.cadreursAuto(at, k(), { maintenant: t0, lanceur }), null, 'premier passage : état mémorisé');
+  assert.equal(await P.cadreursAuto(at, k(), { maintenant: new Date(+t0 + 60 * 60000), lanceur }), null, 'immobile depuis 1 h seulement');
+  const r = await P.cadreursAuto(at, k(), { maintenant: new Date(+t0 + 125 * 60000), lanceur });
+  assert.deepEqual(r.lances.map((x) => x.issue), ['DEV-3'], 'DEV-1 attend Paul après cadrage, DEV-2 est irréversible, DEV-4 attend sa dépendance');
+  assert.equal(lances[0].depuisRole, 'AUTO'); assert.equal(lances[0].nouveau, true); assert.match(lances[0].fiche, /Conclusion du cadreur/);
+  assert.equal(P.issues(k()).find((i) => i.linear_id === 'DEV-3').cadreur.chat, 'chat-deblocage-DEV-3');
+  assert.equal(await P.cadreursAuto(at, k(), { maintenant: new Date(+t0 + 130 * 60000), lanceur }), null, 'le journal a bougé : nouvel état');
+  P.statutIssue(at, 'k', 'DEV-2', 'en_cours'); P.statutIssue(at, 'k', 'DEV-1', 'en_cours');
+  assert.match(P.ligneEtat(at, 'k').ligne, /Toi : rien/, 'attente levée');
+});
+

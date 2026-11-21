@@ -1,5 +1,9 @@
 # Changelog du socle public
 
+## 2.9 — 21/11/2026
+
+Plus d’attente sans travail. Une issue qui attend Paul, le poste ou l’environnement libère sa place d’admission (le total ouvert reste borné). Une issue ne peut attendre Paul qu’après la conclusion d’un cadreur de déblocage, sauf motif réservé déclaré (`--reserve`). Le réveil lance lui-même les cadreurs quand une campagne n’a pas bougé depuis deux heures. La ligne d’état nomme ce que Paul doit décider. 97 évaluations, 69 tests.
+
 ## 2.8.5 — 21/11/2026
 
 Correctif : `pilote.mjs badge` accepte les options nommées et refuse un badge incomplet au lieu d’afficher « undefined » ; `pilote.mjs decision` refuse un appel sans identifiant ou sans texte au lieu d’écrire une ligne vide au journal. La consigne des orchestrateurs donne la syntaxe exacte. 97 évaluations, 68 tests.

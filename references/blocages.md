@@ -12,6 +12,11 @@
   (« à confirmer »), publie au besoin une issue corrective (`campagne ajouter`) et écrit sa conclusion au journal.
   L'issue reste `en_attente` (`arret --attend agents --quoi "cadrage de déblocage"`) ; elle ne passe `bloquee --attend paul`
   que si le cadreur conclut à un motif réservé à Paul, avec sa réponse proposée.
+- **Cadreur vérifié par le script (v2.9)** : `--attend paul` (`statut` ou `arret`) est refusé `CADREUR REQUIS` tant que le
+  journal n'a pas, pour cette issue, une ligne « Conclusion du cadreur : … ; réservé à Paul : oui|non » (écrite par le
+  cadreur avec `pilote.mjs decision`). Motif réservé d'emblée (action irréversible ou root, secret à fournir, hors mandat) :
+  `--reserve "<motif>"`. Le réveil lance lui-même les cadreurs quand la campagne n'a pas bougé depuis 2 h
+  (`reveil.cadreur_apres_min`, 3 au plus en même temps : `reveil.cadreurs_max`) et l'inscrit au journal.
 - **Escalade** : `pilote.mjs escalade <criticite> <essai> [bug|architecture]`
   (`modeles.md` §5). Redescendre au modèle nominal dès que le correctif est validé.
 - **Timeout environnement** : réseau, SSH, Docker ou permissions bloqués plus de

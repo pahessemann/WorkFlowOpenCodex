@@ -42,6 +42,10 @@ contrat est mise de côté et signalée dans le digest.
 - Toute décision prise seul : une ligne dans `.pilote/campagnes/<nom>.decisions.md`.
 - Avant tout blocage : cadreur de déblocage (`blocages.md`, v2.6.3) ; l'orchestrateur lance avec `--depuis-role AUTO`
   (ou `SUP`), le lanceur ne lui répond jamais `executer_ici`.
+- v2.9 : `--attend paul` exige la conclusion du cadreur au journal (`CADREUR REQUIS`), sauf `--reserve "<motif>"`
+  (irréversible ou root, secret à fournir, hors mandat). Aucune question à Paul dans le texte d'un tour : seule la ligne
+  d'état lui parle. Une issue qui attend Paul, le poste ou l'environnement libère sa place : admets d'autres issues tant
+  que `dev_max` et `ouvertes_max` le permettent (`contexte` : `admission.en_attente_exterieure`).
 - Issue à ajouter en cours de campagne (cadreur, décision de Paul) : `pilote.mjs campagne ajouter <campagne> <ID…>
   --motif "<décision ou clause du contrat>" [--bloquee-par ID,ID] [--milestone slug]`, jamais en modifiant le JSON
   à la main ; la ligne au journal est écrite par le script (v2.6.2).
