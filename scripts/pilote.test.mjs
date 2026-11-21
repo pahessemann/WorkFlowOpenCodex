@@ -543,7 +543,7 @@ test('2.6.2 : campagne ajouter : issue admissible, motif obligatoire, doublon si
 
 
 test('2.6.5 : relance sur changement d’état, sinon une fois par heure ; état mémorisé à la fin du tour', () => {
-  const at = configTest({ hote: 'atelier', deploiement_serveurs: false });
+  const at = configTest({ hote: 'atelier', deploiement_serveurs: false, reveil: { relance_a_relancer_min: 100000 } }); // règle 2.11 neutralisée : ce test isole la règle 2.6.5
   fs.mkdirSync(path.join(at.etat, 'campagnes'), { recursive: true });
   fs.writeFileSync(path.join(at.etat, 'campagnes', 'k.json'), JSON.stringify({ id: 'k', projet: 'p', mode: 'auto', statut: 'en_cours', chat: 'C1', dernier_reveil: new Date(Date.now() - 20 * 60000).toISOString(), items: [{ type: 'issue_standalone', linear_id: 'DEV-1', statut: 'revue', blocked_by: [] }, { type: 'issue_standalone', linear_id: 'DEV-2', statut: 'en_attente', blocked_by: ['DEV-1'] }] }));
   const c0 = () => P.lireCampagne(at, 'k'); const t = (min) => new Date(Date.now() + min * 60000);
@@ -709,7 +709,7 @@ test('2.8.2 : $dev livrer lance l’exécuteur directement, au premier plan, san
 
 test('2.8.3 : orchestrateur au repos avec une admission possible relancé après 20 min, sinon horaire ; --dry-run vaut --a-blanc ; campagne absente nommée', () => {
   const f = path.join(os.tmpdir(), 'pression-283-' + process.pid); fs.writeFileSync(f, 'some avg10=5.00 avg60=6.00 avg300=9.00 total=1\n');
-  const at = configTest({ hote: 'atelier', deploiement_serveurs: false, admission: { dev_max: 2, lourdes_max: 1, garde_cpu_pct: 40, pression_cpu_fichier: f } });
+  const at = configTest({ hote: 'atelier', deploiement_serveurs: false, admission: { dev_max: 2, lourdes_max: 1, garde_cpu_pct: 40, pression_cpu_fichier: f }, reveil: { relance_a_relancer_min: 100000 } }); // règle 2.11 neutralisée
   fs.mkdirSync(path.join(at.etat, 'campagnes'), { recursive: true });
   fs.writeFileSync(path.join(at.etat, 'campagnes', 'k.json'), JSON.stringify({ id: 'k', projet: 'p', mode: 'auto', statut: 'en_cours', chat: 'C', items: [{ type: 'issue_standalone', linear_id: 'DEV-1', statut: 'revue', blocked_by: [] }, { type: 'issue_standalone', linear_id: 'DEV-2', statut: 'en_attente', blocked_by: [] }] }));
   P.modifierCampagne(at, 'k', (c) => { c.empreinte_repos = P.empreinteReprise(at, c); c.repos_le = new Date().toISOString(); c.dernier_reveil = new Date(Date.now() - 30 * 60000).toISOString(); });
@@ -813,5 +813,31 @@ test('2.10 : bloc d’état rendu par le script, Toi en premier, dernière ligne
   assert.match(e.detail, /décider pour DEV-4/, 'la ligne détaillée reste disponible');
   P.statutIssue(at, 'k', 'DEV-4', 'en_cours');
   assert.doesNotMatch(P.ligneEtat(at, 'k').bloc, /👤 Toi/, 'rubrique absente quand Paul n’a rien à faire'); assert.match(P.ligneEtat(at, 'k').ligne, /Toi : rien$/);
+});
+
+
+
+test('2.11 : demandes à l’exécutant de l’hôte, rubrique 🛠, refus remonté à Paul, relance des issues admises', async () => {
+  const { createHash } = await import('node:crypto');
+  const at = configTest({ hote: 'atelier', deploiement_serveurs: false, gh: false });
+  fs.mkdirSync(path.join(at.etat, 'campagnes'), { recursive: true });
+  const it = (id, statut, extra = {}) => ({ type: 'issue_standalone', linear_id: id, statut, blocked_by: [], ...extra });
+  fs.writeFileSync(path.join(at.etat, 'campagnes', 'k.json'), JSON.stringify({ id: 'k', projet: 'p', mode: 'auto', statut: 'en_cours', items: [it('DEV-1', 'revue'), it('DEV-2', 'en_cours'), it('DEV-3', 'en_attente', { blocked_by: ['DEV-1'] })] }));
+  const src = path.join(at.etat, 'fichier.mjs'); fs.writeFileSync(src, 'x'); const sha = createHash('sha256').update('x').digest('hex');
+  assert.equal(code(() => P.demanderExecutant(at, 'k', 'root-atelier', { issue: 'DEV-1', source: src, cible: '/opt/x/y.mjs', sha256: 'abc' })), 'EMPREINTE DIFFÉRENTE');
+  assert.equal(code(() => P.demanderExecutant(at, 'k', 'root-atelier', { issue: 'DEV-1', source: src, cible: '../etc/sudoers', sha256: sha })), 'CIBLE INVALIDE');
+  assert.equal(code(() => P.demanderExecutant(at, 'k', 'autre', { issue: 'DEV-1' })), 'TYPE INCONNU');
+  assert.equal(code(() => P.demanderExecutant(at, 'k', 'livraison', { issue: 'DEV-1', plan: path.join(at.etat, 'absent.md') })), 'PLAN ABSENT');
+  const d = P.demanderExecutant(at, 'k', 'root-atelier', { issue: 'DEV-1', source: src, cible: '/opt/x/y.mjs', sha256: sha }).demande;
+  assert.equal(code(() => P.executer(['executant', 'demander', 'k', 'serveur-cli', '--issue', 'DEV-2', '--etapes', JSON.stringify([{ nom: 'jetons', args: ['admin', 'jeton', 'lister'] }])], at)), 'COMMANDE NON AUTORISÉE');
+  P.executer(['executant', 'demander', 'k', 'serveur-cli', '--issue', 'DEV-2', '--etapes', JSON.stringify([{ nom: 'registre', args: ['publication', 'registre'] }])], at);
+  const e = P.executer(['executant', 'etat', 'k'], at).demandes; assert.equal(e.length, 2); assert.ok(e.every((x) => x.statut === 'en_attente'));
+  assert.match(P.ligneEtat(at, 'k').bloc, /🛠 Exécutant \(2\) : DEV-1 root-atelier \(en attente\) · DEV-2 serveur-cli \(en attente\)/);
+  fs.mkdirSync(path.join(at.etat, 'executant', 'resultats'), { recursive: true });
+  fs.writeFileSync(path.join(at.etat, 'executant', 'resultats', d.id + '.json'), JSON.stringify({ id: d.id, statut: 'refus', message: 'cible hors de la liste fermée', le: new Date().toISOString() }));
+  assert.match(P.ligneEtat(at, 'k').bloc, /👤 Toi \(1\) : 1\. DEV-1 · exécutant root-atelier refusé : cible hors de la liste fermée/);
+  const c = P.lireCampagne(at, 'k'); const E = P.empreinteReprise(at, c);
+  const dr = P.decisionReprise(at, { ...c, dernier_reveil: '2026-11-21T21:00:00Z', empreinte_repos: E, repos_le: '2026-11-21T21:35:00Z' }, { maintenant: new Date('2026-11-21T22:00:00Z') });
+  assert.equal(dr.relancer, true); assert.match(dr.raison, /issues admises sans mouvement depuis 25 min/);
 });
 

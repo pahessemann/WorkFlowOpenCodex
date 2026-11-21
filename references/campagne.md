@@ -42,6 +42,9 @@ contrat est mise de côté et signalée dans le digest.
 - Toute décision prise seul : une ligne dans `.pilote/campagnes/<nom>.decisions.md`.
 - Avant tout blocage : cadreur de déblocage (`blocages.md`, v2.6.3) ; l'orchestrateur lance avec `--depuis-role AUTO`
   (ou `SUP`), le lanceur ne lui répond jamais `executer_ici`.
+- v2.11 : une action réservée à Paul conclue par un cadreur (root dans atelier, CLI du déployeur, livraison sous GO ou mandat)
+  se demande à l'exécutant de l'hôte : `pilote.mjs executant demander <campagne> root-atelier|serveur-cli|livraison --issue <ID> …`
+  (`executant.md`) ; résultat dans `executant etat`, au journal et dans le bloc d'état. Traitée en 5 min, même poste éteint.
 - v2.9 : `--attend paul` exige la conclusion du cadreur au journal (`CADREUR REQUIS`), sauf `--reserve "<motif>"`
   (irréversible ou root, secret à fournir, hors mandat). Aucune question à Paul dans le texte d'un tour : seule la ligne
   d'état lui parle. Une issue qui attend Paul, le poste ou l'environnement libère sa place : admets d'autres issues tant

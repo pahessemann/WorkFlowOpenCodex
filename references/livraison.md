@@ -4,7 +4,10 @@ Portée : une campagne à livraison locale (`hote_livraison: local`, projet de d
 
 1. **Préparation sur atelier** (chat `🟠 SUP`) : le paquet, la procédure de retour arrière et `plan-livraison.md`, qui contient un bloc ````json livraison` : `cibles` (alias ssh, `chemin_disque`, `disque_min_gio`, commande `version`), `paquet` (chemin sur atelier, `sha256`), `retour_arriere.procedure`, `etapes` (`id`, `titre`, `cible`, `commande`, `retour`, `delai_s`), `verification` (`cible`, `commande`, `attendu`). Le chat passe à `⏸ GO`.
 2. **GO de Paul** : sur son instruction seulement, `node <pilote> livraison-go <campagne> <plan-livraison.md>` (sur atelier) enregistre l'empreinte SHA-256 du plan. Un GO ne sert qu'à une livraison réelle.
-3. **Depuis le poste uniquement** : `$dev livrer <campagne>`. Sur atelier, la commande est refusée (code 6). Elle refuse aussi sans GO, si le GO a déjà servi, ou si l'empreinte du plan a changé depuis le GO (`PLAN MODIFIÉ DEPUIS LE GO`).
+3. **Depuis le poste**, ou **par l'exécutant de l'hôte** (v2.11) : `$dev livrer <campagne>` depuis le poste ; sinon, sous mandat anticipé de Paul
+   inscrit sur l'hôte, `pilote.mjs executant demander <campagne> livraison --issue <ID> --plan <plan>` depuis atelier (`executant.md` :
+   conditions revérifiées, paquet transféré dans `/var/tmp/<nom>` de chaque cible, répétition à blanc puis livraison réelle).
+   Depuis le poste : Sur atelier, la commande est refusée (code 6). Elle refuse aussi sans GO, si le GO a déjà servi, ou si l'empreinte du plan a changé depuis le GO (`PLAN MODIFIÉ DEPUIS LE GO`).
 4. **Répétition à blanc d'abord**, à chaque lancement : accès SSH en `BatchMode` à chaque cible, espace disque, versions en place, présence et empreinte du paquet, présence de la procédure de retour arrière et d'un retour pour chaque étape. Un seul échec, et la livraison ne démarre pas. `--a-blanc` s'arrête après cette répétition : c'est le test sans déployer.
 5. **Livraison** : étapes du plan, dans l'ordre. À la première erreur, elle s'arrête sans correction ni nouvel essai, passe la campagne à `⛔ BLOQUÉ`, et poste dans le chat `🟠 SUP` l'étape atteinte et la commande de retour arrière correspondante, **sans l'exécuter**.
 6. **Poste éveillé** pendant toute l'exécution si `maintien_eveille` est vrai, puis relâché.

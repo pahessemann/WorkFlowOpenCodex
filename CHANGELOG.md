@@ -1,5 +1,9 @@
 # Changelog du socle public
 
+## 2.11 — 21/11/2026
+
+`pilote.mjs executant demander|etat` : une campagne dépose une demande d’action réservée à l’humain (installation root, commandes du serveur de déploiement, livraison sous mandat), traitée par un exécutant installé sur l’hôte et propre à chaque installation (non publié). Le bloc d’état montre ces demandes, et un refus remonte dans « ce que tu dois faire ». Le réveil relance les orchestrateurs dont des issues admises ne bougent plus, et signale le poste éteint. 97 évaluations, 71 tests.
+
 ## 2.10 — 21/11/2026
 
 État de campagne lisible d’un coup d’œil : le script rend un bloc d’une ligne par rubrique (ce que Paul doit faire en premier, puis agents, poste Windows, attentes, issues à venir, bloquées) et une ligne d’état courte ; les orchestrateurs les recopient à l’identique, et `$dev point` affiche le même bloc. 97 évaluations, 70 tests.
