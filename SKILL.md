@@ -3,7 +3,7 @@ name: dev-orchestrator
 description: Orchestrateur de campagnes autonomes et supervisées (Linear Milestones et Issues) : composition à froid, chats identifiables d'un coup d'œil, routage économe des modèles et exécution hybride (PC local / VPS atelier).
 ---
 
-# Orchestrateur Dev — Workflow opérationnel (v2.8.4)
+# Orchestrateur Dev — Workflow opérationnel (v2.8.5)
 
 Ce skill régit l'orchestration des travaux via `pilote.mjs`, sur le poste local Windows et sur le VPS `atelier` (Linux).
 
@@ -153,7 +153,7 @@ Dans le chat de campagne, chaque rapport de sous-agent est précédé de son bad
 
 `▸ 🔵 DEV #101 · mon-api · ☁ atelier · Opus 5.5 · essai 1/3`
 
-Hôtes : `☁ atelier`, `💻 local`. Le badge tient sur une ligne et ne coûte que quelques tokens.
+Hôtes : `☁ atelier`, `💻 local`. Le badge tient sur une ligne et ne coûte que quelques tokens : `pilote.mjs badge <rôle> <ID|-> <projet> <atelier|local> <modèle> [essai]` (ou `--role --issue --projet --hote --modele [--essai]`) ; un badge incomplet est refusé (`BADGE INCOMPLET`), de même qu'une décision sans identifiant ou sans texte (`DÉCISION VIDE`, v2.8.5).
 
 ### 2.3 bis Ligne d'état : dernière ligne de chaque message final
 

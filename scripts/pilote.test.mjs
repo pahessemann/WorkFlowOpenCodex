@@ -744,3 +744,16 @@ test('2.8.4 : clôture refusée tant que la branche d’une issue autonome n’e
   assert.equal(code(() => P.statutIssue(at, 'k', 'DEV-2', 'close', mat('DEV-2'))), 'CLÔTURE SANS FUSION', 'branche introuvable');
   assert.equal(P.verifierFusion(at, P.lireCampagne(at, 'k'), P.issues(P.lireCampagne(at, 'k'))[1], { sansFusion: 'revue sans diff' }).motif, 'revue sans diff');
 });
+
+test('2.8.5 : badge par options nommées ; badge ou décision incomplets refusés, sans ligne « undefined » au journal', () => {
+  const at = configTest({ hote: 'atelier', deploiement_serveurs: false });
+  assert.equal(P.executer(['badge', '--role', 'DEV', '--issue', 'DEV-7', '--projet', 'p', '--hote', 'atelier', '--modele', 'Sonnet'], at).badge, P.badge('DEV', 'DEV-7', 'p', 'atelier', 'Sonnet'));
+  assert.ok(!P.executer(['badge', 'DEV', '-', 'p', 'local', 'Haiku'], at).badge.includes('undefined'));
+  assert.equal(code(() => P.executer(['badge', 'DEV'], at)), 'BADGE INCOMPLET');
+  fs.mkdirSync(path.join(at.etat, 'campagnes'), { recursive: true });
+  fs.writeFileSync(path.join(at.etat, 'campagnes', 'k.json'), JSON.stringify({ id: 'k', projet: 'p', mode: 'auto', statut: 'en_cours', items: [] }));
+  assert.equal(code(() => P.executer(['decision', 'k'], at)), 'DÉCISION VIDE');
+  assert.equal(code(() => P.executer(['decision', 'k', 'DEV-1'], at)), 'DÉCISION VIDE');
+  const j = path.join(at.etat, 'campagnes', 'k.decisions.md'); assert.ok(!fs.existsSync(j) || !fs.readFileSync(j, 'utf8').includes('undefined'));
+  P.executer(['decision', 'k', 'DEV-1', 'choix', 'noté'], at); assert.match(fs.readFileSync(j, 'utf8'), /DEV-1 · choix noté/);
+});

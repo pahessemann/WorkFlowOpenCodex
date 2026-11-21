@@ -1,5 +1,9 @@
 # Changelog du socle public
 
+## 2.8.5 — 21/11/2026
+
+Correctif : `pilote.mjs badge` accepte les options nommées et refuse un badge incomplet au lieu d’afficher « undefined » ; `pilote.mjs decision` refuse un appel sans identifiant ou sans texte au lieu d’écrire une ligne vide au journal. La consigne des orchestrateurs donne la syntaxe exacte. 97 évaluations, 68 tests.
+
 ## 2.8.4 — 21/11/2026
 
 Une issue de campagne ne peut plus être close tant que sa branche n’est pas fusionnée dans la branche principale de son dépôt : la commande répond « CLÔTURE SANS FUSION ». Une issue qui ne livre pas de code se clôt avec `--sans-fusion "<motif>"`, inscrit au journal. 97 évaluations, 67 tests.
