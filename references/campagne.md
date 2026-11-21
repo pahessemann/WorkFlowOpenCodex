@@ -48,7 +48,8 @@ contrat est mise de côté et signalée dans le digest.
 - Digest quotidien : `$dev digest <nom>` (Haiku, 15 lignes).
 - Réveil (v2.6.5) : vérification toutes les 10 min, sans token. Un orchestrateur au repos est relancé si l'état de sa
   campagne a changé (statut, retour du poste, ligne de journal, commit d'une issue active), sinon une fois par heure
-  (`reveil.relance_sans_changement_min`, 60). Ne termine donc pas un tour en laissant des issues de `a_relancer` sans agent.
+  (`reveil.relance_sans_changement_min`, 60) ; toutes les 20 min (`reveil.relance_admission_min`) tant qu'une admission est possible :
+  place libre, attente CPU sous la garde, issue admissible (v2.8.3). Essai sans effet : `ouvrir … --a-blanc` (`--dry-run` accepté). Ne termine donc pas un tour en laissant des issues de `a_relancer` sans agent.
 
 ## Passerelle poste et ligne d'état (v2.5)
 

@@ -1,5 +1,9 @@
 # Changelog du socle public
 
+## 2.8.3 — 21/11/2026
+
+Le réveil relance toutes les 20 minutes un orchestrateur au repos tant qu’une admission est possible (place libre, CPU sous la garde, issue admissible). `ouvrir --dry-run` est un synonyme de `--a-blanc` ; un nom de campagne absent donne un message explicite. 97 évaluations, 66 tests.
+
 ## 2.8.2 — 21/11/2026
 
 `$dev livrer` lance directement l’exécuteur de livraison, au premier plan, avec la progression affichée : la session intermédiaire, qui coupait les étapes longues au bout d’une dizaine de secondes, est supprimée. Le réveil relance un orchestrateur dès qu’une admission redevient possible (2.8.1). 97 évaluations, 65 tests.

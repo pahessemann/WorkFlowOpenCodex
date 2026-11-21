@@ -545,7 +545,7 @@ test('2.6.2 : campagne ajouter : issue admissible, motif obligatoire, doublon si
 test('2.6.5 : relance sur changement d’état, sinon une fois par heure ; état mémorisé à la fin du tour', () => {
   const at = configTest({ hote: 'atelier', deploiement_serveurs: false });
   fs.mkdirSync(path.join(at.etat, 'campagnes'), { recursive: true });
-  fs.writeFileSync(path.join(at.etat, 'campagnes', 'k.json'), JSON.stringify({ id: 'k', projet: 'p', mode: 'auto', statut: 'en_cours', chat: 'C1', dernier_reveil: new Date(Date.now() - 20 * 60000).toISOString(), items: [{ type: 'issue_standalone', linear_id: 'DEV-1', statut: 'revue', blocked_by: [] }, { type: 'issue_standalone', linear_id: 'DEV-2', statut: 'en_attente', blocked_by: [] }] }));
+  fs.writeFileSync(path.join(at.etat, 'campagnes', 'k.json'), JSON.stringify({ id: 'k', projet: 'p', mode: 'auto', statut: 'en_cours', chat: 'C1', dernier_reveil: new Date(Date.now() - 20 * 60000).toISOString(), items: [{ type: 'issue_standalone', linear_id: 'DEV-1', statut: 'revue', blocked_by: [] }, { type: 'issue_standalone', linear_id: 'DEV-2', statut: 'en_attente', blocked_by: ['DEV-1'] }] }));
   const c0 = () => P.lireCampagne(at, 'k'); const t = (min) => new Date(Date.now() + min * 60000);
   assert.equal(P.decisionReprise(at, c0()).relancer, true, 'campagne sans état mémorisé : reprise');
   P.modifierCampagne(at, 'k', (c) => { c.empreinte_repos = null; });
@@ -704,4 +704,23 @@ test('2.8.2 : $dev livrer lance l’exécuteur directement, au premier plan, san
   const r = await P.livrer(c, 'livd'); assert.equal(r.code, 0); assert.match(r.message, /terminée/);
   assert.ok(fs.readFileSync(journalSsh, 'utf8').includes('deposer-paquet'), 'les étapes sont exécutées par l’exécuteur lui-même');
   await assert.rejects(P.livrer(c, 'livd'), (e) => e.titre === 'GO DÉJÀ UTILISÉ');
+});
+
+
+test('2.8.3 : orchestrateur au repos avec une admission possible relancé après 20 min, sinon horaire ; --dry-run vaut --a-blanc ; campagne absente nommée', () => {
+  const f = path.join(os.tmpdir(), 'pression-283-' + process.pid); fs.writeFileSync(f, 'some avg10=5.00 avg60=6.00 avg300=9.00 total=1\n');
+  const at = configTest({ hote: 'atelier', deploiement_serveurs: false, admission: { dev_max: 2, lourdes_max: 1, garde_cpu_pct: 40, pression_cpu_fichier: f } });
+  fs.mkdirSync(path.join(at.etat, 'campagnes'), { recursive: true });
+  fs.writeFileSync(path.join(at.etat, 'campagnes', 'k.json'), JSON.stringify({ id: 'k', projet: 'p', mode: 'auto', statut: 'en_cours', chat: 'C', items: [{ type: 'issue_standalone', linear_id: 'DEV-1', statut: 'revue', blocked_by: [] }, { type: 'issue_standalone', linear_id: 'DEV-2', statut: 'en_attente', blocked_by: [] }] }));
+  P.modifierCampagne(at, 'k', (c) => { c.empreinte_repos = P.empreinteReprise(at, c); c.repos_le = new Date().toISOString(); c.dernier_reveil = new Date(Date.now() - 30 * 60000).toISOString(); });
+  const t = (m) => new Date(Date.now() + m * 60000);
+  assert.equal(P.decisionReprise(at, P.lireCampagne(at, 'k'), { maintenant: t(15) }).relancer, false);
+  const d = P.decisionReprise(at, P.lireCampagne(at, 'k'), { maintenant: t(21) }); assert.equal(d.relancer, true); assert.match(d.raison, /admission possible/);
+  fs.writeFileSync(f, 'some avg10=70.00 avg60=65.00 avg300=50.00 total=1\n');
+  P.modifierCampagne(at, 'k', (c) => { c.empreinte_repos = P.empreinteReprise(at, c); });
+  assert.equal(P.decisionReprise(at, P.lireCampagne(at, 'k'), { maintenant: t(21) }).relancer, false, 'CPU au-dessus de la garde : relance horaire seulement');
+  fs.rmSync(f, { force: true });
+  assert.equal(code(() => P.lireCampagne(at, '--aide')), 'CAMPAGNE ABSENTE'); assert.equal(code(() => P.lireCampagne(at, undefined)), 'CAMPAGNE ABSENTE');
+  const dep = path.join(at.etat, 'depot'); fs.mkdirSync(dep); at.projets = { p: { chemin: dep } };
+  const r = P.executer(['ouvrir', 'k', 'DEV-2', '--dry-run', '--fiche', 'fiche'], at); assert.equal(r.a_blanc, true); assert.equal(P.issues(P.lireCampagne(at, 'k'))[1].statut, 'en_attente', 'aucun effet');
 });

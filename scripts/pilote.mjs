@@ -15,7 +15,7 @@ export const ETATS_ISSUE = ['en_attente', 'preflight', 'en_cours', 'revue', 'rec
 export const ETATS_CAMPAGNE = ['brouillon', 'en_cours', 'en_pause', 'close'];
 export const CRITICITES = ['leger', 'standard', 'sensible'];
 export const MAX_ESSAIS = 3;
-export const VERSION = '2.8.2';
+export const VERSION = '2.8.3';
 const PASTILLES = { AUTO: '🟢', SUP: '🟠', MS: '🔷', DEV: '🔵', CADRE: '🟣', PROTO: '🎨', TEST: '🧪', RELAIS: '⚙️', BILAN: '📘', AIDE: '❓', ARCHI: '🏛' };
 const DOSSIERS = { AUTO: '01 Campagnes', SUP: '01 Campagnes', MS: '01 Campagnes', DEV: '02 Développement', CADRE: '03 Cadrage & prototypes', PROTO: '03 Cadrage & prototypes', TEST: '04 Relais & maintenance', RELAIS: '04 Relais & maintenance', BILAN: '04 Relais & maintenance', AIDE: '00 Accueil', ARCHI: '00 Accueil' };
 export const TITRE_ARCHI = '🏛 ARCHI · workflow';
@@ -49,7 +49,7 @@ function verrou(cfg, fn) {
   try { return fn(); } finally { fs.rmSync(v, { force: true }); }
 }
 export const fichierCampagne = (cfg, nom) => path.join(dossierCampagnes(cfg), nom + '.json');
-export function lireCampagne(cfg, nom) { const c = lireJson(fichierCampagne(cfg, nom)); if (!c) refuser('CAMPAGNE INCONNUE', nom); return c; }
+export function lireCampagne(cfg, nom) { if (!nom || nom === true || String(nom).startsWith('-')) refuser('CAMPAGNE ABSENTE', 'nom de campagne attendu en premier argument (reçu : ' + (nom === undefined || nom === true ? 'rien' : nom) + ')'); const c = lireJson(fichierCampagne(cfg, nom)); if (!c) refuser('CAMPAGNE INCONNUE', nom); return c; } // v2.8.3 : message clair sans nom
 // Seuls les fichiers de campagne comptent (id et items) : matrices et preuves rangées à côté sont ignorées (2.6.1).
 export function listerCampagnes(cfg) { const d = dossierCampagnes(cfg); return fs.existsSync(d) ? fs.readdirSync(d).filter((f) => f.endsWith('.json')).map((f) => { try { return lireJson(path.join(d, f)); } catch { return null; } }).filter((c) => c && typeof c.id === 'string' && Array.isArray(c.items)) : []; }
 export function issues(c) { return c.items.flatMap((it) => it.type === 'milestone' ? it.issues.map((i) => ({ ...i, milestone: it.slug })) : [it]); }
@@ -980,9 +980,12 @@ export function empreinteReprise(cfg, c) {
   const parts = l.map((i) => [i.linear_id, i.statut, i.poste || '', i.poste_resultat || '', i.attempts || 0, i.arret?.le || '', i.worktree && ACTIFS_ISSUE.includes(i.statut) && fs.existsSync(i.worktree) ? git(i.worktree, 'rev-parse', 'HEAD').out : '']);
   const j = path.join(dossierCampagnes(cfg), c.id + '.decisions.md'); const taille = fs.existsSync(j) ? fs.statSync(j).size : 0;
   const taches = lireTaches(cfg).filter((t) => t.campagne === c.id).map((t) => t.id + ':' + t.statut);
-  const p = cfg.admission?.garde_cpu_pct ?? 40; const cpu = pressionCpu(cfg); const stE = statutsAvecSoeurs(cfg, c); // v2.8.1 : une admission redevenue possible (place libre, garde CPU repassée, dépendance prête) compte comme un changement
-  const peutAdmettre = actifsAdmission(l, null, !!c.voie_recette?.chat).length < (cfg.admission?.dev_max || 4) && (cpu === null || cpu <= p) && l.some((i) => i.statut === 'en_attente' && !i.poste_exclu && admissibilite(cfg, c, i, stE).ok);
-  return sha256(JSON.stringify([parts, taille, taches, c.statut, !!c.attente_go, peutAdmettre])).slice(0, 16);
+  return sha256(JSON.stringify([parts, taille, taches, c.statut, !!c.attente_go, peutAdmettre(cfg, c)])).slice(0, 16); // v2.8.1
+}
+// v2.8.1-2.8.3 : une place libre, l'attente CPU sous la garde et au moins une issue admissible.
+export function peutAdmettre(cfg, c) {
+  const l = issues(c); const p = cfg.admission?.garde_cpu_pct ?? 40; const cpu = pressionCpu(cfg); const stE = statutsAvecSoeurs(cfg, c);
+  return actifsAdmission(l, null, !!c.voie_recette?.chat).length < (cfg.admission?.dev_max || 4) && (cpu === null || cpu <= p) && l.some((i) => i.statut === 'en_attente' && !i.poste_exclu && admissibilite(cfg, c, i, stE).ok);
 }
 // Décide d'une reprise pour un orchestrateur au repos : changement d'état → reprise (au plus toutes les intervalleMin) ; sinon une fois par heure.
 export function decisionReprise(cfg, c, { maintenant = new Date(), intervalleMin = 10 } = {}) {
@@ -994,6 +997,8 @@ export function decisionReprise(cfg, c, { maintenant = new Date(), intervalleMin
   if (E !== c.empreinte_repos) return { relancer: true, raison: 'changement détecté', empreinte: E };
   const repos = c.repos_le ? min(c.repos_le) : min(c.dernier_reveil); // durée de repos depuis la fin du dernier tour
   if (repos >= max) return { relancer: true, raison: 'relance horaire sans changement', empreinte: E };
+  const adm = cfg.reveil?.relance_admission_min ?? 20; // v2.8.3 : orchestrateur au repos alors qu'une admission est possible
+  if (repos >= adm && peutAdmettre(cfg, c)) return { relancer: true, raison: 'admission possible (place libre, CPU sous la garde, issue admissible) depuis ' + Math.round(repos) + ' min', empreinte: E };
   return { relancer: false, raison: 'aucun changement depuis ' + Math.round(repos) + ' min (relance horaire à ' + max + ' min)', empreinte: E };
 }
 
@@ -1655,7 +1660,7 @@ function executerBrut(argv, cfg = null) {
     case 'recettes': return recettesVoie(C(), a[0]);
     case 'contexte': return contexte(C(), a[0]);
     case 'digest': return digest(C(), a[0]);
-    case 'ouvrir': return ouvrir(C(), a[0], a[1], { compte: o.compte, fiche: o.fiche, livrable: !!o.livrable, aBlanc: !!o['a-blanc'] });
+    case 'ouvrir': return ouvrir(C(), a[0], a[1], { compte: o.compte, fiche: o.fiche, livrable: !!o.livrable, aBlanc: !!(o['a-blanc'] || o['dry-run']) }); // v2.8.3 : --dry-run = --a-blanc
     case 'carte': { const cf = C(); const pr = cf.projets[a[0]]; if (!pr) refuser('PROJET INCONNU', a[0]); const f0 = path.join(cf.etat, 'carte', a[0] + '.md'); if (!fs.existsSync(f0) || o.squelette) genererCarte(cf, a[0], pr); return { carte: f0, agent_pid: lancerAgentCarte(cf, a[0]) }; }
     case 'fiche': return lireFiche(C(), a[0], { maxAgeMin: o.rafraichir ? 0 : 60 });
     case 'mentions': { const t = o.fiche && fs.existsSync(o.fiche) ? fs.readFileSync(o.fiche, 'utf8') : String(o.fiche || a.join(' ')); return { mentions: mentionsModele(C(), t), signalements: mentionsModele(C(), t).map((m) => signalementModele(o.id || 'issue', m)) }; }
