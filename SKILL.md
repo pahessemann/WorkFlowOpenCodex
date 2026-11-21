@@ -3,7 +3,7 @@ name: dev-orchestrator
 description: Orchestrateur de campagnes autonomes et supervisées (Linear Milestones et Issues) : composition à froid, chats identifiables d'un coup d'œil, routage économe des modèles et exécution hybride (PC local / VPS atelier).
 ---
 
-# Orchestrateur Dev — Workflow opérationnel (v2.7)
+# Orchestrateur Dev — Workflow opérationnel (v2.8)
 
 Ce skill régit l'orchestration des travaux via `pilote.mjs`, sur le poste local Windows et sur le VPS `atelier` (Linux).
 
@@ -290,7 +290,7 @@ Pour une campagne de déploiement (ex. `deployeur`) : `"mode": "supervise"`, `"h
 
 1. **Dépendances** : une issue dont un `blocked_by` n'est pas clos reste en attente.
 2. **Conflits** : deux issues qui touchent les mêmes fichiers critiques passent en séquentiel.
-3. **Admission** (lue dans `poste.local.json` de l'hôte d'exécution, à chaque admission) : sur atelier, 15 développements actifs au maximum par campagne et 4 charges lourdes par campagne, 6 sur l'hôte (suite de tests complète, migration SQL, build complet, Docker), chacune seulement si 6 Gio restent disponibles ; sur le poste, 4 développements et 1 charge lourde. Le message de reprise automatique (et du digest) et `pilote.mjs contexte` donnent ces limites en clair : elles priment sur la consigne initiale d'un orchestrateur et sur toute décision antérieure de son journal. Une issue qui attend le poste Windows (`poste: en_file` ou `en_cours`) ne compte pas dans ces limites. **Garde CPU** (v2.5.4) : `pilote.mjs` diffère toute nouvelle admission tant que l'attente CPU moyenne sur 60 s dépasse `admission.garde_cpu_pct` (40 %) ; une issue déjà active n'est pas concernée. Les agents en attente d'un créneau entrent dans la file de `pilote.mjs` sans demander de nouveau GO.
+3. **Admission** (lue dans `poste.local.json` de l'hôte d'exécution, à chaque admission) : sur atelier, 15 développements actifs au maximum par campagne et 4 charges lourdes par campagne, 6 sur l'hôte (suite de tests complète, migration SQL, build complet, Docker), chacune seulement si 6 Gio restent disponibles ; sur le poste, 4 développements et 1 charge lourde. Le message de reprise automatique (et du digest) et `pilote.mjs contexte` donnent ces limites en clair : elles priment sur la consigne initiale d'un orchestrateur et sur toute décision antérieure de son journal. Une issue qui attend le poste Windows (`poste: en_file` ou `en_cours`) ne compte pas dans ces limites. **Garde CPU** (v2.5.4) : `pilote.mjs` diffère toute nouvelle admission tant que l'attente CPU moyenne sur 60 s dépasse `admission.garde_cpu_pct` (40 %) ; une issue déjà active n'est pas concernée. Les agents en attente d'un créneau entrent dans la file de `pilote.mjs` sans demander de nouveau GO ; la file sert d'abord l'issue qui débloque le plus d'issues (`pilote.mjs lourde <campagne> --issue <ID> -- <commande>`, v2.8). **Admission empilée** (v2.8) : une issue dont les dépendances sont en `recette` (revue favorable) est admise sur la branche de sa dépendance, profondeur 3 au plus (`admission.empilement_max`) ; sa clôture attend celle de la dépendance, un échec de la dépendance la remet en attente avec son travail conservé, et après fusion l'orchestrateur la rebase puis `pilote.mjs desempiler`.
 
 ---
 

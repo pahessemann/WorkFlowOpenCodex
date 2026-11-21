@@ -599,7 +599,7 @@ test('2.7 : après scission, une commande sur l’ancienne campagne est redirig�
   const at = campagneScission();
   P.modifierCampagne(at, 'cmp', (c) => { c.items = c.items.filter((it) => it.linear_id !== 'MS-X'); });
   P.scinderCampagne(at, 'cmp', { projets: ['api'], vers: 'cmp-api' });
-  const s = P.statutIssue(at, 'cmp', 'API-3', 'revue'); assert.equal(s.campagne, 'cmp');
+  const s = P.statutIssue(at, 'cmp', 'API-3', 'revue'); assert.equal(s.campagne, 'cmp-api', 'redirigée vers la sœur');
   assert.equal(P.issues(P.lireCampagne(at, 'cmp-api')).find((i) => i.linear_id === 'API-3').statut, 'revue', 'statut écrit dans la campagne sœur');
   P.decision(at, 'cmp', 'API-3', 'note redirigée');
   assert.match(fs.readFileSync(path.join(at.etat, 'campagnes', 'cmp-api.decisions.md'), 'utf8'), /API-3 · note redirigée/);
@@ -624,5 +624,56 @@ test('2.7 : voie de recette : issues en recette hors des places, triées par iss
   assert.match(P.recettesVoie(at, 'cmp').ligne, /^⏳ EN ATTENTE · aucune issue à recetter/);
   fs.writeFileSync(path.join(at.etat, 'chats.json'), JSON.stringify({ 'C-TEST': { role: 'TEST', titre: '🧪 TEST · front · recettes cmp · ✅', hote: 'atelier', statut: 'clos', campagne: 'cmp', voie_recette: true, derniere_ligne_le: new Date(Date.now() - 5 * 3600000).toISOString() } }));
   assert.deepEqual(P.chatsAArchiver(at), [], 'la voie d’une campagne en cours n’est jamais archivée');
+});
+
+// ---------- v2.8 : admission empilée, chaîne critique, file lourde par priorité, veille ----------
+function campagneChaine() {
+  const at = configTest({ hote: 'atelier', deploiement_serveurs: false, admission: { dev_max: 6, lourdes_max: 4, empilement_max: 3 } });
+  fs.mkdirSync(path.join(at.etat, 'campagnes'), { recursive: true });
+  const il = (id, statut, deps = [], x = {}) => ({ type: 'issue_standalone', linear_id: id, statut, blocked_by: deps, branche: 'codex/issue-' + id, ...x });
+  fs.writeFileSync(path.join(at.etat, 'campagnes', 'k.json'), JSON.stringify({ id: 'k', projet: 'p', mode: 'auto', statut: 'en_cours', items: [
+    il('A', 'recette'), il('B', 'en_attente', ['A']), il('C', 'en_attente', ['B']), il('D', 'en_attente', ['C']), il('E', 'en_attente', ['D']),
+    il('R', 'revue'), il('S', 'en_attente', ['R']), il('X', 'recette', [], { projet: 'autre' }), il('Y', 'en_attente', ['X']), il('Z', 'en_attente', ['A', 'B'])] }));
+  return at;
+}
+const empiler = (at, id, prof, sur) => P.modifierCampagne(at, 'k', (c) => { const i = c.items.find((x) => x.linear_id === id); i.statut = 'recette'; i.empile_sur = sur; i.empile_profondeur = prof; });
+test('2.8 : admission empilée sur une dépendance en recette, profondeur 3 au plus, base = branche de la dépendance', () => {
+  const at = campagneChaine(); const c = () => P.lireCampagne(at, 'k'); const i = (id) => P.issues(c()).find((x) => x.linear_id === id);
+  const b = P.admissibilite(at, c(), i('B')); assert.equal(b.ok, true); assert.deepEqual(b.empile, { sur: ['A'], base_sur: 'A', branche: 'codex/issue-A', profondeur: 1 });
+  assert.equal(P.admissibilite(at, c(), i('S')).ok, false, 'dépendance en revue (pas encore favorable) : attendre');
+  const y = P.admissibilite(at, c(), i('Y')); assert.equal(y.ok, true); assert.equal(y.empile.branche, null, 'autre dépôt : empilement logique, base par défaut');
+  empiler(at, 'B', 1, ['A']); empiler(at, 'C', 2, ['B']); empiler(at, 'D', 3, ['C']);
+  assert.match(P.admissibilite(at, c(), i('E')).raison, /profondeur 4, au-delà de 3/);
+  assert.match(P.admissibilite(at, c(), i('Z')).raison, /plusieurs dépendances du même dépôt/);
+  at.admission.empilement_max = 0; P.modifierCampagne(at, 'k', (k) => { const x = k.items.find((y) => y.linear_id === 'B'); x.statut = 'en_attente'; delete x.empile_sur; delete x.empile_profondeur; });
+  assert.equal(P.admissibilite(at, c(), i('B')).ok, false, 'empilement désactivé : attendre la clôture');
+});
+test('2.8 : clôture prématurée refusée, désempilement quand la dépendance échoue, a_rebaser après fusion', () => {
+  const at = campagneChaine(); empiler(at, 'B', 1, ['A']);
+  const mat = path.join(at.etat, 'm.json'); fs.writeFileSync(mat, JSON.stringify({ issue: 'B', criteres: [{ critere: 'x', statut: 'ok', preuve: 'p' }] }));
+  assert.equal(code(() => P.statutIssue(at, 'k', 'B', 'close', mat)), 'CLÔTURE PRÉMATURÉE');
+  const r = P.statutIssue(at, 'k', 'A', 'en_cours');
+  assert.deepEqual(r.desempilees.map((x) => x.issue), ['B']);
+  const b = P.issues(P.lireCampagne(at, 'k')).find((x) => x.linear_id === 'B'); assert.equal(b.statut, 'en_attente'); assert.equal(b.empile_sur, undefined);
+  assert.match(fs.readFileSync(path.join(at.etat, 'campagnes', 'k.decisions.md'), 'utf8'), /B · Désempilée \(v2\.8\) : la dépendance A repasse en en_cours/);
+  P.statutIssue(at, 'k', 'A', 'recette'); empiler(at, 'B', 1, ['A']); P.modifierCampagne(at, 'k', (c) => { c.items[0].statut = 'fusionnee'; });
+  const k = P.contexte(at, 'k'); assert.deepEqual(k.a_rebaser, ['B']); assert.match(k.consigne, /Admission empilée \(v2\.8\)/);
+  P.desempiler(at, 'k', 'B'); assert.deepEqual(P.contexte(at, 'k').a_rebaser, []);
+});
+test('2.8 : chaîne critique et admissibles dans contexte', () => {
+  const at = campagneChaine(); const k = P.contexte(at, 'k');
+  assert.deepEqual(k.chaine_critique, ['A', 'B', 'C', 'D', 'E']);
+  assert.ok(k.admissibles.includes('B (empilée sur A)')); assert.ok(k.admissibles.includes('Y (empilée sur X)')); assert.equal(k.admissibles.some((x) => x.startsWith('S')), false);
+});
+test('2.8 : la file lourde sert la plus haute priorité dont la campagne a une place, puis la plus ancienne', () => {
+  const t = [{ pid: 1, campagne: 'a', priorite: 0, depuis: '1' }, { pid: 2, campagne: 'b', priorite: 1005, depuis: '3' }, { pid: 3, campagne: 'a', priorite: 4, depuis: '2' }, { pid: 4, campagne: 'a', priorite: 4, depuis: '1' }];
+  assert.equal(P.prochainLourd(t, () => true), 2);
+  assert.equal(P.prochainLourd(t, (c) => c !== 'b'), 4, 'campagne b pleine : la plus prioritaire de a, la plus ancienne à égalité');
+  assert.equal(P.prochainLourd([], () => true), null);
+});
+test('2.8 : veille sur secteur coupée tant que la file du poste n’est pas vide, restaurée ensuite', () => {
+  assert.equal(P.decisionVeille(2, null), 'desactiver'); assert.equal(P.decisionVeille(1, { STANDBYIDLE: 0 }), 'rien');
+  assert.equal(P.decisionVeille(0, { STANDBYIDLE: 0, HIBERNATEIDLE: 10800 }), 'restaurer'); assert.equal(P.decisionVeille(0, null), 'rien');
+  assert.equal(P.garderEveilSecteur(configTest({ atelier_simule: '/x' }), 3).action, 'rien', 'jamais en simulation');
 });
 

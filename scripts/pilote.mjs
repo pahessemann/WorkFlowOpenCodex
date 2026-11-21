@@ -15,7 +15,7 @@ export const ETATS_ISSUE = ['en_attente', 'preflight', 'en_cours', 'revue', 'rec
 export const ETATS_CAMPAGNE = ['brouillon', 'en_cours', 'en_pause', 'close'];
 export const CRITICITES = ['leger', 'standard', 'sensible'];
 export const MAX_ESSAIS = 3;
-export const VERSION = '2.7.0';
+export const VERSION = '2.8.0';
 const PASTILLES = { AUTO: '🟢', SUP: '🟠', MS: '🔷', DEV: '🔵', CADRE: '🟣', PROTO: '🎨', TEST: '🧪', RELAIS: '⚙️', BILAN: '📘', AIDE: '❓', ARCHI: '🏛' };
 const DOSSIERS = { AUTO: '01 Campagnes', SUP: '01 Campagnes', MS: '01 Campagnes', DEV: '02 Développement', CADRE: '03 Cadrage & prototypes', PROTO: '03 Cadrage & prototypes', TEST: '04 Relais & maintenance', RELAIS: '04 Relais & maintenance', BILAN: '04 Relais & maintenance', AIDE: '00 Accueil', ARCHI: '00 Accueil' };
 export const TITRE_ARCHI = '🏛 ARCHI · workflow';
@@ -210,12 +210,16 @@ export function verifierPreuveRecette(id, preuve) {
   return m.criteres.length;
 }
 export function statutIssue(cfg, nom, id, statut, preuve, { attend = null, quoi = null } = {}) {
+  nom = redirigerCampagne(cfg, nom, id);
   if (!ETATS_ISSUE.includes(statut)) refuser('STATUT INCONNU', statut + ' (liste fermée : ' + ETATS_ISSUE.join(', ') + ')');
   if (attend) verifierArret(statut, attend, quoi);
+  if (statut === 'close') { const c0 = lireCampagne(cfg, nom); const i0 = issues(c0).find((x) => x.linear_id === id); if (i0?.empile_sur?.length) { const st0 = statutsAvecSoeurs(cfg, c0); const att = i0.empile_sur.filter((d) => !['close', 'fusionnee'].includes(st0[d])); if (att.length) refuser('CLÔTURE PRÉMATURÉE', id + ' est empilée sur ' + att.join(', ') + ' : clôture après leur fusion ou clôture, puis pilote.mjs desempiler'); } } // v2.8
   const nbCriteres = statut === 'close' ? verifierPreuveRecette(id, preuve) : 0;
-  return modifierCampagne(cfg, nom, (c) => { const i = trouverIssue(c, id); const avant = i.statut; i.statut = statut; if (i.poste === 'retour') { delete i.poste; delete i.poste_tache; delete i.poste_resultat; delete i.poste_retour; } if (statut === 'close') { i.close_le = new Date().toISOString(); i.preuve_recette = path.resolve(preuve); i.criteres_couverts = nbCriteres; } else if (statut !== 'fusionnee') { delete i.close_le; delete i.preuve_recette; }
+  const res = modifierCampagne(cfg, nom, (c) => { const i = trouverIssue(c, id); const avant = i.statut; if (statut === 'close' && i.empile_sur?.length) { const st0 = statutsAvecSoeurs(cfg, c); const att = i.empile_sur.filter((d) => !['close', 'fusionnee'].includes(st0[d])); if (att.length) refuser('CLÔTURE PRÉMATURÉE', id + ' est empilée sur ' + att.join(', ') + ' : clôture après leur fusion ou clôture, puis pilote.mjs desempiler'); } i.statut = statut; if (i.poste === 'retour') { delete i.poste; delete i.poste_tache; delete i.poste_resultat; delete i.poste_retour; } if (statut === 'close') { i.close_le = new Date().toISOString(); i.preuve_recette = path.resolve(preuve); i.criteres_couverts = nbCriteres; } else if (statut !== 'fusionnee') { delete i.close_le; delete i.preuve_recette; }
     if (attend) i.arret = { attend, quoi: net(quoi).slice(0, 240), le: new Date().toISOString() }; else if (avant !== statut) delete i.arret; // un changement de statut sans --attend lève l'arrêt (v2.6)
-    return { campagne: nom, issue: id, statut, ...(i.arret ? { arret: i.arret } : {}), ...avancement(c) }; });
+    return { campagne: nom, issue: id, statut, avant, ...(i.arret ? { arret: i.arret } : {}), ...avancement(c) }; });
+  if (['recette', 'fusionnee'].includes(res.avant) && ['en_cours', 'bloquee', 'en_attente', 'preflight'].includes(statut)) { const d = desempilerEnfants(cfg, nom, id, 'la dépendance ' + id + ' repasse en ' + statut); if (d.length) res.desempilees = d; } // v2.8
+  return res;
 }
 export function essai(cfg, nom, id, resultat) {
   return modifierCampagne(cfg, nom, (c) => {
@@ -236,9 +240,9 @@ export function decisionGlobale(cfg, texte) { if (!String(texte || '').trim()) r
 export function decision(cfg, nom, id, texte) { nom = redirigerCampagne(cfg, nom, id); lireCampagne(cfg, nom); const f = path.join(dossierCampagnes(cfg), nom + '.decisions.md'); fs.appendFileSync(f, '- ' + new Date().toISOString() + ' · ' + id + ' · ' + texte.replace(/\s+/g, ' ') + '\n'); return { journal: f }; }
 export function contexte(cfg, nom) {
   const c = lireCampagne(cfg, nom); const l = issues(c); const par = {};
-  const voieC = !!c.voie_recette?.chat; const retC = retenues(cfg, c); const trierRet = (x) => [...x].sort((a, b) => (retC[b.linear_id] || 0) - (retC[a.linear_id] || 0)); // v2.7
+  const voieC = !!c.voie_recette?.chat; const retC = retenues(cfg, c); const trierRet = (x) => [...x].sort((a, b) => (retC[b.linear_id] || 0) - (retC[a.linear_id] || 0)); const stC = statutsAvecSoeurs(cfg, c); const critC = chaineCritique(cfg, c); // v2.7-2.8
   for (const i of l) (par[i.statut] ||= []).push(i.linear_id + (i.sha_reprise ? '@reprise:' + i.sha_reprise.slice(0, 8) : '') + (i.attempts ? ' essais:' + i.attempts : ''));
-  return { campagne: c.id, projet: c.projet, mode: c.mode, statut: c.statut, signalements: signalementsLivraison(cfg, c), hote_execution: c.hote_execution, ...avancement(c), par_statut: par, a_qualifier: l.filter((i) => i.statut === 'bloquee' && !i.arret && !i.poste_exclu).map((i) => i.linear_id), admission: { dev_max: cfg.admission?.dev_max || 4, lourdes_max: cfg.admission?.lourdes_max || 1, ...(cfg.admission?.lourdes_max_hote ? { lourdes_max_hote: cfg.admission.lourdes_max_hote } : {}), regle: limitesTexte(cfg) }, a_relancer: trierRet(l.filter((i) => ACTIFS_ISSUE.includes(i.statut) && !auPoste(i) && !(voieC && i.statut === 'recette'))).map((i) => i.linear_id), voie_recette: voieC ? c.voie_recette.chat : null, exclues_poste: l.filter((i) => i.poste_exclu && i.statut !== 'close').map((i) => i.linear_id + ' : ' + i.poste_exclu), poste_a_debloquer: l.filter((i) => aDebloquerPoste(cfg, i)).map((i) => i.linear_id + ' : ' + i.poste_env_echecs + ' échecs d’environnement (' + (i.poste_env_cause || 'voir le retour') + ')'), au_poste: l.filter(auPoste).map((i) => i.linear_id + ' (' + i.poste + ')'), retours_poste: l.filter((i) => i.poste === 'retour').map((i) => ({ issue: i.linear_id, resultat: i.poste_resultat, retour: i.poste_retour })), ligne_etat: ligneEtat(cfg, nom).ligne, a_recetter: voieC ? [] : trierRet(l.filter((i) => i.statut === 'fusionnee')).map((i) => i.linear_id), retient: Object.fromEntries(Object.entries(retC).filter(([, n]) => n > 0)), consigne: limitesTexte(cfg) + ' Aucun agent concurrent : relancer seulement les issues listées dans a_relancer, depuis leur fiche. Les issues de a_relancer sont déjà admises et gardent leur place : relance chacune tout de suite (sous-agent dev, revue ou recette selon son statut), sans attendre de place libre ; des places toutes occupées n’empêchent que les nouvelles admissions. Une passe qui ne relance rien alors que a_relancer n’est pas vide est une erreur. Ensuite, chaque issue de a_recetter reçoit sa recette propre (critères de sa fiche, charge lourde), puis passe à close si elle réussit. Une issue de au_poste attend le poste Windows : ne la relance pas. Chaque retour de retours_poste : lis retour.md et les preuves, clos l’issue si la matrice est complète, sinon note la cause (pilote.mjs decision) et redépose-la (pilote.mjs poste deposer) ; tout changement de statut solde le retour. Une issue de exclues_poste attend Paul (motif indiqué) : ne la redépose pas au poste et ne l’admets pas. Une issue de poste_a_debloquer attend une action de Paul sur le poste : ne la redépose pas (pilote.mjs le refuse). Quand tu arrêtes une issue (bloquee, ou revue/recette qui attend autre chose que ton travail), dis qui la débloque : pilote.mjs statut <campagne> <ID> <statut> --attend paul|agents|poste|env --quoi "<cause courte ; pour paul : l’action exacte et la réponse proposée>", ou pilote.mjs arret <campagne> <ID> --attend … --quoi … sans changer le statut ; qualifie aussi chaque issue de a_qualifier. $dev point en dépend (point.md). Avant de passer une issue en bloquee (hors action irréversible), cherche une solution ou une décision avec un cadreur : node ' + RACINE + '/scripts/pilote.mjs lancer cadrage deblocage-<ID> --depuis-role AUTO --projet <projet> --nouveau --fiche-stdin (fiche de 15 lignes : blocage, essais, options) ; mandat de Paul : le cadreur décide par défaut (« à confirmer »), publie au besoin une issue corrective (pilote.mjs campagne ajouter) et écrit sa conclusion au journal ; l’issue reste en_attente (pilote.mjs arret … --attend agents --quoi "cadrage de déblocage") et ne passe bloquee --attend paul que si le cadreur conclut à un motif réservé à Paul, avec sa réponse proposée. a_relancer et a_recetter sont triés : les premières issues débloquent le plus d’issues (retient), traite-les d’abord.' + (voieC ? ' Voie de recette dédiée (v2.7) : quand le code d’une issue est fait et sa revue favorable, passe-la en recette (pilote.mjs statut <campagne> <ID> recette) sans jouer la recette toi-même ; les issues en recette ou fusionnées appartiennent à la voie (chat 🧪 TEST), qui les clôt ou te les renvoie en en_cours avec la cause au journal ; elles ne comptent pas dans tes places.' : '') };
+  return { campagne: c.id, projet: c.projet, mode: c.mode, statut: c.statut, signalements: signalementsLivraison(cfg, c), hote_execution: c.hote_execution, ...avancement(c), par_statut: par, a_qualifier: l.filter((i) => i.statut === 'bloquee' && !i.arret && !i.poste_exclu).map((i) => i.linear_id), admission: { dev_max: cfg.admission?.dev_max || 4, lourdes_max: cfg.admission?.lourdes_max || 1, ...(cfg.admission?.lourdes_max_hote ? { lourdes_max_hote: cfg.admission.lourdes_max_hote } : {}), regle: limitesTexte(cfg) }, a_relancer: trierRet(l.filter((i) => ACTIFS_ISSUE.includes(i.statut) && !auPoste(i) && !(voieC && i.statut === 'recette'))).map((i) => i.linear_id), voie_recette: voieC ? c.voie_recette.chat : null, chaine_critique: critC, admissibles: l.filter((i) => i.statut === 'en_attente' && !i.poste_exclu).map((i) => [i, admissibilite(cfg, c, i, stC)]).filter(([, a]) => a.ok).map(([i, a]) => i.linear_id + (a.empile ? ' (empilée sur ' + a.empile.sur.join(', ') + ')' : '')), a_rebaser: l.filter((i) => i.statut !== 'close' && i.empile_sur?.length && i.empile_sur.every((d) => ['close', 'fusionnee'].includes(stC[d]))).map((i) => i.linear_id), exclues_poste: l.filter((i) => i.poste_exclu && i.statut !== 'close').map((i) => i.linear_id + ' : ' + i.poste_exclu), poste_a_debloquer: l.filter((i) => aDebloquerPoste(cfg, i)).map((i) => i.linear_id + ' : ' + i.poste_env_echecs + ' échecs d’environnement (' + (i.poste_env_cause || 'voir le retour') + ')'), au_poste: l.filter(auPoste).map((i) => i.linear_id + ' (' + i.poste + ')'), retours_poste: l.filter((i) => i.poste === 'retour').map((i) => ({ issue: i.linear_id, resultat: i.poste_resultat, retour: i.poste_retour })), ligne_etat: ligneEtat(cfg, nom).ligne, a_recetter: voieC ? [] : trierRet(l.filter((i) => i.statut === 'fusionnee')).map((i) => i.linear_id), retient: Object.fromEntries(Object.entries(retC).filter(([, n]) => n > 0)), consigne: limitesTexte(cfg) + ' Aucun agent concurrent : relancer seulement les issues listées dans a_relancer, depuis leur fiche. Les issues de a_relancer sont déjà admises et gardent leur place : relance chacune tout de suite (sous-agent dev, revue ou recette selon son statut), sans attendre de place libre ; des places toutes occupées n’empêchent que les nouvelles admissions. Une passe qui ne relance rien alors que a_relancer n’est pas vide est une erreur. Ensuite, chaque issue de a_recetter reçoit sa recette propre (critères de sa fiche, charge lourde), puis passe à close si elle réussit. Une issue de au_poste attend le poste Windows : ne la relance pas. Chaque retour de retours_poste : lis retour.md et les preuves, clos l’issue si la matrice est complète, sinon note la cause (pilote.mjs decision) et redépose-la (pilote.mjs poste deposer) ; tout changement de statut solde le retour. Une issue de exclues_poste attend Paul (motif indiqué) : ne la redépose pas au poste et ne l’admets pas. Une issue de poste_a_debloquer attend une action de Paul sur le poste : ne la redépose pas (pilote.mjs le refuse). Quand tu arrêtes une issue (bloquee, ou revue/recette qui attend autre chose que ton travail), dis qui la débloque : pilote.mjs statut <campagne> <ID> <statut> --attend paul|agents|poste|env --quoi "<cause courte ; pour paul : l’action exacte et la réponse proposée>", ou pilote.mjs arret <campagne> <ID> --attend … --quoi … sans changer le statut ; qualifie aussi chaque issue de a_qualifier. $dev point en dépend (point.md). Avant de passer une issue en bloquee (hors action irréversible), cherche une solution ou une décision avec un cadreur : node ' + RACINE + '/scripts/pilote.mjs lancer cadrage deblocage-<ID> --depuis-role AUTO --projet <projet> --nouveau --fiche-stdin (fiche de 15 lignes : blocage, essais, options) ; mandat de Paul : le cadreur décide par défaut (« à confirmer »), publie au besoin une issue corrective (pilote.mjs campagne ajouter) et écrit sa conclusion au journal ; l’issue reste en_attente (pilote.mjs arret … --attend agents --quoi "cadrage de déblocage") et ne passe bloquee --attend paul que si le cadreur conclut à un motif réservé à Paul, avec sa réponse proposée. a_relancer et a_recetter sont triés : les premières issues débloquent le plus d’issues (retient), traite-les d’abord. Admission empilée (v2.8) : une issue dont les dépendances sont en recette (revue favorable) est admissible (liste admissibles) ; pilote.mjs ouvrir la fait partir de la branche de sa dépendance (champ empilement) ; sa PR vise cette branche et ne fusionne qu’après la clôture de la dépendance. Issues de a_rebaser : dépendance fusionnée, rebase leur branche sur la cible, rétablis la PR vers la cible, puis pilote.mjs desempiler <campagne> <ID>. Traite d’abord chaine_critique. Charges lourdes : pilote.mjs lourde <campagne> --issue <ID> -- <commande> (la file sert d’abord les issues qui en débloquent le plus).' + (voieC ? ' Voie de recette dédiée (v2.7) : quand le code d’une issue est fait et sa revue favorable, passe-la en recette (pilote.mjs statut <campagne> <ID> recette) sans jouer la recette toi-même ; les issues en recette ou fusionnées appartiennent à la voie (chat 🧪 TEST), qui les clôt ou te les renvoie en en_cours avec la cause au journal ; elles ne comptent pas dans tes places.' : '') };
 }
 export function digest(cfg, nom) {
   const c = lireCampagne(cfg, nom); const l = issues(c); const depuis = Date.now() - 86400000;
@@ -329,9 +333,8 @@ export function ouvrir(cfg, nom, id, { compte, fiche, livrable, aBlanc } = {}) {
   gardeCpu(cfg, i);
   const l = issues(c), actifs = actifsAdmission(l, id, !!c.voie_recette?.chat);
   if (actifs.length >= (cfg.admission.dev_max || 4)) refuser('ADMISSION DIFFÉRÉE', 'limite de ' + cfg.admission.dev_max + ' développements actifs atteinte', 5);
-  const stS = statutsAvecSoeurs(cfg, c); const ouvertes = (i.blocked_by || []).filter((d) => !['fusionnee', 'close'].includes(stS[d])); // v2.7 : dépendances suivies dans les campagnes sœurs
-  if (ouvertes.length) refuser('ADMISSION DIFFÉRÉE', 'dépendances ni fusionnées ni closes : ' + ouvertes.join(', '), 5);
-  const base = i.sha_valide || l.find((x) => x.linear_id === id)?.sha_depart || c.items.find((it) => it.type === 'milestone' && it.issues.some((x) => x.linear_id === id))?.sha_depart || 'origin/' + (projet.branche_principale || 'main');
+  const adm = admissibilite(cfg, c, i); if (!adm.ok) refuser('ADMISSION DIFFÉRÉE', adm.raison, 5); // v2.7-2.8 : sœurs et admission empilée
+  const base = adm.empile?.branche ? 'origin/' + adm.empile.branche : i.sha_valide || l.find((x) => x.linear_id === id)?.sha_depart || c.items.find((it) => it.type === 'milestone' && it.issues.some((x) => x.linear_id === id))?.sha_depart || 'origin/' + (projet.branche_principale || 'main');
   const wt = path.join(cfg.worktrees || path.join(cfg.etat, 'worktrees'), nomProjet, id);
   if (compte && !compteLibre(cfg, nomProjet, projet, compte)) refuser('COMPTE INDISPONIBLE', 'réserve ' + compte + '_<n> vide ou entièrement prise pour ' + nomProjet + ' sur cet hôte (' + path.join(projet.chemin, '.env.local') + ') : Paul doit fournir des comptes ' + compte + '_<n>_USERNAME / _PASSWORD ; issue non admise');
   exclure(projet.chemin, [...(projet.hors_git || []), '.env.local']);
@@ -341,8 +344,8 @@ export function ouvrir(cfg, nom, id, { compte, fiche, livrable, aBlanc } = {}) {
   for (const f of projet.hors_git || []) { const s = path.join(projet.chemin, f); if (fs.existsSync(s)) { fs.copyFileSync(s, path.join(wt, f)); if (!fs.readFileSync(s).equals(fs.readFileSync(path.join(wt, f)))) bloque('copie hors Git différente : ' + f); } }
   let reserve = null;
   if (compte) reserve = reserverCompte(cfg, nomProjet, projet, id, compte, wt);
-  modifierCampagne(cfg, nom, (cc) => { const ii = trouverIssue(cc, id); ii.statut = 'preflight'; ii.admise_le ||= new Date().toISOString(); ii.worktree = wt; ii.base = base; if (reserve) ii.compte = reserve; });
-  return { issue: id, nature, worktree: wt, branche: i.branche, base, compte: reserve, reparations, signalements, reprise: i.sha_reprise ? { sha: i.sha_reprise, branche: i.branche_reprise, consigne: 'examiner le WIP avant de coder' } : null, statut: 'preflight' };
+  modifierCampagne(cfg, nom, (cc) => { const ii = trouverIssue(cc, id); ii.statut = 'preflight'; ii.admise_le ||= new Date().toISOString(); ii.worktree = wt; ii.base = base; if (reserve) ii.compte = reserve; if (adm.empile) { ii.empile_sur = adm.empile.sur; ii.empile_base = adm.empile.base_sur; ii.empile_profondeur = adm.empile.profondeur; } else { delete ii.empile_sur; delete ii.empile_base; delete ii.empile_profondeur; } });
+  return { issue: id, nature, worktree: wt, branche: i.branche, base, empilement: adm.empile ? { ...adm.empile, consigne: adm.empile.branche ? 'issue empilée : pars de origin/' + adm.empile.branche + ', PR vers ' + adm.empile.branche + ' ; ne fusionne pas avant la clôture de ' + adm.empile.sur.join(', ') + ' ; à sa fusion, rebase sur la cible puis pilote.mjs desempiler' : 'dépendance d’un autre dépôt en recette (' + adm.empile.sur.join(', ') + ') : développe contre son contrat ; fusion après sa clôture' } : null, compte: reserve, reparations, signalements, reprise: i.sha_reprise ? { sha: i.sha_reprise, branche: i.branche_reprise, consigne: 'examiner le WIP avant de coder' } : null, statut: 'preflight' };
 }
 function numerosCompte(projet, compte) { const env = lireEnv(path.join(projet.chemin, '.env.local')); return Object.keys(env).map((k) => k.match(new RegExp('^' + compte + '_(\\d+)_USERNAME$'))?.[1]).filter(Boolean).filter((n) => env[compte + '_' + n + '_USERNAME'].replace(/["']/g, '').trim()); }
 function compteLibre(cfg, projetNom, projet, compte) { const reg = lireJson(path.join(cfg.etat, 'comptes.json'), {}); const pris = reg[projetNom + ':' + compte] || {}; return numerosCompte(projet, compte).some((n) => !pris[n]); }
@@ -1029,8 +1032,8 @@ function consigneVoie(cfg, c) {
   return 'Tu ne développes rien. Pour chaque issue de a_recetter, dans l’ordre (les premières débloquent le plus d’issues), confie sa recette à un sous-agent (modèle : node ' + P + ' modele tests <criticite> compact ' + c.id + ' --sous-agent, champ catalogue) : matrice de couverture dressée à neuf depuis la fiche Linear, une ligne par critère, scénario et décision, chacune jouée réellement (dispositif /srv/recette, données synthétiques) ; charges lourdes uniquement par node ' + P + ' lourde ' + c.id + ' -- <commande> ; ce qu’atelier ne peut pas jouer part au poste Windows par node ' + P + ' poste deposer ' + c.id + ' <ID> --fiche <f>. Réutilise les preuves valides. Au plus 6 sous-agents. Matrice complète : node ' + P + ' statut ' + c.id + ' <ID> close <matrice.json>. Échec dû au code : node ' + P + ' statut ' + c.id + ' <ID> en_cours puis node ' + P + ' decision ' + c.id + ' <ID> "<lignes ko, cause, preuve>" (l’orchestrateur corrige). Ligne injouable : cadreur de déblocage (node ' + P + ' lancer cadrage deblocage-<ID> --depuis-role AUTO --projet <projet> --nouveau --fiche-stdin), jamais de blocage direct. Ne rends pas la main tant qu’une issue de a_recetter n’a pas d’agent. Interdits : gestionnaire de mots de passe, données réelles, base partagée, déploiement, fusion vers une branche qui déploie. Termine chaque message final par la ligne rendue par node ' + P + ' recettes ' + c.id + ' (champ ligne), seule en dernière ligne. Réponds en français, format compact.';
 }
 export function recettesVoie(cfg, nom) {
-  const c = lireCampagne(cfg, nom); const l = issues(c); const ret = retenues(cfg, c);
-  const x = l.filter((i) => ['recette', 'fusionnee'].includes(i.statut) && !i.poste_exclu); const auP = x.filter(auPoste);
+  const c = lireCampagne(cfg, nom); const l = issues(c); const ret = retenues(cfg, c); const stR = statutsAvecSoeurs(cfg, c);
+  const x = l.filter((i) => ['recette', 'fusionnee'].includes(i.statut) && !i.poste_exclu && !(i.empile_sur?.length && !i.empile_sur.every((d) => ['close', 'fusionnee'].includes(stR[d])))); const auP = x.filter(auPoste);
   const aR = x.filter((i) => !auPoste(i)).sort((a, b) => (ret[b.linear_id] || 0) - (ret[a.linear_id] || 0));
   const ids = aR.map((i) => i.linear_id); const extrait = ids.slice(0, 4).join(', ') + (ids.length > 4 ? '…' : '');
   const ligne = aR.length ? formatLigne('▶', aR.length + ' issue(s) à recetter (' + extrait + ')' + (auP.length ? ' ; ' + auP.length + ' au poste Windows' : '') + ' ; reprise au prochain réveil') : formatLigne('⏳', auP.length ? 'retour du poste Windows attendu pour ' + auP.map((i) => i.linear_id).join(', ') : 'aucune issue à recetter : l’orchestrateur en passe en recette', 'rien');
@@ -1068,38 +1071,106 @@ export async function reveilVoieRecette(cfg, c, s, { maintenant = new Date(), in
   return { campagne: c.id, voie: 'recette', action: 'reprise', tour: t.turn?.id, raison: dr.raison, a_recetter: r.a_recetter.length };
 }
 
+// ---------- v2.8 : admission empilée, chaîne critique, priorité des charges lourdes, poste éveillé sur secteur ----------
+export function issuesAvecSoeurs(cfg, c) {
+  const out = issues(c).map((i) => ({ ...i, projet: i.projet || c.projet, campagne: c.id }));
+  for (const n of c.soeurs || []) { const s = lireJson(fichierCampagne(cfg, n), null); if (s?.items) out.push(...issues(s).map((i) => ({ ...i, projet: i.projet || s.projet, campagne: s.id }))); }
+  return out;
+}
+// Une issue est admissible si ses dépendances sont fusionnées ou closes, ou (empilement) en recette, c'est-à-dire revue favorable.
+export function admissibilite(cfg, c, i, stS = statutsAvecSoeurs(cfg, c)) {
+  const ouvertes = (i.blocked_by || []).filter((d) => !['fusionnee', 'close'].includes(stS[d]));
+  if (!ouvertes.length) return { ok: true, empile: null };
+  const max = cfg.admission?.empilement_max ?? 3;
+  const pasPretes = ouvertes.filter((d) => stS[d] !== 'recette');
+  if (max <= 0 || pasPretes.length) return { ok: false, raison: 'dépendances sans revue favorable (ni en recette, ni fusionnées, ni closes) : ' + (pasPretes.length ? pasPretes : ouvertes).join(', ') };
+  const by = Object.fromEntries(issuesAvecSoeurs(cfg, c).map((x) => [x.linear_id, x])); const projet = i.projet || c.projet;
+  const memeDepot = ouvertes.filter((d) => by[d] && by[d].projet === projet);
+  if (memeDepot.length > 1) return { ok: false, raison: 'plusieurs dépendances du même dépôt en recette (' + memeDepot.join(', ') + ') : une seule branche de base possible' };
+  const profondeur = 1 + Math.max(0, ...ouvertes.map((d) => by[d]?.empile_profondeur || 0));
+  if (profondeur > max) return { ok: false, raison: 'empilement de profondeur ' + profondeur + ', au-delà de ' + max };
+  const base = memeDepot[0] ? by[memeDepot[0]] : null;
+  return { ok: true, empile: { sur: ouvertes, base_sur: base?.linear_id || null, branche: base ? (base.branche_reprise || base.branche) : null, profondeur } };
+}
+export function chaineCritique(cfg, c) {
+  const tout = issuesAvecSoeurs(cfg, c).filter((i) => i.statut !== 'close'); const ids = new Set(tout.map((i) => i.linear_id)); const enfants = {};
+  for (const i of tout) for (const d of i.blocked_by || []) if (ids.has(d)) (enfants[d] ||= []).push(i.linear_id);
+  const memo = {}; const L = (id, pile = new Set()) => { if (memo[id] != null) return memo[id]; if (pile.has(id)) return 0; pile.add(id); const v = 1 + Math.max(0, ...(enfants[id] || []).map((x) => L(x, pile))); pile.delete(id); return (memo[id] = v); };
+  let best = null; for (const i of tout) if (best === null || L(i.linear_id) > L(best)) best = i.linear_id;
+  const chaine = []; const vus = new Set(); let cur = best;
+  while (cur && !vus.has(cur) && chaine.length < 15) { vus.add(cur); chaine.push(cur); cur = [...(enfants[cur] || [])].sort((a, b) => L(b) - L(a))[0]; }
+  return chaine.length > 1 ? chaine : [];
+}
+// La dépendance d'issues empilées repasse en développement : ces issues reviennent en attente, travail conservé.
+export function desempilerEnfants(cfg, nom, id, motif) {
+  const out = []; const camps = [nom, ...(lireCampagne(cfg, nom).soeurs || [])];
+  for (const n of camps) { try { modifierCampagne(cfg, n, (cc) => { for (const it of cc.items) for (const i of it.type === 'milestone' ? it.issues : [it]) {
+    if (!(i.empile_sur || []).includes(id) || !ACTIFS_ISSUE.includes(i.statut)) continue;
+    const sha = i.worktree && fs.existsSync(i.worktree) ? git(i.worktree, 'rev-parse', 'HEAD').out : '';
+    i.statut = 'en_attente'; if (sha) { i.sha_reprise = sha; i.branche_reprise = i.branche; } delete i.empile_sur; delete i.empile_base; delete i.empile_profondeur; out.push({ campagne: n, issue: i.linear_id, sha_reprise: sha || null }); } }); } catch {} }
+  for (const x of out) decision(cfg, x.campagne, x.issue, 'Désempilée (v2.8) : ' + motif + ' ; remise en attente, travail conservé' + (x.sha_reprise ? ' (sha_reprise ' + x.sha_reprise.slice(0, 8) + ')' : '') + ', réadmise quand la dépendance repasse en recette.');
+  return out;
+}
+export function desempiler(cfg, nom, id) {
+  nom = redirigerCampagne(cfg, nom, id);
+  const r = modifierCampagne(cfg, nom, (c) => { const i = trouverIssue(c, id); const avant = i.empile_sur || null; delete i.empile_sur; delete i.empile_base; delete i.empile_profondeur; return { campagne: nom, issue: id, etait_empilee_sur: avant }; });
+  decision(cfg, nom, id, 'Désempilée après fusion de ' + (r.etait_empilee_sur || []).join(', ') + ' : branche rebasée sur sa cible, PR rétablie vers la cible.');
+  return r;
+}
+export function prochainLourd(tickets, libre) { const e = tickets.filter((t) => libre(t.campagne)).sort((a, b) => (b.priorite || 0) - (a.priorite || 0) || String(a.depuis).localeCompare(String(b.depuis)) || a.pid - b.pid); return e[0]?.pid ?? null; }
+export function decisionVeille(enAttente, sauvegarde) { if (enAttente > 0 && !sauvegarde) return 'desactiver'; if (enAttente === 0 && sauvegarde) return 'restaurer'; return 'rien'; }
+// Sur secteur seulement (valeurs AC) : veille et veille prolongée coupées tant que la file du poste n'est pas vide, puis restaurées.
+export function garderEveilSecteur(cfg, enAttente) {
+  if (process.platform !== 'win32' || cfg.passerelle?.eveil_secteur === false || cfg.atelier_simule || cfg.passerelle?.commande_test) return { action: 'rien', raison: 'non applicable' };
+  const f = path.join(cfg.etat, 'poste-veille.json'); const sauv = lireJson(f, null); const a = decisionVeille(enAttente, sauv);
+  const lire = (sub) => { const r = spawnSync('powercfg', ['/query', 'SCHEME_CURRENT', 'SUB_SLEEP', sub], { encoding: 'utf8', windowsHide: true }); const m = (r.stdout || '').match(/(?:courant alternatif|AC Power Setting Index)[^:\n]*:\s*(0x[0-9a-f]+)/i); return m ? parseInt(m[1], 16) : null; };
+  const regler = (sub, v) => spawnSync('powercfg', ['/setacvalueindex', 'SCHEME_CURRENT', 'SUB_SLEEP', sub, String(v)], { windowsHide: true }).status === 0;
+  const activer = () => spawnSync('powercfg', ['/setactive', 'SCHEME_CURRENT'], { windowsHide: true });
+  if (a === 'desactiver') { const s = { STANDBYIDLE: lire('STANDBYIDLE'), HIBERNATEIDLE: lire('HIBERNATEIDLE'), le: new Date().toISOString() }; if (s.STANDBYIDLE === null || s.HIBERNATEIDLE === null) return { action: 'rien', raison: 'lecture powercfg impossible' }; ecrireJson(f, s); regler('STANDBYIDLE', 0); regler('HIBERNATEIDLE', 0); activer(); return { action: 'desactiver', sauvegarde: s }; }
+  if (a === 'restaurer') { regler('STANDBYIDLE', sauv.STANDBYIDLE); regler('HIBERNATEIDLE', sauv.HIBERNATEIDLE); activer(); fs.rmSync(f, { force: true }); return { action: 'restaurer', valeurs: sauv }; }
+  return { action: 'rien', etat: sauv ? 'veille coupée sur secteur' : 'réglage d’origine' };
+}
+
 // ---------- charges lourdes : verrou réel (lourdes_max par campagne) ----------
 function pidVivant(pid) { try { process.kill(pid, 0); return true; } catch (e) { return e.code === 'EPERM'; } }
-export function prendreCreneauLourd(cfg, nom, { attenteMax = 4 * 3600000, pas = 5000, libelle = '' } = {}) {
+export function prendreCreneauLourd(cfg, nom, { attenteMax = 4 * 3600000, pas = 5000, libelle = '', priorite = 0 } = {}) {
   lireCampagne(cfg, nom);
-  const max = cfg.admission.lourdes_max || 1; const dir = path.join(cfg.etat, 'lourdes', nom); fs.mkdirSync(dir, { recursive: true });
+  const max = cfg.admission.lourdes_max || 1; const racine = path.join(cfg.etat, 'lourdes'); const dir = path.join(racine, nom); const fileDir = path.join(racine, '_file');
+  fs.mkdirSync(dir, { recursive: true }); fs.mkdirSync(fileDir, { recursive: true });
   const debut = Date.now(); let annonce = false;
   const maxHote = cfg.admission.lourdes_max_hote || Infinity, gardeGio = cfg.admission.garde_ram_lourde_gio || 0;
-  const occupesHote = () => { const r = path.join(cfg.etat, 'lourdes'); let n = 0; for (const d of fs.existsSync(r) ? fs.readdirSync(r) : []) for (const f of fs.readdirSync(path.join(r, d))) { const o = lireJson(path.join(r, d, f), {}); if (o.pid && pidVivant(o.pid)) n++; } return n; };
+  const vivantsDans = (d) => { let n = 0; for (const f of fs.existsSync(d) ? fs.readdirSync(d) : []) { const o = lireJson(path.join(d, f), {}); if (o.pid && pidVivant(o.pid)) n++; } return n; };
+  const occupesHote = () => (fs.existsSync(racine) ? fs.readdirSync(racine) : []).filter((d) => d !== '_file').reduce((n, d) => n + vivantsDans(path.join(racine, d)), 0);
   const ramLibreGio = () => { try { const m = fs.readFileSync('/proc/meminfo', 'utf8').match(/MemAvailable:\s+(\d+)/); if (m) return Number(m[1]) / 1048576; } catch {} return os.freemem() / 2 ** 30; };
-  for (;;) {
-    const hoteOk = occupesHote() < maxHote && ramLibreGio() >= gardeGio;
-    for (let k = 1; hoteOk && k <= max; k++) {
-      const f = path.join(dir, k + '.lock');
-      try { const fd = fs.openSync(f, 'wx'); fs.writeSync(fd, JSON.stringify({ pid: process.pid, libelle, depuis: new Date().toISOString() })); fs.closeSync(fd); return f; }
-      catch (e) { if (e.code !== 'EEXIST') throw e; const o = lireJson(f, {}); if (!o.pid || !pidVivant(o.pid)) fs.rmSync(f, { force: true }); }
+  const ticket = path.join(fileDir, process.pid + '.json'); ecrireJson(ticket, { pid: process.pid, campagne: nom, priorite, depuis: new Date().toISOString(), libelle }); // v2.8 : file par priorité
+  const tickets = () => fs.readdirSync(fileDir).map((f) => { const o = lireJson(path.join(fileDir, f), null); if (!o?.pid || !pidVivant(o.pid)) { fs.rmSync(path.join(fileDir, f), { force: true }); return null; } return o; }).filter(Boolean);
+  try {
+    for (;;) {
+      const hoteOk = occupesHote() < maxHote && ramLibreGio() >= gardeGio;
+      const monTour = hoteOk && prochainLourd(tickets(), (camp) => vivantsDans(path.join(racine, camp)) < max) === process.pid;
+      for (let k = 1; monTour && k <= max; k++) {
+        const f = path.join(dir, k + '.lock');
+        try { const fd = fs.openSync(f, 'wx'); fs.writeSync(fd, JSON.stringify({ pid: process.pid, libelle, priorite, depuis: new Date().toISOString() })); fs.closeSync(fd); return f; }
+        catch (e) { if (e.code !== 'EEXIST') throw e; const o = lireJson(f, {}); if (!o.pid || !pidVivant(o.pid)) fs.rmSync(f, { force: true }); }
+      }
+      if (Date.now() - debut > attenteMax) refuser('CRÉNEAU LOURD INDISPONIBLE', 'attente de plus de ' + Math.round(attenteMax / 60000) + ' min pour ' + nom, 5);
+      if (!annonce) { process.stderr.write('Charge lourde en file (priorité ' + priorite + ') : créneaux occupés pour ' + nom + ', attente…\n'); annonce = true; }
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, pas);
     }
-    if (Date.now() - debut > attenteMax) refuser('CRÉNEAU LOURD INDISPONIBLE', 'attente de plus de ' + Math.round(attenteMax / 60000) + ' min pour ' + nom, 5);
-    if (!annonce) { process.stderr.write('Charge lourde en file : ' + max + ' créneau(x) occupé(s) pour ' + nom + ', attente…\n'); annonce = true; }
-    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, pas);
-  }
+  } finally { fs.rmSync(ticket, { force: true }); }
 }
 export function lourde(cfg, nom, commande, options = {}) {
-  if (!commande.length) refuser('COMMANDE ABSENTE', 'usage : pilote.mjs lourde <campagne> -- <commande> [arguments]');
-  const verrou = prendreCreneauLourd(cfg, nom, { ...options, libelle: commande.join(' ').slice(0, 200) });
-  try { const r = spawnSync(commande[0], commande.slice(1), { stdio: 'inherit', shell: process.platform === 'win32' && !path.isAbsolute(commande[0]), windowsHide: true }); return { campagne: nom, commande: commande.join(' '), code: r.status ?? 1 }; }
+  if (!commande.length) refuser('COMMANDE ABSENTE', 'usage : pilote.mjs lourde <campagne> [--issue <ID>] -- <commande> [arguments]');
+  let priorite = 0; if (options.issue) { nom = redirigerCampagne(cfg, nom, options.issue); try { const c = lireCampagne(cfg, nom); priorite = (retenues(cfg, c)[options.issue] || 0) + (chaineCritique(cfg, c).includes(options.issue) ? 1000 : 0); } catch {} }
+  const verrou = prendreCreneauLourd(cfg, nom, { ...options, priorite, libelle: commande.join(' ').slice(0, 200) });
+  try { const r = spawnSync(commande[0], commande.slice(1), { stdio: 'inherit', shell: process.platform === 'win32' && !path.isAbsolute(commande[0]), windowsHide: true }); return { campagne: nom, commande: commande.join(' '), code: r.status ?? 1, priorite }; }
   finally { fs.rmSync(verrou, { force: true }); }
 }
 
 
 // ---------- contrats par commande $dev ----------
 export const COMMANDES = {
-  'campagne composer': ['campagne.md', 'inline'], 'campagne ajouter': ['campagne.md', 'inline'], 'campagne scinder': ['campagne.md', 'inline'], 'campagne voie-recette': ['test.md', 'TEST'], recettes: ['test.md', 'TEST'], point: ['point.md', 'inline'], 'campagne lancer': ['campagne.md', 'AUTO/SUP'], milestone: ['execution.md', 'MS'], issue: ['issue.md', 'DEV'],
+  'campagne composer': ['campagne.md', 'inline'], 'campagne ajouter': ['campagne.md', 'inline'], desempiler: ['campagne.md', 'inline'], 'campagne scinder': ['campagne.md', 'inline'], 'campagne voie-recette': ['test.md', 'TEST'], recettes: ['test.md', 'TEST'], point: ['point.md', 'inline'], 'campagne lancer': ['campagne.md', 'AUTO/SUP'], milestone: ['execution.md', 'MS'], issue: ['issue.md', 'DEV'],
   iteration: ['iteration.md', 'DEV'], finaliser: ['finalisation.md', 'inline'], cadrage: ['cadrage.md', 'CADRE'], 'cadrage-court': ['cadrage-court.md', 'inline'],
   projet: ['projet.md', 'inline'], digest: ['campagne.md', 'inline'], prototype: ['prototype.md', 'PROTO'], test: ['test.md', 'inline ou TEST'],
   nettoyeur: ['nettoyeur.md', 'RELAIS'], aide: ['aide.md', 'AIDE'], menage: ['menage.md', 'inline'], lancer: ['lanceur.md', 'inline'], livrer: ['livraison.md', 'SUP'], cloture: ['cloture.md', 'BILAN'], pause: ['campagne.md', 'inline'], reprendre: ['campagne.md', 'inline'], etat: [null, 'inline'], modele: ['modeles.md', 'inline'],
@@ -1208,7 +1279,7 @@ export function ligneEtat(cfg, nom) {
   const liste = (x, f = (i) => i.linear_id) => x.slice(0, 4).map(f).join(', ') + (x.length > 4 ? '…' : '');
   const exclus = l.filter((i) => i.poste_exclu && i.statut !== 'close'); const travail = actifsAdmission(l).filter((i) => i.poste !== 'retour' && !i.poste_exclu); const poste = l.filter(auPoste); const retours = l.filter((i) => i.poste === 'retour');
   const bloquees = l.filter((i) => i.statut === 'bloquee'); const attente = l.filter((i) => i.statut === 'en_attente' && !i.poste_exclu);
-  const eligibles = attente.filter((i) => (i.blocked_by || []).every((d) => ['fusionnee', 'close'].includes(st[d] || 'close')));
+  const stE = new Proxy(st, { get: (o, k) => o[k] ?? 'close' }); const eligibles = attente.filter((i) => admissibilite(cfg, c, i, stE).ok); // v2.8 : admission empilée comprise
   const noteBloq = bloquees.length ? ' ; ⛔ ' + bloquees.length + ' bloquée(s) : ' + liste(bloquees) : '';
   const debloquer = l.filter((i) => aDebloquerPoste(cfg, i));
   const toiParts = [...(exclus.length ? ['à faire par toi : ' + exclus.slice(0, 2).map((i) => i.linear_id + ' (' + i.poste_exclu + ')').join(', ')] : []), ...(debloquer.length ? ['débloquer le poste pour ' + debloquer.slice(0, 2).map((i) => i.linear_id + ' (' + (i.poste_env_cause || 'voir le retour') + ')').join(', ')] : [])];
@@ -1353,9 +1424,10 @@ export function postePrendre(cfg, { poste = 'poste', maintenant = new Date() } =
   });
   for (const t of expirees.filter((x) => x.statut === 'bloque')) compterEchecEnv(cfg, t, 'délai dépassé ' + MAX_ESSAIS + ' fois sur le poste');
   for (const t of expirees) marquerIssuePoste(cfg, t, t.statut === 'bloque' ? 'retour' : 'en_file', t.statut === 'bloque' ? { poste_resultat: 'environnement', poste_retour: 'délai dépassé ' + MAX_ESSAIS + ' fois : tâche bloquée' } : {});
-  if (!prise) return { tache: null, expirees: expirees.map((t) => t.id) };
+  const enFile = lireTaches(cfg).filter((t) => t.statut === 'en_file').length;
+  if (!prise) return { tache: null, expirees: expirees.map((t) => t.id), en_file: enFile };
   marquerIssuePoste(cfg, prise, 'en_cours'); const depot = dossierPoste(cfg, 'retours', prise.id); fs.mkdirSync(depot, { recursive: true });
-  return { tache: prise, depot, expirees: expirees.map((t) => t.id) };
+  return { tache: prise, depot, expirees: expirees.map((t) => t.id), en_file: enFile };
 }
 export function posteRendre(cfg, tid, { resultat, retour = '', ligne = null, issue = null, campagne = null, preuves = null } = {}) {
   if (!['ok', 'echec', 'environnement'].includes(resultat)) refuser('RÉSULTAT INCONNU', String(resultat) + ' (ok, echec ou environnement)');
@@ -1426,7 +1498,8 @@ export function posteRelever(cfg) {
   catch (e) { if (e.code !== 'EEXIST') throw e; const pid = Number(fs.readFileSync(vl, 'utf8')); let vivant = false; try { process.kill(pid, 0); vivant = pid !== process.pid; } catch {} if (vivant) return { action: 'aucune', raison: 'relève déjà en cours (pid ' + pid + ')' }; fs.writeFileSync(vl, String(process.pid)); }
   try {
     const r = appelAtelier(cfg, ['poste', 'prendre', '--poste', os.hostname()]);
-    if (!r.tache) return { action: 'aucune', raison: 'file vide', expirees: r.expirees };
+    const veille = garderEveilSecteur(cfg, (r.tache ? 1 : 0) + (r.en_file || 0)); // v2.8 : poste éveillé sur secteur tant que la file n'est pas vide
+    if (!r.tache) return { action: 'aucune', raison: 'file vide', expirees: r.expirees, veille };
     const t = r.tache; const travail = path.join(p.dossier_travail || path.join(cfg.etat, 'passerelle'), t.id); fs.mkdirSync(path.join(travail, 'preuves'), { recursive: true });
     if (!p.commande_test) { try { os.setPriority(0, os.constants.priority.PRIORITY_BELOW_NORMAL); } catch {} }
     const eveil = maintenirEveille(cfg); const imp = basculerImprimante(cfg); let x;
@@ -1438,7 +1511,7 @@ export function posteRelever(cfg) {
     if (cfg.atelier_simule) { fs.cpSync(path.join(travail, 'preuves'), path.join(r.depot, 'preuves'), { recursive: true }); preuves = true; }
     else { const s = spawnSync('scp', ['-q', '-r', '-o', 'BatchMode=yes', path.join(travail, 'preuves'), cfg.ssh.atelier + ':' + r.depot + '/'], { encoding: 'utf8', windowsHide: true, timeout: 600000 }); preuves = s.status === 0; }
     const rendu = appelAtelier(cfg, ['poste', 'rendre', t.id, '--resultat', resultat, '--retour-stdin', ...(ligne ? ['--ligne', ligne] : [])], retour + (preuves ? '' : '\n⚠ Preuves non déposées sur atelier : elles restent sur le poste dans ' + travail));
-    return { action: 'tache', tache: t.id, issue: t.issue, modele: x.modele, code: x.code, resultat, preuves_deposees: preuves, travail, ligne, essai: rendu.essai, imprimante: imp.note, ...(rendu.echecs_environnement ? { echecs_environnement: rendu.echecs_environnement } : {}) };
+    return { action: 'tache', veille, tache: t.id, issue: t.issue, modele: x.modele, code: x.code, resultat, preuves_deposees: preuves, travail, ligne, essai: rendu.essai, imprimante: imp.note, ...(rendu.echecs_environnement ? { echecs_environnement: rendu.echecs_environnement } : {}) };
   } finally { fs.rmSync(vl, { force: true }); }
 }
 export function posteInstaller(cfg) {
@@ -1592,7 +1665,9 @@ function executerBrut(argv, cfg = null) {
     case 'deployer': return deployer(C(), a[0], a[1]);
     case 'contrat': return contrat(a.join(' '));
     case 'chat': return ouvrirChat(C(), a[0]);
-    case 'lourde': { const i = argv.indexOf('--'); const r = lourde(C(), a[0], i >= 0 ? argv.slice(i + 1) : a.slice(1)); process.exitCode = r.code; return r; }
+    case 'lourde': { const i = argv.indexOf('--'); const avant = i >= 0 ? argv.slice(0, i) : argv; const k = avant.indexOf('--issue'); const r = lourde(C(), a[0], i >= 0 ? argv.slice(i + 1) : a.slice(1), { issue: k >= 0 ? avant[k + 1] : null }); process.exitCode = r.code; return r; }
+    case 'desempiler': return desempiler(C(), a[0], a[1]);
+    case 'chaine-critique': return { campagne: a[0], chaine: chaineCritique(C(), lireCampagne(C(), a[0])) };
     case 'aide': { if (a[0] === 'enregistrer') return enregistrerAide(C(), a[1], o.modele); const ch = o['chats-fichier'] ? lireJson(o['chats-fichier'], null) : o.chats ? JSON.parse(o.chats) : []; if (!Array.isArray(ch)) refuser('CHATS ILLISIBLES', 'attendu un tableau JSON [{ id, titre, archive, maj }]'); return aide(C(), { chats: ch, recreer: !!o.recreer, indisponibles: o.indisponible ? String(o.indisponible).split(',') : [] }); }
     case 'archi': { if (a[0] === 'enregistrer') return enregistrerArchi(C(), a[1], o.modele); refuser('COMMANDE INCONNUE', 'archi ' + (a[0] || '') + ' — usage : pilote.mjs archi enregistrer <chat_id> ; pour ouvrir le chat : pilote.mjs lancer archi'); }
     case 'nettoyeur': { if (a[0] !== 'candidats') refuser('COMMANDE INCONNUE', 'nettoyeur ' + a[0]); const ch = o['chats-fichier'] ? lireJson(o['chats-fichier'], []) : JSON.parse(o.chats || '[]'); return { chats: 'hors périmètre : les chats relèvent de $dev menage', ne_jamais_toucher: livrablesProteges(C()), taches_protegees: tachesProtegees(C()) }; }

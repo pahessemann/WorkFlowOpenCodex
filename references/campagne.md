@@ -87,3 +87,15 @@ examine le `WIP` de `branche_reprise` avant de coder.
   campagnes sœurs et de la voie de recette.
 - Orchestrateur recréé au point stable dès 150 k tokens de contexte (`chats.seuil_orchestrateur`) ; sur atelier, Codex
   compresse le contexte à 200 k tokens (`model_auto_compact_token_limit` dans ``/.codex/config.toml`).
+
+## Chaîne critique et admission empilée (v2.8)
+
+- `contexte` donne `chaine_critique` (plus longue suite de dépendances non closes, campagnes sœurs comprises), `admissibles`
+  (avec « empilée sur X » le cas échéant) et `a_rebaser`. Traite d'abord la chaîne critique.
+- Une issue dont les dépendances sont en `recette` est admissible : `pilote.mjs ouvrir` part de `origin/<branche de la
+  dépendance>` (même dépôt) et rend `empilement` ; sa PR vise cette branche. Dépendance d'un autre dépôt : empilement logique,
+  base par défaut. Profondeur maximale : `admission.empilement_max` (3). Plusieurs dépendances du même dépôt en recette : attendre.
+- Clôture d'une issue empilée refusée tant que sa dépendance n'est pas fusionnée ou close (`CLÔTURE PRÉMATURÉE`). Si la
+  dépendance repasse en développement, les issues empilées reviennent en `en_attente` (`sha_reprise` conservé, ligne au journal).
+- Après fusion de la dépendance (`a_rebaser`) : rebase sur la cible, PR rétablie vers la cible, `pilote.mjs desempiler <c> <ID>`.
+- Charges lourdes : `pilote.mjs lourde <c> --issue <ID> -- <commande>` ; priorité = issues retenues, +1000 sur la chaîne critique.

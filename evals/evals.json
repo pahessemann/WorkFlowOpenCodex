@@ -1,6 +1,6 @@
 {
-  "version": "2.7.0",
-  "description": "Évaluations du workflow $dev v2.7.0 : un cas par commande, plus les cas limites. Exécuter : node scripts/evals.mjs",
+  "version": "2.8.0",
+  "description": "Évaluations du workflow $dev v2.8.0 : un cas par commande, plus les cas limites. Exécuter : node scripts/evals.mjs",
   "cas": [
     {
       "id": "composer",
@@ -2311,6 +2311,79 @@
       "attendu": {
         "code": 0,
         "contient": "aucune issue à recetter"
+      }
+    },
+    {
+      "id": "chaine-critique",
+      "commande": "pilote.mjs chaine-critique",
+      "argv": [
+        "chaine-critique",
+        "demo"
+      ],
+      "avant": [
+        [
+          "campagne",
+          "composer",
+          "demo",
+          "mon-api",
+          "DEV-1",
+          "DEV-2"
+        ],
+        {
+          "fichier": "campagnes/demo.contrat.md"
+        },
+        [
+          "campagne",
+          "contrat",
+          "demo"
+        ],
+        [
+          "campagne",
+          "lancer",
+          "demo",
+          "auto"
+        ]
+      ],
+      "attendu": {
+        "code": 0,
+        "contient": "\"chaine\": []"
+      }
+    },
+    {
+      "id": "desempiler",
+      "commande": "pilote.mjs desempiler après fusion de la dépendance",
+      "argv": [
+        "desempiler",
+        "demo",
+        "DEV-2"
+      ],
+      "avant": [
+        [
+          "campagne",
+          "composer",
+          "demo",
+          "mon-api",
+          "DEV-1",
+          "DEV-2"
+        ],
+        {
+          "fichier": "campagnes/demo.contrat.md"
+        },
+        [
+          "campagne",
+          "contrat",
+          "demo"
+        ],
+        [
+          "campagne",
+          "lancer",
+          "demo",
+          "auto"
+        ]
+      ],
+      "attendu": {
+        "code": 0,
+        "contient": "\"etait_empilee_sur\": null"
       }
     }
   ]

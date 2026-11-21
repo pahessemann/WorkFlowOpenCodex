@@ -82,3 +82,10 @@ avec « Toi : ouvrir ta session sur le poste » si le poste n'est pas passé dep
 ## Configuration (`poste.local.json` du poste)
 
 `"passerelle": { "actif": true, "intervalle_min": 10, "delai_max_min": 180, "dossier_travail": "D:\\passerelle-poste" }`
+
+## Poste éveillé sur secteur (v2.8)
+
+À chaque relève, la passerelle compte les tâches en file ou en cours. S'il en reste, elle coupe la veille et la veille
+prolongée **sur secteur** (`powercfg /setacvalueindex … STANDBYIDLE|HIBERNATEIDLE 0`), après avoir sauvegardé les valeurs dans
+`.pilote/poste-veille.json` ; dès que la file est vide, elle les restaure. Les réglages sur batterie ne sont jamais touchés.
+La fermeture du capot reste du ressort de Paul. Désactivation : `passerelle.eveil_secteur: false`.
