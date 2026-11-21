@@ -1,5 +1,9 @@
 # Changelog du socle public
 
+## 2.10 — 21/11/2026
+
+État de campagne lisible d’un coup d’œil : le script rend un bloc d’une ligne par rubrique (ce que Paul doit faire en premier, puis agents, poste Windows, attentes, issues à venir, bloquées) et une ligne d’état courte ; les orchestrateurs les recopient à l’identique, et `$dev point` affiche le même bloc. 97 évaluations, 70 tests.
+
 ## 2.9.1 — 21/11/2026
 
 Correctif : quand le reste d’une campagne attend ses dépendances, la ligne d’état affiche l’action attendue de Paul (⏸) au lieu d’un message générique. 97 évaluations, 69 tests.

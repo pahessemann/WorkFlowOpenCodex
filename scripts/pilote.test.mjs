@@ -277,7 +277,7 @@ test('passerelle poste : dépôt hors quota, relève, preuves, retour, essais se
   assert.equal(actifs(), 0, 'une issue en file poste sort du quota dev_max');
   assert.equal(code(() => P.posteDeposer(at, 'k', 'DEV-1', { fiche: 'x' })), 'TÂCHE DÉJÀ EN FILE');
   assert.deepEqual(P.contexte(at, 'k').a_relancer, []);
-  assert.match(P.ligneEtat(at, 'k').ligne, /^⏳ EN ATTENTE · retour du poste Windows attendu pour DEV-1 · Toi : ouvrir ta session sur le poste/);
+  assert.match(P.ligneEtat(at, 'k').detail, /^⏳ EN ATTENTE · retour du poste Windows attendu pour DEV-1 · Toi : ouvrir ta session sur le poste/);
   const session = path.join(at.etat, 'session.mjs');
   fs.writeFileSync(session, "import fs from 'node:fs'; import path from 'node:path'; const d = process.env.PASSERELLE_TRAVAIL; const consigne = fs.readFileSync(0, 'utf8'); fs.writeFileSync(path.join(d, 'preuves', 'matrice.json'), JSON.stringify({ reglages: consigne.includes('Microsoft Print to PDF'), sansGestionnaire: consigne.includes('gestionnaire de mots de passe'), ligneDirigee: consigne.includes('✅ TERMINÉ si le résultat est ok') })); fs.writeFileSync(path.join(d, 'retour.md'), 'DEV-1 : P04 ok'); fs.writeFileSync(path.join(d, 'resultat.json'), JSON.stringify({ resultat: 'ok' })); console.log('fini\\n✅ TERMINÉ · P04 rejoué sur Windows · Toi : rien');");
   const po = configTest({ hote: 'local', atelier_simule: fa, passerelle: { actif: true, dossier_travail: path.join(at.etat, 'travail'), commande_test: [process.execPath, session] } });
@@ -286,7 +286,7 @@ test('passerelle poste : dépôt hors quota, relève, preuves, retour, essais se
   const preuve = JSON.parse(fs.readFileSync(path.join(at.etat, 'poste', 'retours', d.tache, 'preuves', 'matrice.json'), 'utf8'));
   assert.deepEqual(preuve, { reglages: true, sansGestionnaire: true, ligneDirigee: true }, 'la consigne de la session porte les réglages permis et les règles du poste');
   assert.equal(P.contexte(at, 'k').retours_poste[0].issue, 'DEV-1');
-  assert.match(P.ligneEtat(at, 'k').ligne, /^▶ EN COURS · retours du poste à vérifier : DEV-1/);
+  assert.match(P.ligneEtat(at, 'k').detail, /^▶ EN COURS · retours du poste à vérifier : DEV-1/);
   assert.equal(P.posteRelever(po).raison, 'file vide');
   assert.equal(code(() => P.posteRelever({ ...at })), 'PASSERELLE SUR LE POSTE');
   P.statutIssue(at, 'k', 'DEV-1', 'recette'); assert.equal(P.issues(P.lireCampagne(at, 'k'))[0].poste, undefined, 'un changement de statut solde le retour');
@@ -322,11 +322,11 @@ test('poste retirer : tâche retirée, issue exclue (file, admission, ligne d’
   assert.equal(P.postePrendre(at).tache, null, 'une tâche retirée n’est jamais relevée');
   assert.equal(code(() => P.posteDeposer(at, 'k', 'DEV-7', { fiche: 'x' })), 'POSTE EXCLU');
   assert.deepEqual(P.contexte(at, 'k').exclues_poste, ['DEV-7 : recette tablette faite par Paul']);
-  assert.match(P.ligneEtat(at, 'k').ligne, /Toi : à faire par toi : DEV-7 \(recette tablette faite par Paul\)$/);
+  assert.match(P.ligneEtat(at, 'k').detail, /Toi : à faire par toi : DEV-7 \(recette tablette faite par Paul\)$/);
   assert.match(fs.readFileSync(path.join(at.etat, 'campagnes', 'k.decisions.md'), 'utf8'), /DEV-7 · Retirée de la passerelle poste par Paul/);
   assert.deepEqual(P.posteFile(at).retirees, ['DEV-7 : recette tablette faite par Paul']);
   P.modifierCampagne(at, 'k', (c) => { c.items[1].statut = 'close'; });
-  assert.match(P.ligneEtat(at, 'k').ligne, /^⏸ À TOI · il ne reste que ta part : DEV-7/);
+  assert.match(P.ligneEtat(at, 'k').detail, /^⏸ À TOI · il ne reste que ta part : DEV-7/);
   const d2 = P.posteDeposer(at, 'k', 'DEV-7', { fiche: 'y', forcer: true }); assert.equal(P.issues(P.lireCampagne(at, 'k'))[0].poste_exclu, undefined, '--forcer lève l’exclusion'); assert.equal(code(() => P.posteRetirer(at, d2.tache, { motif: 'm' })), 0);
 });
 
@@ -336,7 +336,7 @@ test('ligne d’état : un poste qui exécute une tâche n’est pas déclaré a
   fs.writeFileSync(path.join(at.etat, 'campagnes', 'k.json'), JSON.stringify({ id: 'k', projet: 'p', mode: 'auto', statut: 'en_cours', items: [{ type: 'issue_standalone', linear_id: 'DEV-1', statut: 'recette', blocked_by: [] }, { type: 'issue_standalone', linear_id: 'DEV-2', statut: 'recette', blocked_by: [] }] }));
   P.posteDeposer(at, 'k', 'DEV-1', { fiche: 'a' }); P.posteDeposer(at, 'k', 'DEV-2', { fiche: 'b' });
   P.postePrendre(at, { maintenant: new Date(Date.now() - 2 * 3600000) });
-  assert.match(P.ligneEtat(at, 'k').ligne, /Toi : rien$/, 'poste occupé depuis 2 h : présent');
+  assert.match(P.ligneEtat(at, 'k').detail, /Toi : rien$/, 'poste occupé depuis 2 h : présent');
 });
 
 test('passerelle 2.5.4 : imprimante PDF basculée puis restaurée, même si la session échoue ; absente : défaut inchangé', () => {
@@ -368,7 +368,7 @@ test('passerelle 2.5.4 : plafond des échecs d’environnement, levée par --for
   P.statutIssue(at, 'k', 'DEV-3', 'recette'); const r2 = tour('environnement'); assert.equal(r2.a_debloquer_par_paul, true);
   P.statutIssue(at, 'k', 'DEV-3', 'recette');
   assert.equal(code(() => P.posteDeposer(at, 'k', 'DEV-3', { fiche: 'f' })), 'POSTE À DÉBLOQUER');
-  assert.match(P.ligneEtat(at, 'k').ligne, /Toi : débloquer le poste pour DEV-3 \(Anomalie 1 : 403 sur les paquets/);
+  assert.match(P.ligneEtat(at, 'k').detail, /Toi : débloquer le poste pour DEV-3 \(Anomalie 1 : 403 sur les paquets/);
   assert.match(P.contexte(at, 'k').poste_a_debloquer[0], /^DEV-3 : 2 échecs/);
   P.posteDeposer(at, 'k', 'DEV-3', { fiche: 'f', forcer: true }); assert.equal(P.issues(P.lireCampagne(at, 'k'))[0].poste_env_echecs, undefined, '--forcer remet le compteur à zéro');
   P.posteRendre(at, P.postePrendre(at).tache.id, { resultat: 'environnement', retour: 'x' }); P.statutIssue(at, 'k', 'DEV-3', 'recette');
@@ -606,9 +606,9 @@ test('2.7 : après scission, une commande sur l’ancienne campagne est redirig�
   const cli = P.executer(['essai', 'cmp', 'API-3', 'echec'], at); assert.equal(cli.attempts, 1);
   assert.equal(P.retenues(at, P.lireCampagne(at, 'cmp-api'))['API-1'], 2, 'API-2 et FR-1 (sœur) attendent API-1');
   P.modifierCampagne(at, 'cmp', (c) => { for (const i of c.items) if (['FR-2', 'FR-3'].includes(i.linear_id)) i.statut = 'close'; });
-  assert.doesNotMatch(P.ligneEtat(at, 'cmp').ligne, /admission de FR-1/, 'FR-1 non éligible tant qu’API-1 n’est pas close');
+  assert.doesNotMatch(P.ligneEtat(at, 'cmp').detail, /admission de FR-1/, 'FR-1 non éligible tant qu’API-1 n’est pas close');
   P.modifierCampagne(at, 'cmp-api', (c) => { c.items.find((i) => i.linear_id === 'API-1').statut = 'close'; });
-  assert.match(P.ligneEtat(at, 'cmp').ligne, /admission de FR-1/);
+  assert.match(P.ligneEtat(at, 'cmp').detail, /admission de FR-1/);
 });
 test('2.7 : voie de recette : issues en recette hors des places, triées par issues retenues, ligne d’état propre', () => {
   const at = campagneScission();
@@ -774,7 +774,7 @@ test('2.9 : places libérées par l’attente extérieure, CADREUR REQUIS, cadre
   const l = P.issues(P.lireCampagne(at, 'k'));
   assert.deepEqual(P.actifsAdmission(l).map((i) => i.linear_id), ['DEV-3'], 'les issues qui attendent Paul libèrent leur place');
   assert.equal(P.ouvertesAdmission(l).length, 3); assert.equal(P.ouvertesMax(at), 8);
-  const ligne = P.ligneEtat(at, 'k').ligne; assert.match(ligne, /^▶/); assert.match(ligne, /2 en attente hors agents/); assert.match(ligne, /Toi : .*décider pour DEV-1 \(confirmer option A\)/);
+  const ligne = P.ligneEtat(at, 'k').detail; assert.match(ligne, /^▶/); assert.match(ligne, /2 en attente hors agents/); assert.match(ligne, /Toi : .*décider pour DEV-1 \(confirmer option A\)/);
   const lances = []; const lanceur = async (cfg, o) => { lances.push(o); return { action: 'cree', chat: 'chat-' + o.args[0] }; };
   const t0 = new Date('2026-11-21T00:00:00Z'); const k = () => P.lireCampagne(at, 'k');
   assert.equal(await P.cadreursAuto(at, k(), { maintenant: t0, lanceur }), null, 'premier passage : état mémorisé');
@@ -785,10 +785,33 @@ test('2.9 : places libérées par l’attente extérieure, CADREUR REQUIS, cadre
   assert.equal(P.issues(k()).find((i) => i.linear_id === 'DEV-3').cadreur.chat, 'chat-deblocage-DEV-3');
   assert.equal(await P.cadreursAuto(at, k(), { maintenant: new Date(+t0 + 130 * 60000), lanceur }), null, 'le journal a bougé : nouvel état');
   P.statutIssue(at, 'k', 'DEV-2', 'en_cours'); P.statutIssue(at, 'k', 'DEV-1', 'en_cours');
-  assert.match(P.ligneEtat(at, 'k').ligne, /Toi : rien/, 'attente levée');
+  assert.match(P.ligneEtat(at, 'k').detail, /Toi : rien/, 'attente levée');
   fs.writeFileSync(path.join(at.etat, 'campagnes', 'm.json'), JSON.stringify({ id: 'm', projet: 'p', mode: 'auto', statut: 'en_cours', items: [it('DEV-8', 'bloquee'), it('DEV-9', 'en_attente', { blocked_by: ['DEV-8'] })] }));
-  assert.match(P.ligneEtat(at, 'm').ligne, /^⏳ .*Toi : reprendre les issues bloquées/);
+  assert.match(P.ligneEtat(at, 'm').detail, /^⏳ .*Toi : reprendre les issues bloquées/);
   P.executer(['arret', 'm', 'DEV-8', '--attend', 'paul', '--quoi', 'lancer la phase 2 depuis le poste', '--reserve', 'production et identifiants de Paul'], at);
-  assert.match(P.ligneEtat(at, 'm').ligne, /^⏸ .*Toi : décider pour DEV-8 \(lancer la phase 2 depuis le poste\)/, '2.9.1 : l’action de Paul prime sur le message générique');
+  assert.match(P.ligneEtat(at, 'm').detail, /^⏸ .*Toi : décider pour DEV-8 \(lancer la phase 2 depuis le poste\)/, '2.9.1 : l’action de Paul prime sur le message générique');
+});
+
+
+
+test('2.10 : bloc d’état rendu par le script, Toi en premier, dernière ligne courte, sortie --texte', () => {
+  const at = configTest({ hote: 'atelier', deploiement_serveurs: false, gh: false });
+  fs.mkdirSync(path.join(at.etat, 'campagnes'), { recursive: true });
+  const it = (id, statut, extra = {}) => ({ type: 'issue_standalone', linear_id: id, statut, blocked_by: [], ...extra });
+  fs.writeFileSync(path.join(at.etat, 'campagnes', 'k.json'), JSON.stringify({ id: 'k', projet: 'p', mode: 'auto', statut: 'en_cours', items: [it('DEV-1', 'close'), it('DEV-2', 'preflight'), it('DEV-3', 'revue'), it('DEV-4', 'bloquee'), it('DEV-5', 'en_attente', { blocked_by: ['DEV-4'] }), it('DEV-6', 'en_attente', { blocked_by: ['DEV-4'] })] }));
+  P.executer(['arret', 'k', 'DEV-4', '--attend', 'paul', '--quoi', 'installer PowerShell 7 sur le poste', '--reserve', 'installation sur le poste de Paul'], at);
+  const e = P.ligneEtat(at, 'k'); const lignes = e.bloc.split('\n');
+  assert.equal(lignes[0], '**k** · 1/6 closes · ▶ EN COURS');
+  assert.match(lignes[1], /^- 👤 Toi \(1\) : 1\. DEV-4 · installer PowerShell 7 sur le poste → débloque 2 issue\(s\)$/, 'Toi en premier, avec ce que l’action débloque');
+  P.executer(['arret', 'k', 'DEV-4', '--attend', 'paul', '--quoi', 'Action root sur le dispositif : ajouter « archives » au script appliquer, correctif prêt dans le dossier de qualification ; réponse proposée : oui, option A réversible', '--reserve', 'root'], at);
+  const longue = P.ligneEtat(at, 'k').bloc.split('\n')[1]; assert.ok(longue.length < 175 && /…/.test(longue) && /→ débloque 2 issue\(s\)$/.test(longue), 'action longue coupée sur un mot : ' + longue);
+  assert.equal(lignes[2], '- 🤖 Agents (2) : DEV-2 démarrage · DEV-3 revue');
+  assert.ok(lignes.includes('- 🕓 À venir (2) : 2 attendent leurs dépendances'));
+  assert.ok(lignes.includes('- ⛔ Bloquée (1) : DEV-4 (toi)'));
+  assert.equal(e.ligne, '▶ EN COURS · 2 agent(s) au travail · 2 à venir · 1 bloquée(s) · Toi : 1 action(s), voir 👤 Toi');
+  { const f = P.ligneEtat(at, 'k'); assert.equal(P.executer(['ligne-etat', 'k', '--texte'], at).__texte, f.bloc + '\n\n' + f.ligne); }
+  assert.match(e.detail, /décider pour DEV-4/, 'la ligne détaillée reste disponible');
+  P.statutIssue(at, 'k', 'DEV-4', 'en_cours');
+  assert.doesNotMatch(P.ligneEtat(at, 'k').bloc, /👤 Toi/, 'rubrique absente quand Paul n’a rien à faire'); assert.match(P.ligneEtat(at, 'k').ligne, /Toi : rien$/);
 });
 

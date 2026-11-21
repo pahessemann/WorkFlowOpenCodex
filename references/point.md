@@ -19,7 +19,8 @@ ce que Paul doit faire, et le temps restant. Lecture seule : elle n'écrit rien 
 3. **Ce que tu dois faire** : toutes campagnes confondues, sans doublon, trié par nombre d'issues débloquées
    (l'issue et toutes celles qui en dépendent).
 4. **Ressources** de l'hôte : RAM libre, charge, attente CPU, places d'admission occupées par campagne.
-5. **Ligne d'état** du point : `⏸ À TOI` s'il reste une action de Paul, sinon `✅ TERMINÉ`.
+5. **État par campagne** (v2.10) : le bloc d'état de chaque campagne (👤 Toi en premier), le même que celui des orchestrateurs.
+6. **Ligne d'état** du point : `⏸ À TOI` s'il reste une action de Paul, sinon `✅ TERMINÉ`.
 
 Sans `--texte` : le JSON complet (`campagnes`, `actions_paul`, `ressources`, `ligne_etat`, `rendu`).
 

@@ -3,7 +3,7 @@ name: dev-orchestrator
 description: Orchestrateur de campagnes autonomes et supervisées (Linear Milestones et Issues) : composition à froid, chats identifiables d'un coup d'œil, routage économe des modèles et exécution hybride (PC local / VPS atelier).
 ---
 
-# Orchestrateur Dev — Workflow opérationnel (v2.9.1)
+# Orchestrateur Dev — Workflow opérationnel (v2.10)
 
 Ce skill régit l'orchestration des travaux via `pilote.mjs`, sur le poste local Windows et sur le VPS `atelier` (Linux).
 
@@ -169,7 +169,21 @@ Tout message final d'un chat du workflow (campagnes, DEV, CADRE, PROTO, TEST, RE
 | ⛔ | `BLOQUÉ` | circuit-breaker ou environnement |
 | ✅ | `TERMINÉ` | objet clos |
 
-Exemple : `⏳ EN ATTENTE · retour du poste Windows attendu pour DEV-1038 · Toi : rien`. Pour une campagne, la ligne est calculée par `node <pilote> ligne-etat <campagne>` et recopiée telle quelle. Le réveil lit la ligne de chaque chat d'atelier : statut du registre (▶ ⏳ → `actif`, ⏸ → `attente_go`, ⛔ → `bloque`, ✅ → `clos`) et suffixe du titre des chats de travail. Une ligne absente est signalée par `$dev menage` (`sans_ligne`). `$dev etat chats` affiche la dernière ligne de chaque chat.
+Exemple : `⏳ EN ATTENTE · retour du poste Windows attendu pour DEV-1038 · Toi : rien`.
+
+**Campagnes : bloc d'état et ligne courte (v2.10).** Un orchestrateur termine chaque message final par la sortie de `node <pilote> ligne-etat <campagne> --texte`, recopiée à l'identique et sans rien après : d'abord un bloc d'une ligne par rubrique non vide, dans cet ordre fixe, puis la ligne d'état courte.
+
+    **ma-campagne** · 11/25 closes · ▶ EN COURS
+    - 👤 Toi (1) : 1. DEV-1123 · installer PowerShell 7 sur le poste → débloque 2 issue(s)
+    - 🤖 Agents (6) : DEV-1041 dev · DEV-1045 dev · DEV-1059 démarrage · DEV-1121 revue · …
+    - 🪟 Poste Windows (3) : DEV-1117 · DEV-1122 · DEV-1385 · retour à lire : DEV-1123
+    - ⏳ Attente (1) : DEV-1059 environnement
+    - 🕓 À venir (7) : admissibles DEV-1385 · 6 attendent leurs dépendances
+    - ⛔ Bloquée (1) : DEV-1122 (cadreur)
+
+    ▶ EN COURS · 6 agent(s) au travail · 3 au poste · 1 bloquée(s) · Toi : 1 action(s), voir 👤 Toi
+
+« 👤 Toi » vient en premier quand il n'est pas vide : actions numérotées (identifiant, action coupée vers 110 caractères, ce qu'elle débloque), tirées de l'état seulement (arrêts `--attend paul`, retraits du poste, poste à débloquer, GO de livraison), avec ce que chacune débloque. Une action de Paul absente du bloc n'existe pas. Au-dessus du bloc, 5 lignes au plus sous « Depuis le dernier tour ». Les statuts sont écrits en mots simples (démarrage, dev, revue, recette, à recetter). `ligne-etat` sans `--texte` rend aussi `bloc`, `ligne` et `detail` (l'ancienne ligne longue) ; `$dev point` affiche le bloc de chaque campagne. Le réveil lit la ligne de chaque chat d'atelier : statut du registre (▶ ⏳ → `actif`, ⏸ → `attente_go`, ⛔ → `bloque`, ✅ → `clos`) et suffixe du titre des chats de travail. Une ligne absente est signalée par `$dev menage` (`sans_ligne`). `$dev etat chats` affiche la dernière ligne de chaque chat.
 
 ### 2.4 Hygiène des chats
 
