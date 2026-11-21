@@ -512,7 +512,7 @@ export async function livrer(cfg, nom, { aBlanc = false } = {}) {
   return { ...r, plan_sha256: info.livraison.sha256.slice(0, 12) };
 }
 
-// ---------- v2.11 : exécutant de l'hôte (vps-paul) : traite les demandes des campagnes, même poste éteint ----------
+// ---------- v2.11 : exécutant de l'hôte d'atelier : traite les demandes des campagnes, même poste éteint ----------
 export const TYPES_EXECUTANT = ['livraison', 'serveur-cli', 'root-atelier'];
 export const CLI_EXECUTANT = ['publication', 'acces-github', 'paquets', 'catalogue', 'session'];
 const dossierExecutant = (cfg, s) => path.join(cfg.etat, 'executant', s);
