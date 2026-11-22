@@ -1,5 +1,9 @@
 # Changelog du socle public
 
+## 2.14.1 — 22/11/2026
+
+Consigne des orchestrateurs : une livraison se demande d'abord à l'exécutant de l'hôte ; seule l'absence de mandat justifie d'attendre l'humain. 97 évaluations, 76 tests.
+
 ## 2.14 — 22/11/2026
 
 Nettoyage automatique du disque du VPS par le réveil : fichiers temporaires de plus de 24 h sans processus, corbeille purgée après 48 h, worktrees d'issues closes propres et poussés déplacés dans la corbeille. Activation explicite seulement (`nettoyage.actif`). Le point des campagnes affiche le disque libre. 97 évaluations, 76 tests.
