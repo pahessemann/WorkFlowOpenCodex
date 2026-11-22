@@ -1,5 +1,9 @@
 # Changelog du socle public
 
+## 2.12.1 — 22/11/2026
+
+Correctif d'affichage : dans le bloc d'état, une issue au plafond des échecs d'environnement n'est plus attribuée à l'humain quand un arrêt confié aux agents est posé, comme dans le point des campagnes. 97 évaluations, 73 tests.
+
 ## 2.12 — 22/11/2026
 
 Passerelle poste : relèves parallèles. Quand la relève principale est occupée, jusqu'à deux voies supplémentaires prennent d'autres tests Windows si la RAM libre et le CPU le permettent ; seule la relève principale règle l'imprimante et la veille. 97 évaluations, 73 tests.

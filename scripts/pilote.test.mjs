@@ -401,6 +401,9 @@ test('passerelle 2.5.4 : plafond des échecs d’environnement, levée par --for
   assert.equal(code(() => P.posteDeposer(at, 'k', 'DEV-3', { fiche: 'f' })), 'POSTE À DÉBLOQUER');
   assert.match(P.ligneEtat(at, 'k').detail, /Toi : débloquer le poste pour DEV-3 \(Anomalie 1 : 403 sur les paquets/);
   assert.match(P.contexte(at, 'k').poste_a_debloquer[0], /^DEV-3 : 2 échecs/);
+  P.qualifierArret(at, 'k', 'DEV-3', { attend: 'agents', quoi: 'cadreur : corriger le dispositif' }); const qa = P.ligneEtat(at, 'k');
+  assert.doesNotMatch(qa.bloc, /débloquer le poste/, '2.12.1 : un arrêt agents prime sur le plafond, comme dans $dev point'); assert.doesNotMatch(qa.detail, /débloquer le poste pour DEV-3/);
+  P.qualifierArret(at, 'k', 'DEV-3', { lever: true });
   P.posteDeposer(at, 'k', 'DEV-3', { fiche: 'f', forcer: true }); assert.equal(P.issues(P.lireCampagne(at, 'k'))[0].poste_env_echecs, undefined, '--forcer remet le compteur à zéro');
   P.posteRendre(at, P.postePrendre(at).tache.id, { resultat: 'environnement', retour: 'x' }); P.statutIssue(at, 'k', 'DEV-3', 'recette');
   P.posteDeposer(at, 'k', 'DEV-3', { fiche: 'f' }); P.posteRendre(at, P.postePrendre(at).tache.id, { resultat: 'ok', retour: 'ok' });

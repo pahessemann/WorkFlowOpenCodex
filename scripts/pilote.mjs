@@ -15,7 +15,7 @@ export const ETATS_ISSUE = ['en_attente', 'preflight', 'en_cours', 'revue', 'rec
 export const ETATS_CAMPAGNE = ['brouillon', 'en_cours', 'en_pause', 'close'];
 export const CRITICITES = ['leger', 'standard', 'sensible'];
 export const MAX_ESSAIS = 3;
-export const VERSION = '2.12';
+export const VERSION = '2.12.1';
 const PASTILLES = { AUTO: '🟢', SUP: '🟠', MS: '🔷', DEV: '🔵', CADRE: '🟣', PROTO: '🎨', TEST: '🧪', RELAIS: '⚙️', BILAN: '📘', AIDE: '❓', ARCHI: '🏛' };
 const DOSSIERS = { AUTO: '01 Campagnes', SUP: '01 Campagnes', MS: '01 Campagnes', DEV: '02 Développement', CADRE: '03 Cadrage & prototypes', PROTO: '03 Cadrage & prototypes', TEST: '04 Relais & maintenance', RELAIS: '04 Relais & maintenance', BILAN: '04 Relais & maintenance', AIDE: '00 Accueil', ARCHI: '00 Accueil' };
 export const TITRE_ARCHI = '🏛 ARCHI · workflow';
@@ -1349,7 +1349,7 @@ export function ligneEtat(cfg, nom) {
   const bloquees = l.filter((i) => i.statut === 'bloquee'); const attente = l.filter((i) => i.statut === 'en_attente' && !i.poste_exclu);
   const stE = new Proxy(st, { get: (o, k) => o[k] ?? 'close' }); const eligibles = attente.filter((i) => admissibilite(cfg, c, i, stE).ok); // v2.8 : admission empilée comprise
   const noteBloq = bloquees.length ? ' ; ⛔ ' + bloquees.length + ' bloquée(s) : ' + liste(bloquees) : '';
-  const debloquer = l.filter((i) => aDebloquerPoste(cfg, i));
+  const debloquer = l.filter((i) => aDebloquerPoste(cfg, i) && !i.arret); // v2.12.1 : un arrêt posé (cadreur, agents) prime, comme dans $dev point
   const toiParts = [...(exclus.length ? ['à faire par toi : ' + exclus.slice(0, 2).map((i) => i.linear_id + ' (' + i.poste_exclu + ')').join(', ')] : []), ...(debloquer.length ? ['débloquer le poste pour ' + debloquer.slice(0, 2).map((i) => i.linear_id + ' (' + (i.poste_env_cause || 'voir le retour') + ')').join(', ')] : []), ...(pourPaul.length ? ['décider pour ' + pourPaul.slice(0, 3).map((i) => i.linear_id + ' (' + net(i.arret.quoi).slice(0, 90) + ')').join(', ') + (pourPaul.length > 3 ? '…' : '')] : [])]; // v2.9 : ligne d'état honnête
   const toiPaul = toiParts.length ? toiParts.join(' ; ') : 'rien';
   const vu = lireJson(path.join(cfg.etat, 'poste', 'vu.json'), null); const posteOccupe = lireTaches(cfg).some((t) => t.statut === 'en_cours'); const posteAbsent = !posteOccupe && (!vu || Date.now() - Date.parse(vu.le) > 3600000);
