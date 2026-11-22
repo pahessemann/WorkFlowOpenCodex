@@ -15,7 +15,7 @@ export const ETATS_ISSUE = ['en_attente', 'preflight', 'en_cours', 'revue', 'rec
 export const ETATS_CAMPAGNE = ['brouillon', 'en_cours', 'en_pause', 'close'];
 export const CRITICITES = ['leger', 'standard', 'sensible'];
 export const MAX_ESSAIS = 3;
-export const VERSION = '2.11.2';
+export const VERSION = '2.12';
 const PASTILLES = { AUTO: '🟢', SUP: '🟠', MS: '🔷', DEV: '🔵', CADRE: '🟣', PROTO: '🎨', TEST: '🧪', RELAIS: '⚙️', BILAN: '📘', AIDE: '❓', ARCHI: '🏛' };
 const DOSSIERS = { AUTO: '01 Campagnes', SUP: '01 Campagnes', MS: '01 Campagnes', DEV: '02 Développement', CADRE: '03 Cadrage & prototypes', PROTO: '03 Cadrage & prototypes', TEST: '04 Relais & maintenance', RELAIS: '04 Relais & maintenance', BILAN: '04 Relais & maintenance', AIDE: '00 Accueil', ARCHI: '00 Accueil' };
 export const TITRE_ARCHI = '🏛 ARCHI · workflow';
@@ -1551,10 +1551,10 @@ export function postePrendre(cfg, { poste = 'poste', maintenant = new Date() } =
   });
   for (const t of expirees.filter((x) => x.statut === 'bloque')) compterEchecEnv(cfg, t, 'délai dépassé ' + MAX_ESSAIS + ' fois sur le poste');
   for (const t of expirees) marquerIssuePoste(cfg, t, t.statut === 'bloque' ? 'retour' : 'en_file', t.statut === 'bloque' ? { poste_resultat: 'environnement', poste_retour: 'délai dépassé ' + MAX_ESSAIS + ' fois : tâche bloquée' } : {});
-  const enFile = lireTaches(cfg).filter((t) => t.statut === 'en_file').length;
-  if (!prise) return { tache: null, expirees: expirees.map((t) => t.id), en_file: enFile };
+  const tl = lireTaches(cfg); const enFile = tl.filter((t) => t.statut === 'en_file').length; const enCours = tl.filter((t) => t.statut === 'en_cours' && !t.hors_passerelle).length;
+  if (!prise) return { tache: null, expirees: expirees.map((t) => t.id), en_file: enFile, en_cours: enCours };
   marquerIssuePoste(cfg, prise, 'en_cours'); const depot = dossierPoste(cfg, 'retours', prise.id); fs.mkdirSync(depot, { recursive: true });
-  return { tache: prise, depot, expirees: expirees.map((t) => t.id), en_file: enFile };
+  return { tache: prise, depot, expirees: expirees.map((t) => t.id), en_file: enFile, en_cours: enCours };
 }
 export function posteRendre(cfg, tid, { resultat, retour = '', ligne = null, issue = null, campagne = null, preuves = null } = {}) {
   if (!['ok', 'echec', 'environnement'].includes(resultat)) refuser('RÉSULTAT INCONNU', String(resultat) + ' (ok, echec ou environnement)');
@@ -1601,7 +1601,7 @@ function consignePoste(cfg, t, travail, imprimantePdf = false) {
     '- Aucune base partagée, aucun serveur cible, aucun déploiement, aucune fusion, aucune clôture d’issue, aucune écriture dans Linear.',
     '- Worktrees et caches sur D: (' + (cfg.worktrees || 'D:\\worktrees') + '), jamais sur C: ; arrête-toi si C: passe sous ' + (cfg.garde_disque_gio || 2) + ' Gio.',
     '- Suppression : Corbeille uniquement (Microsoft.VisualBasic.FileIO.FileSystem, SendToRecycleBin).',
-    '- Réglages Windows permis pour cette tâche, toujours restaurés à la fin même en cas d’échec (try/finally), valeur d’origine notée dans le retour : ' + (t.reglages?.length ? t.reglages.join(' ; ') : 'aucun') + '. Imprimante : ' + (imprimantePdf ? 'la passerelle a déjà mis « Microsoft Print to PDF » par défaut et la restaurera après toi ; ne change pas l’imprimante' : 'uniquement « Microsoft Print to PDF »') + ', jamais une imprimante physique.',
+    '- Réglages Windows permis pour cette tâche, toujours restaurés à la fin même en cas d’échec (try/finally), valeur d’origine notée dans le retour : ' + (t.reglages?.length ? t.reglages.join(' ; ') : 'aucun') + '. Imprimante : ' + (imprimantePdf === 'voie' ? 'désigne toujours explicitement « Microsoft Print to PDF » au moment d’imprimer, car l’imprimante par défaut appartient à la relève principale et peut changer pendant ta tâche' : imprimantePdf ? 'la passerelle a déjà mis « Microsoft Print to PDF » par défaut et la restaurera après toi ; ne change pas l’imprimante' : 'uniquement « Microsoft Print to PDF »') + ', jamais une imprimante physique.',
     '- Pour chaque étape : commande exacte, code de sortie, chemin du journal. Une étape en échec : arrête-toi, ne contourne pas le dispositif.', '', 'Fiche de la tâche :', t.fiche, '', 'Livrables, dans ' + travail + ' :',
     '1. preuves\\ : journaux, matrice (JSON, une ligne par critère : ok, non_applicable justifié ou echec), commandes.jsonl.',
     '2. retour.md : 15 lignes au plus : issue, SHA testé, versions des outils, codes de sortie, chemin des preuves, anomalies, verdict proposé (prêt pour clôture, ou bloqué avec la cause), réglages modifiés et restaurés.',
@@ -1615,22 +1615,42 @@ function executerTachePoste(cfg, t, travail, imprimantePdf = false) {
   const x = spawnSync(exe, args, { input: consignePoste(cfg, t, travail, imprimantePdf), encoding: 'utf8', windowsHide: true, cwd: travail, timeout: (cfg.passerelle?.delai_max_min || 180) * 60000, env: { ...process.env, PASSERELLE_TRAVAIL: travail } });
   return { code: x.status, modele: r.modele, dernier: fs.existsSync(sortie) ? fs.readFileSync(sortie, 'utf8') : (x.stdout || '') };
 }
-// Sur le poste : relève une tâche de la file d'atelier (tâche planifiée pilote-poste-passerelle), une seule à la fois.
+// v2.12 : voies de relève supplémentaires quand la relève principale est occupée, selon la RAM libre et le CPU du poste.
+export function voiesPoste(cfg) { const p = cfg.passerelle || {}; return { max: Math.max(1, Number(p.voies_max ?? 3)), ram_min: Number(p.ram_libre_min_gio ?? 4), cpu_max: Number(p.cpu_max_pct ?? 60) }; }
+export function mesurerPoste(cfg) {
+  const t = cfg.passerelle?.ressources_test; if (t) return { ram_libre_gio: t.ram_libre_gio, cpu_pct: t.cpu_pct };
+  const tot = () => os.cpus().reduce((s, c) => { const x = c.times; s.idle += x.idle; s.all += x.user + x.nice + x.sys + x.idle + x.irq; return s; }, { idle: 0, all: 0 });
+  const a = tot(); Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 2000); const b = tot(); const all = b.all - a.all;
+  return { ram_libre_gio: Math.round(os.freemem() / 2 ** 30 * 10) / 10, cpu_pct: all > 0 ? Math.round((1 - (b.idle - a.idle) / all) * 100) : 0 };
+}
+function tenirVerrouVoie(f) { // null : la voie est à ce processus ; sinon le pid vivant qui la tient
+  try { const fd = fs.openSync(f, 'wx'); fs.writeSync(fd, String(process.pid)); fs.closeSync(fd); return null; }
+  catch (e) { if (e.code !== 'EEXIST') throw e; const pid = Number(fs.readFileSync(f, 'utf8')); let vivant = false; try { process.kill(pid, 0); vivant = pid !== process.pid; } catch {} if (vivant) return pid; fs.writeFileSync(f, String(process.pid)); return null; }
+}
+// Sur le poste : relève une tâche de la file d'atelier (tâche planifiée pilote-poste-passerelle). Voie 1 : relève principale, seule à régler
+// l'imprimante et la veille ; voies 2 et suivantes (v2.12) : ouvertes seulement si la voie 1 est occupée et que la RAM et le CPU le permettent.
 export function posteRelever(cfg) {
   if (cfg.hote !== 'local') refuser('PASSERELLE SUR LE POSTE', 'pilote.mjs poste relever s’exécute sur le poste Windows', 6);
   const p = cfg.passerelle || {}; if (!p.actif) return { action: 'aucune', raison: 'passerelle inactive (poste.local.json : passerelle.actif)' };
   if (cfg.garde_disque_gio) { try { const s = fs.statfsSync(cfg.etat); if (s.bavail * s.bsize / 2 ** 30 < cfg.garde_disque_gio) return { action: 'aucune', raison: 'C: sous la garde de ' + cfg.garde_disque_gio + ' Gio' }; } catch {} }
-  fs.mkdirSync(cfg.etat, { recursive: true }); const vl = path.join(cfg.etat, 'poste-releve.verrou');
-  try { const fd = fs.openSync(vl, 'wx'); fs.writeSync(fd, String(process.pid)); fs.closeSync(fd); }
-  catch (e) { if (e.code !== 'EEXIST') throw e; const pid = Number(fs.readFileSync(vl, 'utf8')); let vivant = false; try { process.kill(pid, 0); vivant = pid !== process.pid; } catch {} if (vivant) return { action: 'aucune', raison: 'relève déjà en cours (pid ' + pid + ')' }; fs.writeFileSync(vl, String(process.pid)); }
+  fs.mkdirSync(cfg.etat, { recursive: true }); const fv = (n) => path.join(cfg.etat, n === 1 ? 'poste-releve.verrou' : 'poste-releve-' + n + '.verrou');
+  const V = voiesPoste(cfg); let voie = 1; const occupee = tenirVerrouVoie(fv(1));
+  if (occupee) {
+    if (V.max < 2) return { action: 'aucune', raison: 'relève déjà en cours (pid ' + occupee + ')' };
+    const m = mesurerPoste(cfg);
+    if (m.ram_libre_gio < V.ram_min || m.cpu_pct > V.cpu_max) return { action: 'aucune', raison: 'relève principale en cours (pid ' + occupee + ') ; pas de voie supplémentaire : RAM libre ' + m.ram_libre_gio + ' Gio (minimum ' + V.ram_min + '), CPU ' + m.cpu_pct + ' % (maximum ' + V.cpu_max + ')', ressources: m };
+    voie = 0; for (let n = 2; n <= V.max && !voie; n++) if (!tenirVerrouVoie(fv(n))) voie = n;
+    if (!voie) return { action: 'aucune', raison: 'les ' + V.max + ' voies de relève sont occupées', ressources: m };
+  }
+  const vl = fv(voie); const principale = voie === 1;
   try {
-    const r = appelAtelier(cfg, ['poste', 'prendre', '--poste', os.hostname()]);
-    const veille = garderEveilSecteur(cfg, (r.tache ? 1 : 0) + (r.en_file || 0)); // v2.8 : poste éveillé sur secteur tant que la file n'est pas vide
-    if (!r.tache) return { action: 'aucune', raison: 'file vide', expirees: r.expirees, veille };
+    const r = appelAtelier(cfg, ['poste', 'prendre', '--poste', os.hostname() + (principale ? '' : '-voie' + voie)]);
+    const veille = principale ? garderEveilSecteur(cfg, (r.en_cours ?? (r.tache ? 1 : 0)) + (r.en_file || 0)) : { action: 'rien', raison: 'voie ' + voie + ' : veille réglée par la relève principale' }; // v2.8 : poste éveillé sur secteur tant que la file n'est pas vide
+    if (!r.tache) return { action: 'aucune', voie, raison: 'file vide', expirees: r.expirees, veille };
     const t = r.tache; const travail = path.join(p.dossier_travail || path.join(cfg.etat, 'passerelle'), t.id); fs.mkdirSync(path.join(travail, 'preuves'), { recursive: true });
     if (!p.commande_test) { try { os.setPriority(0, os.constants.priority.PRIORITY_BELOW_NORMAL); } catch {} }
-    const eveil = maintenirEveille(cfg); const imp = basculerImprimante(cfg); let x;
-    try { x = executerTachePoste(cfg, t, travail, imp.active); } finally { imp.restaurer(); eveil.relacher(); }
+    const eveil = maintenirEveille(cfg); const imp = principale ? basculerImprimante(cfg) : { active: false, note: null, restaurer: () => null }; let x;
+    try { x = executerTachePoste(cfg, t, travail, principale ? imp.active : 'voie'); } finally { imp.restaurer(); eveil.relacher(); }
     let resultat = lireJson(path.join(travail, 'resultat.json'), {})?.resultat; if (!['ok', 'echec', 'environnement'].includes(resultat)) resultat = 'environnement';
     const retour = (fs.existsSync(path.join(travail, 'retour.md')) ? fs.readFileSync(path.join(travail, 'retour.md'), 'utf8') : 'Aucun retour écrit par la session (code ' + x.code + ') : compté comme échec d’environnement.') + (imp.note ? '\n- ' + imp.note + ' (passerelle)' : '');
     const ligne = lireLigneEtat(x.dernier)?.ligne || null;
@@ -1638,7 +1658,7 @@ export function posteRelever(cfg) {
     if (cfg.atelier_simule) { fs.cpSync(path.join(travail, 'preuves'), path.join(r.depot, 'preuves'), { recursive: true }); preuves = true; }
     else { const s = spawnSync('scp', ['-q', '-r', '-o', 'BatchMode=yes', path.join(travail, 'preuves'), cfg.ssh.atelier + ':' + r.depot + '/'], { encoding: 'utf8', windowsHide: true, timeout: 600000 }); preuves = s.status === 0; }
     const rendu = appelAtelier(cfg, ['poste', 'rendre', t.id, '--resultat', resultat, '--retour-stdin', ...(ligne ? ['--ligne', ligne] : [])], retour + (preuves ? '' : '\n⚠ Preuves non déposées sur atelier : elles restent sur le poste dans ' + travail));
-    return { action: 'tache', veille, tache: t.id, issue: t.issue, modele: x.modele, code: x.code, resultat, preuves_deposees: preuves, travail, ligne, essai: rendu.essai, imprimante: imp.note, ...(rendu.echecs_environnement ? { echecs_environnement: rendu.echecs_environnement } : {}) };
+    return { action: 'tache', voie, veille, tache: t.id, issue: t.issue, modele: x.modele, code: x.code, resultat, preuves_deposees: preuves, travail, ligne, essai: rendu.essai, imprimante: imp.note, ...(rendu.echecs_environnement ? { echecs_environnement: rendu.echecs_environnement } : {}) };
   } finally { fs.rmSync(vl, { force: true }); }
 }
 export function posteInstaller(cfg) {
@@ -1650,7 +1670,7 @@ export function posteInstaller(cfg) {
     "$t2 = New-ScheduledTaskTrigger -Once -At (Get-Date).AddMinutes(1) -RepetitionInterval (New-TimeSpan -Minutes " + min + ")",
     "$cl = Get-CimClass -Namespace ROOT\\Microsoft\\Windows\\TaskScheduler -ClassName MSFT_TaskSessionStateChangeTrigger",
     "$t3 = New-CimInstance -CimClass $cl -ClientOnly; $t3.StateChange = 8; $t3.UserId = ($env:USERDOMAIN + '\\' + $env:USERNAME); $t3.Enabled = $true",
-    "$s = New-ScheduledTaskSettingsSet -Hidden -MultipleInstances IgnoreNew -StartWhenAvailable -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit (New-TimeSpan -Minutes " + ((cfg.passerelle?.delai_max_min || 180) + 15) + ")",
+    "$s = New-ScheduledTaskSettingsSet -Hidden -MultipleInstances Parallel -StartWhenAvailable -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries -ExecutionTimeLimit (New-TimeSpan -Minutes " + ((cfg.passerelle?.delai_max_min || 180) + 15) + ")",
     "Register-ScheduledTask -TaskName '" + nom + "' -Action $a -Trigger @($t1, $t2, $t3) -Settings $s -Description 'Passerelle poste du workflow $dev : relève la file des tests Windows sur atelier' -Force | Out-Null",
     "(Get-ScheduledTask -TaskName '" + nom + "').State"].join('; ');
   const r = spawnSync('powershell.exe', ['-NoProfile', '-Command', ps], { encoding: 'utf8', windowsHide: true, timeout: 60000 });

@@ -1,5 +1,9 @@
 # Changelog du socle public
 
+## 2.12 — 22/11/2026
+
+Passerelle poste : relèves parallèles. Quand la relève principale est occupée, jusqu'à deux voies supplémentaires prennent d'autres tests Windows si la RAM libre et le CPU le permettent ; seule la relève principale règle l'imprimante et la veille. 97 évaluations, 73 tests.
+
 ## 2.11.2 — 21/11/2026
 
 Correctif d’affichage : une issue fusionnée qui attend sa recette reste visible dans le bloc d’état (rubrique des agents, « à recetter »). 97 évaluations, 72 tests.

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { spawnSync } from 'node:child_process';
+import { spawnSync, spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import * as P from './pilote.mjs';
 
@@ -357,6 +357,37 @@ test('passerelle 2.5.4 : imprimante PDF basculée puis restaurée, même si la s
   assert.equal(r.resultat, 'environnement'); assert.match(r.imprimante, /restaurée : oui/);
   fs.writeFileSync(imp, JSON.stringify({ defaut: 'HP physique', liste: ['HP physique'] }));
   const b = P.basculerImprimante(po); b.restaurer(); assert.match(b.note, /absente du poste/); assert.equal(JSON.parse(fs.readFileSync(imp, 'utf8')).defaut, 'HP physique');
+});
+
+test('passerelle 2.12 : voie supplémentaire si la principale est occupée et que RAM et CPU le permettent ; imprimante et veille laissées à la principale', () => {
+  const at = configTest({ hote: 'atelier', deploiement_serveurs: false });
+  const fa = path.join(at.etat, 'atelier.json'); fs.writeFileSync(fa, JSON.stringify(at));
+  fs.mkdirSync(path.join(at.etat, 'campagnes'), { recursive: true });
+  fs.writeFileSync(path.join(at.etat, 'campagnes', 'k.json'), JSON.stringify({ id: 'k', projet: 'p', mode: 'auto', statut: 'en_cours', items: [{ type: 'issue_standalone', linear_id: 'DEV-1', statut: 'recette', blocked_by: [] }, { type: 'issue_standalone', linear_id: 'DEV-2', statut: 'recette', blocked_by: [] }] }));
+  const imp = path.join(at.etat, 'imprimantes.json'); fs.writeFileSync(imp, JSON.stringify({ defaut: 'HP physique', liste: ['HP physique', 'Microsoft Print to PDF'] }));
+  const session = path.join(at.etat, 'session.mjs');
+  fs.writeFileSync(session, "import fs from 'node:fs'; import path from 'node:path'; const d = process.env.PASSERELLE_TRAVAIL; const c = fs.readFileSync(0, 'utf8'); const imp = JSON.parse(fs.readFileSync(process.env.IMP, 'utf8')); fs.writeFileSync(path.join(d, 'pendant.json'), JSON.stringify({ defaut: imp.defaut, voie: c.includes('appartient à la relève principale') })); fs.writeFileSync(path.join(d, 'retour.md'), 'ok'); fs.writeFileSync(path.join(d, 'resultat.json'), JSON.stringify({ resultat: 'ok' }));");
+  process.env.IMP = imp;
+  const po = configTest({ hote: 'local', atelier_simule: fa, passerelle: { actif: true, dossier_travail: path.join(at.etat, 'travail'), commande_test: [process.execPath, session], imprimante_simulee: imp, ressources_test: { ram_libre_gio: 10, cpu_pct: 20 } } });
+  const avec = (p) => ({ ...po, passerelle: { ...po.passerelle, ...p } });
+  P.posteDeposer(at, 'k', 'DEV-1', { fiche: 'a' }); P.posteDeposer(at, 'k', 'DEV-2', { fiche: 'b' });
+  const occupant = spawn(process.execPath, ['-e', 'setTimeout(() => {}, 60000)'], { stdio: 'ignore' });
+  try {
+    fs.writeFileSync(path.join(po.etat, 'poste-releve.verrou'), String(occupant.pid));
+    const faible = P.posteRelever(avec({ ressources_test: { ram_libre_gio: 2, cpu_pct: 20 } }));
+    assert.equal(faible.action, 'aucune'); assert.match(faible.raison, /RAM libre 2 Gio \(minimum 4\)/);
+    assert.match(P.posteRelever(avec({ ressources_test: { ram_libre_gio: 10, cpu_pct: 90 } })).raison, /CPU 90 % \(maximum 60\)/);
+    assert.match(P.posteRelever(avec({ voies_max: 1 })).raison, /relève déjà en cours/);
+    const r = P.posteRelever(po);
+    assert.equal(r.voie, 2); assert.equal(r.resultat, 'ok'); assert.equal(r.veille.action, 'rien'); assert.equal(r.imprimante, null);
+    assert.deepEqual(JSON.parse(fs.readFileSync(path.join(r.travail, 'pendant.json'), 'utf8')), { defaut: 'HP physique', voie: true }, 'voie 2 : imprimante inchangée, consigne d’impression explicite');
+    assert.ok(!fs.existsSync(path.join(po.etat, 'poste-releve-2.verrou')), 'la voie est libérée après la tâche');
+    for (const n of [2, 3]) fs.writeFileSync(path.join(po.etat, 'poste-releve-' + n + '.verrou'), String(occupant.pid));
+    assert.match(P.posteRelever(po).raison, /les 3 voies de relève sont occupées/);
+  } finally { occupant.kill(); }
+  for (const n of ['', '-2', '-3']) fs.rmSync(path.join(po.etat, 'poste-releve' + n + '.verrou'), { force: true });
+  const p1 = P.posteRelever(po);
+  assert.equal(p1.voie, 1); assert.match(p1.imprimante, /restaurée : oui/); assert.equal(JSON.parse(fs.readFileSync(imp, 'utf8')).defaut, 'HP physique');
 });
 
 test('passerelle 2.5.4 : plafond des échecs d’environnement, levée par --forcer ou par un résultat ok', () => {

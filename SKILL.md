@@ -3,7 +3,7 @@ name: dev-orchestrator
 description: Orchestrateur de campagnes autonomes et supervisées (Linear Milestones et Issues) : composition à froid, chats identifiables d'un coup d'œil, routage économe des modèles et exécution hybride (PC local / VPS atelier).
 ---
 
-# Orchestrateur Dev — Workflow opérationnel (v2.11.2)
+# Orchestrateur Dev — Workflow opérationnel (v2.12)
 
 Ce skill régit l'orchestration des travaux via `pilote.mjs`, sur le poste local Windows et sur le VPS `atelier` (Linux).
 
@@ -383,5 +383,5 @@ Dès que le correctif est validé, **redescendre au niveau nominal**.
 * **Frontière de déploiement** : tout déploiement ou toute administration de serveur cible (sandbox, préproduction, production) se fait **exclusivement depuis le poste local** (`"deploiement_serveurs": true`). Sur `atelier`, `pilote.mjs` refuse ces commandes. `atelier` développe, teste, construit et pousse des branches Git.
 * **Continuité SSH** : une coupure ne lance jamais d'agent concurrent. À la reconnexion : `node <pilote> contexte <campagne>`.
 * **Spécificités OS** (`tty: false`, `windowsHide`, maintien éveillé, chemins) : lues exclusivement dans `poste.local.json`.
-* **Passerelle poste Windows** (`poste.md`) : la file des tests Windows vit sur atelier ; la tâche planifiée `pilote-poste-passerelle` du poste la relève à l'ouverture de session, au déverrouillage et toutes les 10 minutes, une tâche à la fois, en priorité basse, par une session `codex exec` en accès complet.
+* **Passerelle poste Windows** (`poste.md`) : la file des tests Windows vit sur atelier ; la tâche planifiée `pilote-poste-passerelle` du poste la relève à l'ouverture de session, au déverrouillage et toutes les 10 minutes, en priorité basse, par une session `codex exec` en accès complet. Une relève principale règle seule l'imprimante et la veille ; quand elle est occupée, jusqu'à 2 voies supplémentaires prennent d'autres tâches si la RAM libre (4 Gio au moins) et le CPU (60 % au plus) le permettent (v2.12).
 * **Recette sur appareil** (Android / iOS) : quand les outils de l'app manquent sur la machine, suivre `discussions-distance.md` (ouvrir une discussion, envoyer un aperçu, recetter sur l'appareil).

@@ -5,7 +5,7 @@ Un skill Codex qui organise le développement assisté par agents autour d'un pr
 (« atelier ») développe et teste, le poste Windows pilote, livre et fait les tests qui exigent
 Windows. Chaque chat dit d'un coup d'œil qui parle, sur quoi, et s'il faut agir.
 
-**Version actuelle : 2.11.2** (21/11/2026) — détail des versions dans [CHANGELOG.md](CHANGELOG.md), étiquettes Git `vX.Y.Z`.
+**Version actuelle : 2.12** (22/11/2026) — détail des versions dans [CHANGELOG.md](CHANGELOG.md), étiquettes Git `vX.Y.Z`.
 
 Ce dépôt est le **socle commun**, sans règle propre à un projet : les règles d'un projet vivent
 dans le `PROJECT.md` de son dépôt.
@@ -22,7 +22,8 @@ dans le `PROJECT.md` de son dépôt.
 - **Chats lisibles** : titre `<pastille> RÔLE · projet · objet · état`, carte d'identité, badge, et une
   **ligne d'état** en fin de chaque réponse (`▶ EN COURS`, `⏳ EN ATTENTE`, `⏸ À TOI`, `⛔ BLOQUÉ`, `✅ TERMINÉ`).
 - **Passerelle poste Windows** : les tests que le VPS ne peut pas faire attendent dans une file et
-  sont relevés par le poste dès qu'il est connecté (`references/poste.md`).
+  sont relevés par le poste dès qu'il est connecté, plusieurs à la fois si la RAM et le CPU le permettent
+  (`references/poste.md`).
 - **Livraison** depuis le poste seulement, plan figé au GO, répétition à blanc, arrêt à la première erreur.
 - **Rôles fixes** : `❓ AIDE` (porte d'entrée et lanceur) et `🏛 ARCHI` (architecte du workflow).
 

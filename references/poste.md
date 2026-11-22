@@ -1,4 +1,4 @@
-# Passerelle poste Windows — `$dev poste` (v2.5)
+# Passerelle poste Windows — `$dev poste` (v2.5, voies parallèles v2.12)
 
 Quand une recette ou un test exige Windows (wkhtmltopdf, IIS Express, PowerShell, pilotes),
 atelier ne l'improvise plus : il dépose une tâche dans une file, et le poste la relève dès qu'il
@@ -23,7 +23,8 @@ Tâche planifiée cachée et protégée `pilote-poste-passerelle` (installée pa
 `node <pilote> poste installer`) : à l'ouverture de session, au déverrouillage, puis toutes les
 `passerelle.intervalle_min` minutes (10). `node <pilote> poste relever` :
 
-1. ne fait rien si `passerelle.actif` est faux, si C: est sous la garde, ou si une relève tourne déjà ;
+1. ne fait rien si `passerelle.actif` est faux ou si C: est sous la garde ; si la relève principale tourne déjà, ouvre une voie
+   supplémentaire quand la RAM et le CPU le permettent (voir « Relèves parallèles »), sinon s'arrête en donnant la raison ;
 2. prend **une** tâche sur atelier (verrou, priorité puis ancienneté) et note le passage du poste ;
 3. garde le poste éveillé, passe en priorité basse et lance une session `codex exec` en accès
    complet, avec le modèle du routeur `tests <criticité>` et les règles du poste (aucun gestionnaire de
@@ -81,7 +82,21 @@ avec « Toi : ouvrir ta session sur le poste » si le poste n'est pas passé dep
 
 ## Configuration (`poste.local.json` du poste)
 
-`"passerelle": { "actif": true, "intervalle_min": 10, "delai_max_min": 180, "dossier_travail": "D:\\passerelle-poste" }`
+`"passerelle": { "actif": true, "intervalle_min": 10, "delai_max_min": 180, "dossier_travail": "D:\\passerelle-poste", "voies_max": 3, "ram_libre_min_gio": 4, "cpu_max_pct": 60 }`
+
+## Relèves parallèles (v2.12)
+
+La tâche planifiée accepte plusieurs instances (`-MultipleInstances Parallel`). La voie 1 (`poste-releve.verrou`) est la relève
+principale. Quand elle est occupée par un processus vivant, une relève ouvre la voie 2 puis 3 (`poste-releve-<n>.verrou`) si :
+
+- une voie est libre (`voies_max`, 3 ; `1` rétablit une seule relève) ;
+- la RAM libre atteint `ram_libre_min_gio` (4 Gio) ;
+- le CPU, mesuré sur 2 s, ne dépasse pas `cpu_max_pct` (60 %).
+
+Sinon, la relève s'arrête et donne la raison chiffrée (RAM, CPU ou voies occupées). Seule la voie 1 règle l'imprimante par
+défaut et la veille sur secteur. Une voie supplémentaire n'y touche pas, et sa session doit désigner explicitement
+« Microsoft Print to PDF » à chaque impression. La voie 1 compte les tâches en cours pour ne pas rétablir la veille pendant
+qu'une autre voie travaille. Une tâche prise par une voie supplémentaire porte le nom du poste suivi de `-voie<n>`.
 
 ## Poste éveillé sur secteur (v2.8)
 
