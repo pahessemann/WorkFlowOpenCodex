@@ -324,6 +324,17 @@ test('v2.14 : nettoyage du disque : tmp ancien, corbeille expirée, worktrees d�
 });
 
 
+test('v2.15 : demande construction-ano : applications fermées, référence main par défaut, SHA contrôlé', () => {
+  const at = configTest({ hote: 'atelier', deploiement_serveurs: false });
+  fs.mkdirSync(path.join(at.etat, 'campagnes'), { recursive: true });
+  fs.writeFileSync(path.join(at.etat, 'campagnes', 'k.json'), JSON.stringify({ id: 'k', projet: 'p', mode: 'supervise', statut: 'en_cours', items: [{ type: 'issue_standalone', linear_id: 'DEV-1', statut: 'recette', blocked_by: [] }] }));
+  assert.equal(code(() => P.demanderExecutant(at, 'k', 'construction-ano', { issue: 'DEV-1', applications: 'app-a,App B!' })), 'APPLICATIONS INVALIDES');
+  assert.equal(code(() => P.demanderExecutant(at, 'k', 'construction-ano', { issue: 'DEV-1', applications: 'app-a', sha: 'abc' })), 'SHA INVALIDE');
+  const r = P.demanderExecutant(at, 'k', 'construction-ano', { issue: 'DEV-1', applications: 'app-a,app-b' });
+  assert.deepEqual(r.demande.applications, ['app-a', 'app-b']); assert.equal(r.demande.ref, 'main'); assert.equal(r.demande.type, 'construction-ano');
+});
+
+
 test('passerelle poste : dépôt hors quota, relève, preuves, retour, essais selon la cause, délai dépassé (v2.5)', () => {
   const at = configTest({ hote: 'atelier', deploiement_serveurs: false, admission: { dev_max: 1, lourdes_max: 1 } });
   const fa = path.join(at.etat, 'atelier.json'); fs.writeFileSync(fa, JSON.stringify(at));
@@ -941,7 +952,9 @@ test('2.11 : demandes à l’exécutant de l’hôte, rubrique 🛠, refus remon
   assert.match(P.ligneEtat(at, 'k').bloc, /🛠 Exécutant \(2\) : DEV-1 root-atelier \(en attente\) · DEV-2 serveur-cli \(en attente\)/);
   fs.mkdirSync(path.join(at.etat, 'executant', 'resultats'), { recursive: true });
   fs.writeFileSync(path.join(at.etat, 'executant', 'resultats', d.id + '.json'), JSON.stringify({ id: d.id, statut: 'refus', message: 'cible hors de la liste fermée', le: new Date().toISOString() }));
-  assert.match(P.ligneEtat(at, 'k').bloc, /👤 Toi \(1\) : 1\. DEV-1 · exécutant root-atelier refusé : cible hors de la liste fermée/);
+  assert.doesNotMatch(P.ligneEtat(at, 'k').bloc, /👤 Toi/, '2.15.2 : un refus technique reste aux agents'); assert.match(P.ligneEtat(at, 'k').bloc, /DEV-1 root-atelier \(refusé\)/);
+  fs.writeFileSync(path.join(at.etat, 'executant', 'resultats', d.id + '.json'), JSON.stringify({ id: d.id, statut: 'refus', message: 'aucun mandat root-atelier de Paul', le: new Date().toISOString() }));
+  assert.match(P.ligneEtat(at, 'k').bloc, /👤 Toi \(1\) : 1\. DEV-1 · exécutant root-atelier refusé : aucun mandat root-atelier de Paul/);
   const c = P.lireCampagne(at, 'k'); const E = P.empreinteReprise(at, c);
   const dr = P.decisionReprise(at, { ...c, dernier_reveil: '2026-11-21T21:00:00Z', empreinte_repos: E, repos_le: '2026-11-21T21:35:00Z' }, { maintenant: new Date('2026-11-21T22:00:00Z') });
   assert.equal(dr.relancer, true); assert.match(dr.raison, /issues admises sans mouvement depuis 25 min/);

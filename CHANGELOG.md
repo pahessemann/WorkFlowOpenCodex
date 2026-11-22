@@ -1,5 +1,17 @@
 # Changelog du socle public
 
+## 2.15.2 — 22/11/2026
+
+Construction de contrôle sur l'environnement de test par l'exécutant de l'hôte (versions, plan, apply, status ; sans migration). Le bloc d'état ne renvoie à l'humain que les refus de l'exécutant faute de mandat. 97 évaluations, 77 tests.
+
+## 2.15.1 — 22/11/2026
+
+Correctif de l'exécutant de l'hôte (non publié dans le socle) ; version alignée. 97 évaluations, 77 tests.
+
+## 2.15 — 22/11/2026
+
+Nouvelle demande possible à l'exécutant de l'hôte : construction de contrôle sur l'environnement de test, limitée à cet environnement et sans migration. 97 évaluations, 77 tests.
+
 ## 2.14.1 — 22/11/2026
 
 Consigne des orchestrateurs : une livraison se demande d'abord à l'exécutant de l'hôte ; seule l'absence de mandat justifie d'attendre l'humain. 97 évaluations, 76 tests.

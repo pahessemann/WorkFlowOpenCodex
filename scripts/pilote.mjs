@@ -15,7 +15,7 @@ export const ETATS_ISSUE = ['en_attente', 'preflight', 'en_cours', 'revue', 'rec
 export const ETATS_CAMPAGNE = ['brouillon', 'en_cours', 'en_pause', 'close'];
 export const CRITICITES = ['leger', 'standard', 'sensible'];
 export const MAX_ESSAIS = 3;
-export const VERSION = '2.14.1';
+export const VERSION = '2.15.2';
 const PASTILLES = { AUTO: '🟢', SUP: '🟠', MS: '🔷', DEV: '🔵', CADRE: '🟣', PROTO: '🎨', TEST: '🧪', RELAIS: '⚙️', BILAN: '📘', AIDE: '❓', ARCHI: '🏛' };
 const DOSSIERS = { AUTO: '01 Campagnes', SUP: '01 Campagnes', MS: '01 Campagnes', DEV: '02 Développement', CADRE: '03 Cadrage & prototypes', PROTO: '03 Cadrage & prototypes', TEST: '04 Relais & maintenance', RELAIS: '04 Relais & maintenance', BILAN: '04 Relais & maintenance', AIDE: '00 Accueil', ARCHI: '00 Accueil' };
 export const TITRE_ARCHI = '🏛 ARCHI · workflow';
@@ -518,7 +518,7 @@ export async function livrer(cfg, nom, { aBlanc = false } = {}) {
 }
 
 // ---------- v2.11 : exécutant de l'hôte d'atelier : traite les demandes des campagnes, même poste éteint ----------
-export const TYPES_EXECUTANT = ['livraison', 'serveur-cli', 'root-atelier'];
+export const TYPES_EXECUTANT = ['livraison', 'serveur-cli', 'root-atelier', 'construction-ano'];
 export const CLI_EXECUTANT = ['publication', 'acces-github', 'paquets', 'catalogue', 'session'];
 const dossierExecutant = (cfg, s) => path.join(cfg.etat, 'executant', s);
 export function demanderExecutant(cfg, nom, type, o = {}) {
@@ -537,6 +537,7 @@ export function demanderExecutant(cfg, nom, type, o = {}) {
       if (!CLI_EXECUTANT.includes(x.args[0])) refuser('COMMANDE NON AUTORISÉE', x.args[0] + ' (autorisées : ' + CLI_EXECUTANT.join(', ') + ')');
       if (x.args.join(' ').includes('lecteurs ajouter')) refuser('COMMANDE NON AUTORISÉE', 'lecteurs ajouter : le jeton créé serait à placer, hors exécutant'); }
     d.etapes = e; }
+  if (type === 'construction-ano') { const apps = String(o.applications || '').split(',').map((x) => x.trim()).filter(Boolean); if (!apps.length || apps.some((a) => !/^[a-z][a-z0-9-]{1,30}$/.test(a))) refuser('APPLICATIONS INVALIDES', '--applications <app>,<app> (identifiants du déployeur ; liste fermée vérifiée par l’exécutant)'); if (o.sha && o.sha !== true && !/^[0-9a-f]{40}$/.test(o.sha)) refuser('SHA INVALIDE', String(o.sha)); d.applications = apps; if (o.sha && o.sha !== true) d.sha = o.sha; else d.ref = o.ref && o.ref !== true ? String(o.ref) : 'main'; if (o.sortie && o.sortie !== true) d.sortie = path.resolve(o.sortie); } // v2.15 : Ano seul
   ecrireJson(path.join(dossierExecutant(cfg, 'demandes'), d.id + '.json'), d);
   decision(cfg, nom, d.issue, 'Demande à l’exécutant de l’hôte (v2.11) : ' + type + ' ' + d.id + (d.plan ? ' · plan ' + d.plan_sha256.slice(0, 12) : '') + (d.cible ? ' · ' + d.cible + ' ← ' + d.sha256.slice(0, 8) : '') + (d.etapes ? ' · ' + d.etapes.length + ' étape(s)' : '') + ' ; traitée dans les 5 min, même poste éteint.');
   return { demande: d, consigne: 'résultat : pilote.mjs executant etat ' + nom + ' (et une ligne au journal)' };
@@ -1419,7 +1420,7 @@ export function ligneEtat(cfg, nom) {
   const MOTS = { preflight: 'démarrage', en_cours: 'dev', revue: 'revue', recette: 'recette', fusionnee: 'à recetter' };
   const six = (x, f) => x.slice(0, 6).map(f).join(' · ') + (x.length > 6 ? ' · +' + (x.length - 6) : '');
   const ret = retenues(cfg, c); const deb = (id) => (ret[id] ? ' → débloque ' + ret[id] + ' issue(s)' : '');
-  const ex = etatExecutant(cfg, nom).filter((x) => x.statut === 'en_attente' || (x.le && Date.now() - Date.parse(x.le) < 86400000)); const exKo = ex.filter((x) => ['refus', 'echec'].includes(x.statut)); // v2.11
+  const ex = etatExecutant(cfg, nom).filter((x) => x.statut === 'en_attente' || (x.le && Date.now() - Date.parse(x.le) < 86400000)); const exKo = ex.filter((x) => x.statut === 'refus' && /aucun mandat/i.test(x.message || '') && !ex.some((y) => y.issue === x.issue && y.type === x.type && y.statut === 'fait' && String(y.le) > String(x.le))); // v2.15.2 : seul un mandat manquant revient à Paul ; les autres échecs restent dans 🛠 Exécutant
   const court = (s, n = 110) => { s = net(s).replace(/\.$/, ''); if (s.length <= n) return s; const t = s.slice(0, n); return t.slice(0, Math.max(40, t.lastIndexOf(' '))) + '…'; };
   const toi = [...(c.statut === 'brouillon' ? ['valider le contrat, puis $dev campagne lancer ' + nom] : []), ...(c.attente_go ? [c.hote_livraison === 'local' ? 'donner ton GO, puis $dev livrer ' + nom + ' depuis le poste' : 'donner ton GO dans ce chat'] : []), ...(c.livraison_echec ? ['lire le journal de livraison, puis décider'] : []),
     ...pourPaul.map((i) => i.linear_id + ' · ' + court(i.arret.quoi) + deb(i.linear_id)),
@@ -1855,7 +1856,7 @@ function executerBrut(argv, cfg = null) {
       if (s === 'installer') return posteInstaller(C());
       if (!s || s === 'file') return posteFile(C());
       refuser('COMMANDE INCONNUE', 'poste ' + s + ' — deposer, retirer, prendre, rendre, relever, installer, file'); }
-    case 'executant': { if (a[0] === 'demander') return demanderExecutant(C(), a[1], a[2], { issue: o.issue, plan: o.plan, source: o.source, cible: o.cible, sha256: o.sha256, etapes: o['etapes-stdin'] ? fs.readFileSync(0, 'utf8') : o.etapes }); if (a[0] === 'etat') return { demandes: etatExecutant(C(), a[1] || null) }; refuser('SOUS-COMMANDE INCONNUE', 'executant demander|etat'); } // v2.11
+    case 'executant': { if (a[0] === 'demander') return demanderExecutant(C(), a[1], a[2], { issue: o.issue, plan: o.plan, source: o.source, cible: o.cible, sha256: o.sha256, applications: o.applications, ref: o.ref, sha: o.sha, sortie: o.sortie, etapes: o['etapes-stdin'] ? fs.readFileSync(0, 'utf8') : o.etapes }); if (a[0] === 'etat') return { demandes: etatExecutant(C(), a[1] || null) }; refuser('SOUS-COMMANDE INCONNUE', 'executant demander|etat'); } // v2.11
     case 'ligne-etat': { const e = ligneEtat(C(), a[0]); return o.texte ? { __texte: e.texte } : e; } // v2.10
     case 'recettes': return recettesVoie(C(), a[0]);
     case 'contexte': return contexte(C(), a[0]);
