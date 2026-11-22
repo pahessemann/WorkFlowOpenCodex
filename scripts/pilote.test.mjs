@@ -474,6 +474,19 @@ function campagnesPoint() {
   return at;
 }
 
+test('2.13.1 : temps restant indépendant des places occupées à l’instant du point ; débit 24 h ; plancher de chaîne', () => {
+  const cfg = configTest(); const now = Date.parse('2026-11-22T16:00:00Z'); const h = (x) => new Date(now - x * 3600000).toISOString();
+  const closes = Array.from({ length: 12 }, (_, k) => ({ linear_id: 'DEV-' + k, statut: 'close', admise_le: h(30 - k * 2), close_le: h(26 - k * 2) }));
+  const reste = (actifs) => Array.from({ length: 10 }, (_, k) => ({ linear_id: 'DEV-R' + k, statut: k < actifs ? 'en_cours' : 'en_attente', blocked_by: [] }));
+  const e1 = P.estimerReste(cfg, {}, [...closes, ...reste(1)], new Set(), now), e6 = P.estimerReste(cfg, {}, [...closes, ...reste(6)], new Set(), now);
+  assert.deepEqual(e1.si_actions_faites, e6.si_actions_faites, '1 ou 6 agents au travail : même estimation');
+  assert.match(e1.base, /débit des 24 dernières heures : 10/); assert.deepEqual(e1.si_actions_faites, [18, 36]);
+  const chaine = Array.from({ length: 10 }, (_, k) => ({ linear_id: 'DEV-C' + k, statut: 'en_attente', blocked_by: k ? ['DEV-C' + (k - 1)] : [] }));
+  const ec = P.estimerReste(cfg, {}, [...closes, ...chaine], new Set(), now); assert.equal(ec.chaine_restante, 10); assert.deepEqual(ec.si_actions_faites, [30, 60], 'plancher : 10 issues en chaîne × médiane 4 h');
+  const anciennes = closes.map((i) => ({ ...i, admise_le: new Date(Date.parse(i.admise_le) - 3 * 86400000).toISOString(), close_le: new Date(Date.parse(i.close_le) - 3 * 86400000).toISOString() }));
+  assert.match(P.estimerReste(cfg, {}, [...anciennes, ...reste(1)], new Set(), now).base, /parallélisme mesuré/, 'sans débit récent : médiane et parallélisme mesuré');
+});
+
 test('point 2.6 : lecture seule, qui débloque, actions dédoublonnées et triées, campagne en pause exclue', () => {
   const at = campagnesPoint(); const avant = empreinteDossier(at.etat);
   const p = P.point(at);
@@ -508,15 +521,15 @@ test('point 2.6 : statut --attend/--quoi, levé au changement de statut ; arret 
   P.qualifierArret(at, 'a', 'DEV-5', { lever: true }); assert.equal(P.issues(P.lireCampagne(at, 'a')).find((i) => i.linear_id === 'DEV-5').arret, undefined);
 });
 
-test('point 2.6 : estimation par durée médiane dès 5 issues mesurées', () => {
+test('point 2.6 (2.13.1) : estimation par le débit réel, fenêtre réduite pour une campagne jeune', () => {
   const at = configTest({ hote: 'atelier', deploiement_serveurs: false, admission: { dev_max: 15, lourdes_max: 4 } });
   fs.mkdirSync(path.join(at.etat, 'campagnes'), { recursive: true });
   const now = Date.now(); const il = (k, statut, x = {}) => ({ type: 'issue_standalone', linear_id: 'DEV-' + k, statut, blocked_by: [], ...x });
   const closes = [1, 2, 3, 4, 5].map((k) => il(k, 'close', { admise_le: new Date(now - 5 * 3600000).toISOString(), close_le: new Date(now - 3 * 3600000).toISOString() }));
   fs.writeFileSync(path.join(at.etat, 'campagnes', 'm.json'), JSON.stringify({ id: 'm', projet: 'p', mode: 'auto', statut: 'en_cours', lancee_le: new Date(now - 6 * 3600000).toISOString(), items: [...closes, il(6, 'en_cours'), il(7, 'en_cours'), il(8, 'en_attente'), il(9, 'en_attente')] }));
   const e = P.point(at).campagnes[0].estimation;
-  assert.match(e.base, /durée médiane de 5 issues mesurées, 2 place\(s\) occupée\(s\)/); assert.equal(e.fiabilite, 'moyenne');
-  assert.deepEqual(e.si_actions_faites, [3, 6], '4 issues × 2 h / 2 places = 4 h, fourchette 0,75 à 1,5');
+  assert.match(e.base, /débit des 5 dernières heures : 5 clôture/, 'fenêtre depuis la première admission'); assert.equal(e.fiabilite, 'moyenne');
+  assert.deepEqual(e.si_actions_faites, [3, 6], '4 issues × (5 h / 5 clôtures) = 4 h, fourchette 0,75 à 1,5');
 });
 
 test('2.6.1 : un fichier JSON qui n’est pas une campagne (matrice, preuve) est ignoré par le ménage et le point', () => {

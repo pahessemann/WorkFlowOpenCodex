@@ -15,7 +15,7 @@ export const ETATS_ISSUE = ['en_attente', 'preflight', 'en_cours', 'revue', 'rec
 export const ETATS_CAMPAGNE = ['brouillon', 'en_cours', 'en_pause', 'close'];
 export const CRITICITES = ['leger', 'standard', 'sensible'];
 export const MAX_ESSAIS = 3;
-export const VERSION = '2.13';
+export const VERSION = '2.13.1';
 const PASTILLES = { AUTO: '🟢', SUP: '🟠', MS: '🔷', DEV: '🔵', CADRE: '🟣', PROTO: '🎨', TEST: '🧪', RELAIS: '⚙️', BILAN: '📘', AIDE: '❓', ARCHI: '🏛' };
 const DOSSIERS = { AUTO: '01 Campagnes', SUP: '01 Campagnes', MS: '01 Campagnes', DEV: '02 Développement', CADRE: '03 Cadrage & prototypes', PROTO: '03 Cadrage & prototypes', TEST: '04 Relais & maintenance', RELAIS: '04 Relais & maintenance', BILAN: '04 Relais & maintenance', AIDE: '00 Accueil', ARCHI: '00 Accueil' };
 export const TITRE_ARCHI = '🏛 ARCHI · workflow';
@@ -1458,18 +1458,29 @@ function derniereDecision(cfg, nom, id) {
 const mediane = (v) => { const s = [...v].sort((a, b) => a - b); const n = s.length; return n ? (n % 2 ? s[(n - 1) / 2] : (s[n / 2 - 1] + s[n / 2]) / 2) : null; };
 const demiHeure = (h) => Math.max(0.5, Math.round(h * 2) / 2);
 export function estimerReste(cfg, c, l, attentePaul, maintenant = Date.now()) {
-  const durees = l.filter((i) => i.admise_le && i.close_le).map((i) => (Date.parse(i.close_le) - Date.parse(i.admise_le)) / 3600000).filter((h) => h > 0);
+  // v2.13.1 : débit réel des 24 dernières heures, sinon médiane divisée par le parallélisme mesuré (plus les places occupées à l'instant du point), avec un plancher de chaîne de dépendances
+  const mesurees = l.filter((i) => i.admise_le && i.close_le && Date.parse(i.close_le) > Date.parse(i.admise_le));
+  const durees = mesurees.map((i) => (Date.parse(i.close_le) - Date.parse(i.admise_le)) / 3600000);
   const closes = l.filter((i) => i.statut === 'close' && i.close_le).length;
+  const recentes = l.filter((i) => i.statut === 'close' && i.close_le && maintenant - Date.parse(i.close_le) < 86400000).length;
   const depuis = c.lancee_le ? Math.max(1, (maintenant - Date.parse(c.lancee_le)) / 3600000) : null;
-  const places = Math.max(1, Math.min(cfg.admission?.dev_max || 4, actifsAdmission(l).length || 1));
+  const med = durees.length >= 5 ? mediane(durees) : null;
+  let par = null; if (med) { const debut = Math.min(...mesurees.map((i) => Date.parse(i.admise_le))), fin = Math.max(...mesurees.map((i) => Date.parse(i.close_le))); par = Math.max(1, Math.min(cfg.admission?.dev_max || 4, durees.reduce((a, b) => a + b, 0) / Math.max(1, (fin - debut) / 3600000))); }
   let parIssue = null, base;
-  if (durees.length >= 5) { parIssue = mediane(durees) / places; base = 'durée médiane de ' + durees.length + ' issues mesurées, ' + places + ' place(s) occupée(s)'; }
+  const premiere = mesurees.length ? Math.min(...mesurees.map((i) => Date.parse(i.admise_le))) : null;
+  const fenetre = Math.max(1, Math.min(24, depuis ?? 24, premiere ? (maintenant - premiere) / 3600000 : 24)); // campagne plus jeune que 24 h : fenêtre réduite
+  if (recentes >= 3) { parIssue = fenetre / recentes; base = 'débit des ' + Math.round(fenetre) + ' dernières heures : ' + recentes + ' clôture(s)'; }
+  else if (med) { parIssue = med / par; base = 'durée médiane de ' + durees.length + ' issues mesurées, parallélisme mesuré ' + par.toFixed(1); }
   else if (closes && depuis) { parIssue = depuis / closes; base = 'rythme de la campagne : ' + closes + ' clôture(s) en ' + Math.round(depuis) + ' h'; }
   else base = 'aucune clôture mesurée';
-  const mesures = durees.length >= 5 ? durees.length : closes;
+  const mesures = Math.max(durees.length, closes);
   const reste = l.filter((i) => i.statut !== 'close'); const sansToi = reste.filter((i) => !attentePaul.has(i.linear_id));
-  const fourchette = (n) => !n ? [0, 0] : parIssue === null ? null : [demiHeure(n * parIssue * 0.75), demiHeure(n * parIssue * 1.5)];
-  return { unite: 'heures de travail des agents', si_actions_faites: fourchette(reste.length), sinon: fourchette(sansToi.length), plafond_sans_toi: (l.length - reste.length) + sansToi.length, fiabilite: mesures < 5 ? 'faible' : mesures < 15 ? 'moyenne' : 'bonne', base };
+  const profondeur = (ens) => { const ids = new Set(ens.map((i) => i.linear_id)); const par_id = new Map(ens.map((i) => [i.linear_id, i])); const memo = new Map(); const pile = new Set();
+    const p = (id) => { if (memo.has(id)) return memo.get(id); if (pile.has(id)) return 0; pile.add(id); const d = 1 + Math.max(0, ...((par_id.get(id)?.blocked_by) || []).filter((b) => ids.has(b)).map(p)); pile.delete(id); memo.set(id, d); return d; };
+    return Math.max(0, ...ens.map((i) => p(i.linear_id))); };
+  const unite = med || parIssue;
+  const fourchette = (ens) => { if (!ens.length) return [0, 0]; if (parIssue === null) return null; const centre = Math.max(ens.length * parIssue, profondeur(ens) * unite); return [demiHeure(centre * 0.75), demiHeure(centre * 1.5)]; };
+  return { unite: 'heures de travail des agents', si_actions_faites: fourchette(reste), sinon: fourchette(sansToi), plafond_sans_toi: (l.length - reste.length) + sansToi.length, fiabilite: mesures < 5 ? 'faible' : mesures < 15 ? 'moyenne' : 'bonne', base, chaine_restante: profondeur(reste) };
 }
 const h = (f) => !f ? 'non mesurable' : f[1] === 0 ? '0 h' : f[0] === f[1] ? f[0] + ' h' : f[0] + ' à ' + f[1] + ' h';
 export function rendrePoint(p) {

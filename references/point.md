@@ -52,6 +52,10 @@ l'estimation centrale, dans deux cas :
 - **sinon** : sans les issues qui attendent Paul et celles qui en dépendent, avec le **plafond** des issues
   atteignables sans lui.
 
-Base de calcul : à partir de 5 issues mesurées (`admise_le` posé par `ouvrir`, `close_le`), durée médiane d'une
-issue divisée par les places occupées ; sinon, rythme de clôture depuis le lancement. Fiabilité : `faible` sous
+Base de calcul (v2.13.1) : d'abord le **débit réel**, si au moins 3 issues ont été closes sur la fenêtre de mesure (24 h, ou
+depuis la première admission pour une campagne plus jeune) : temps par issue = fenêtre / clôtures. Sinon, à partir de 5 issues
+mesurées (`admise_le` posé par `ouvrir`, `close_le`), durée médiane divisée par le **parallélisme mesuré** (heures d'issues
+closes / fenêtre où elles ont tourné, plafonné à `dev_max`) ; sinon, rythme de clôture depuis le lancement. Le nombre de
+places occupées à l'instant du point n'entre plus dans le calcul : il faisait varier l'estimation d'un facteur 6 d'un point à
+l'autre. **Plancher** : jamais moins que la plus longue chaîne de dépendances restante × la durée médiane. Fiabilité : `faible` sous
 5 mesures, `moyenne` sous 15, `bonne` au-delà.

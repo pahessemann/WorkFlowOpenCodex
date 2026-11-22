@@ -1,5 +1,9 @@
 # Changelog du socle public
 
+## 2.13.1 — 22/11/2026
+
+Correctif de calcul : le temps restant du point des campagnes repose sur le débit réel (24 dernières heures, ou depuis la première admission), sinon sur la durée médiane divisée par le parallélisme mesuré, avec un plancher de chaîne de dépendances. Il ne dépend plus du nombre d'agents au travail à l'instant du point. 97 évaluations, 75 tests.
+
 ## 2.13 — 22/11/2026
 
 Modèles des sous-agents : le routeur relève un fallback absent par un modèle proche, prend Astra à l'escalade quand Fable n'est pas disponible, et relaie vers les modèles OpenAI (Sol, Astra) quand un modèle Anthropic et son fallback sont refusés. La consigne des orchestrateurs impose le nom de catalogue pour lancer un sous-agent. 97 évaluations, 74 tests.
