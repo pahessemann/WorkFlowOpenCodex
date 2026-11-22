@@ -266,6 +266,28 @@ test('ligne d’état : 5 états lus, ligne absente ou incomplète refusée (v2.
   const go = P.lireLigneEtat('**⏸️ À TOI · GO de livraison prêt · Toi : $dev livrer x**'); assert.equal(go.statut, 'attente_go'); assert.equal(go.suffixe, '⏸ GO');
 });
 
+test('v2.13 : sous-agents Sonnet, Sol et Astra ; nom de catalogue ; relais OpenAI quand Anthropic refuse', () => {
+  const c = configTest(); const SOL = 'gpt-6.2-sol', ASTRA = 'gpt-6.2-astra';
+  c.modeles = { ...c.modeles, sous_agents: [HAIKU, SONNET, OPUS, SOL, ASTRA], catalogue: { [SONNET]: 'anthropic/' + SONNET, [OPUS]: 'anthropic/' + OPUS, [HAIKU]: 'anthropic/' + HAIKU }, fable_autorise: true };
+  const d = P.router(c, { tache: 'dev', criticite: 'standard', sousAgent: true });
+  assert.equal(d.modele, SONNET); assert.equal(d.catalogue, 'anthropic/' + SONNET);
+  assert.equal(P.router(c, { tache: 'revue', criticite: 'standard', sousAgent: true }).fallback, SOL);
+  assert.equal(P.router(c, { tache: 'tests', criticite: 'leger', sousAgent: true }).fallback, SONNET, 'Luna absente : Sonnet relaie Haiku');
+  assert.equal(P.router(c, { tache: 'tests', criticite: 'leger', volumetrie: 'large', entree: 150000, sousAgent: true }).modele, SONNET, 'garde de volume : Sonnet plutôt qu’Opus');
+  assert.equal(P.escalade(c, { criticite: 'standard', essai: 3, nature: 'architecture', sousAgent: true }).modele, ASTRA, 'Fable absent en sous-agent : Astra');
+  for (const tache of Object.keys(P.MATRICE)) for (const criticite of P.CRITICITES) for (const volumetrie of ['compact', 'large']) {
+    if (tache === 'recette-milestone') continue;
+    const x = P.router(c, { tache, criticite, volumetrie, sousAgent: true, entree: volumetrie === 'large' ? 150000 : 0 });
+    for (const m of [x.modele, x.fallback, x.lecteur].filter(Boolean)) assert.ok(c.modeles.sous_agents.includes(m), tache + ' ' + criticite + ' ' + volumetrie + ' -> ' + m);
+  }
+  P.refus(c, SONNET, 'quota Anthropic'); P.refus(c, OPUS, 'quota Anthropic');
+  const r1 = P.router(c, { tache: 'dev', criticite: 'standard', sousAgent: true }); assert.equal(r1.modele, SOL); assert.match(r1.raison, /relais OpenAI/);
+  assert.equal(P.router(c, { tache: 'dev', criticite: 'sensible', sousAgent: true }).modele, ASTRA);
+  assert.equal(P.escalade(c, { criticite: 'standard', essai: 2, sousAgent: true }).modele, ASTRA);
+  assert.equal(P.router(c, { tache: 'revue', criticite: 'standard', sousAgent: true }).modele, SOL, 'le fallback Sol, disponible, sert d’abord');
+  assert.match(P.contexte.toString(), /jamais le nom court/);
+});
+
 test('passerelle poste : dépôt hors quota, relève, preuves, retour, essais selon la cause, délai dépassé (v2.5)', () => {
   const at = configTest({ hote: 'atelier', deploiement_serveurs: false, admission: { dev_max: 1, lourdes_max: 1 } });
   const fa = path.join(at.etat, 'atelier.json'); fs.writeFileSync(fa, JSON.stringify(at));

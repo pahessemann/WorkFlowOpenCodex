@@ -50,7 +50,7 @@ Tarifs par million de tokens (entrée / sortie / lecture de cache).
 
 ## 1 bis. Disponibilité en sous-agent
 
-Tous les modèles ne peuvent pas être lancés en sous-agent. La liste fait foi dans `poste.local.json` (`modeles.sous_agents`). Aujourd'hui : Haiku, Sonnet (depuis la v2.7, vérifié sur atelier le 21/11/2026), Opus, Fable 5.1, Luna (Fable 5.2 y figure, mais il est exclu du routage).
+Tous les modèles ne peuvent pas être lancés en sous-agent. La liste fait foi dans `poste.local.json` (`modeles.sous_agents`). Aujourd'hui sur atelier : Haiku, Sonnet, Opus, Sol et Astra (v2.13, vérifiés par un vrai `spawn_agent` le 22/11/2026). Cette liste doit refléter celle d'opencodex (`ocx agent subagents`, 5 modèles au plus) : un modèle absent d'opencodex est refusé par `spawn_agent`, quoi qu'en dise `poste.local.json`. Passer toujours à `spawn_agent` le champ `catalogue` (`anthropic/claude-sonnet-5-5`), jamais le nom court.
 
 Quand la matrice désigne un modèle **absent de cette liste** pour une tâche exécutée en sous-agent, le routeur applique ces substitutions :
 
@@ -150,7 +150,7 @@ En `large`, le routeur renvoie **deux modèles** :
   "recours": "claude-fable-5-1",
   "oeil": "claude-fable-5-1",
   "reserve_paul": ["claude-fable-5-2"],
-  "sous_agents": ["claude-haiku-5-5", "claude-opus-5-5", "claude-fable-5-1", "gpt-6-luna"],
+  "sous_agents": ["claude-haiku-5-5", "claude-sonnet-5-5", "claude-opus-5-5", "gpt-6.2-sol", "gpt-6.2-astra"],
   "fable_autorise": false
 },
 "contexte": {
@@ -169,3 +169,11 @@ Décision de Paul du 21/11/2026 (mesure : 746 M tokens d'entrée Opus en 24 h su
 **Sonnet 5.5** (fallback Opus), et la revue `standard` en sous-agent reste sur Sonnet démarré à neuf, sans substitution par
 Opus puisque Sonnet est disponible en sous-agent. Escalade `standard` : essai 1 Sonnet, essai 2 Opus (ou Astra pour un bug
 subtil), essai 3 Astra ou Fable. Opus reste le modèle du `sensible` et du cadrage.
+
+## v2.13 — sous-agents Sonnet, Sol et Astra ; relais OpenAI
+
+Demande de Paul du 22/11/2026. Liste des sous-agents d'atelier : Sonnet, Opus, Haiku, Sol, Astra (`ocx agent subagents set`).
+En sous-agent, un fallback absent est relevé par un modèle proche (Luna → Sonnet, Terra → Sol, Fable → Astra), la garde de
+volume prend Sonnet, et l'escalade prend Astra quand Fable n'est pas disponible. **Relais OpenAI** : un modèle Anthropic
+refusé (`pilote.mjs refus <modèle> <message>`, 60 min) dont le fallback est refusé aussi passe sur **Sol** (rôles Sonnet et
+Haiku) ou **Astra** (rôles Opus et Fable). L'orchestrateur note le refus dès qu'un fournisseur répond « quota » ou « surcharge ».

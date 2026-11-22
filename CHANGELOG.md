@@ -1,5 +1,9 @@
 # Changelog du socle public
 
+## 2.13 — 22/11/2026
+
+Modèles des sous-agents : le routeur relève un fallback absent par un modèle proche, prend Astra à l'escalade quand Fable n'est pas disponible, et relaie vers les modèles OpenAI (Sol, Astra) quand un modèle Anthropic et son fallback sont refusés. La consigne des orchestrateurs impose le nom de catalogue pour lancer un sous-agent. 97 évaluations, 74 tests.
+
 ## 2.12.1 — 22/11/2026
 
 Correctif d'affichage : dans le bloc d'état, une issue au plafond des échecs d'environnement n'est plus attribuée à l'humain quand un arrêt confié aux agents est posé, comme dans le point des campagnes. 97 évaluations, 73 tests.
