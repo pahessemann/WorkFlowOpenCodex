@@ -15,7 +15,7 @@ export const ETATS_ISSUE = ['en_attente', 'preflight', 'en_cours', 'revue', 'rec
 export const ETATS_CAMPAGNE = ['brouillon', 'en_cours', 'en_pause', 'close'];
 export const CRITICITES = ['leger', 'standard', 'sensible'];
 export const MAX_ESSAIS = 3;
-export const VERSION = '2.13.1';
+export const VERSION = '2.14';
 const PASTILLES = { AUTO: '🟢', SUP: '🟠', MS: '🔷', DEV: '🔵', CADRE: '🟣', PROTO: '🎨', TEST: '🧪', RELAIS: '⚙️', BILAN: '📘', AIDE: '❓', ARCHI: '🏛' };
 const DOSSIERS = { AUTO: '01 Campagnes', SUP: '01 Campagnes', MS: '01 Campagnes', DEV: '02 Développement', CADRE: '03 Cadrage & prototypes', PROTO: '03 Cadrage & prototypes', TEST: '04 Relais & maintenance', RELAIS: '04 Relais & maintenance', BILAN: '04 Relais & maintenance', AIDE: '00 Accueil', ARCHI: '00 Accueil' };
 export const TITRE_ARCHI = '🏛 ARCHI · workflow';
@@ -913,8 +913,48 @@ export async function ouvrirChat(cfg, nom) {
     return { campagne: nom, chat: thread, titre: titreChat, tour: tour.turn?.id, modele: r.catalogue };
   } finally { s.fermer(); }
 }
+// ---------- v2.14 : nettoyage du disque d'atelier (tmp, corbeille, worktrees d'issues closes) ----------
+const cheminNett = (p) => String(p).replace(/^~(?=$|[\\/])/, os.homedir());
+export function configNettoyage(cfg) { const n = cfg.nettoyage || {}; const linux = process.platform === 'linux'; // actif seulement sur demande explicite ; hors Linux, chemins explicites obligatoires (jamais le dossier temporaire par défaut)
+  return { actif: n.actif === true && (linux || !!(n.tmp && n.corbeille && n.worktrees)), tmp: cheminNett(n.tmp || (linux ? os.tmpdir() : '')), tmp_heures: n.tmp_heures ?? 24, corbeille: cheminNett(n.corbeille || '~/.trash-migration-v2'), corbeille_heures: n.corbeille_heures ?? 48, worktrees: cheminNett(n.worktrees || cfg.worktrees || '~/worktrees'), seuil_libre_gio: n.seuil_libre_gio ?? 40, intervalle_heures: n.intervalle_heures ?? 6 }; }
+export function libreGio(p) { try { const s = fs.statfsSync(p); return Math.round(s.bavail * s.bsize / 2 ** 30 * 10) / 10; } catch { return null; } }
+function recentDans(p, limite) { const pile = [p]; let n = 0; while (pile.length) { const x = pile.pop(); let st; try { st = fs.lstatSync(x); } catch { continue; } if (st.mtimeMs > limite) return true; if (st.isDirectory()) { let e = []; try { e = fs.readdirSync(x); } catch {} for (const y of e) pile.push(path.join(x, y)); } if (++n > 300000) return true; } return false; }
+function tailleOctets(p) { let t = 0; const pile = [p]; while (pile.length) { const x = pile.pop(); let st; try { st = fs.lstatSync(x); } catch { continue; } t += st.size; if (st.isDirectory()) { try { for (const y of fs.readdirSync(x)) pile.push(path.join(x, y)); } catch {} } } return t; }
+function cheminsUtilises() { const s = new Set(); if (!fs.existsSync('/proc')) return s; for (const pid of fs.readdirSync('/proc').filter((x) => /^\d+$/.test(x))) { try { s.add(fs.readlinkSync('/proc/' + pid + '/cwd')); } catch {} try { for (const fd of fs.readdirSync('/proc/' + pid + '/fd')) { try { s.add(fs.readlinkSync('/proc/' + pid + '/fd/' + fd)); } catch {} } } catch {} try { for (const a of fs.readFileSync('/proc/' + pid + '/cmdline', 'utf8').split('\0')) if (a.startsWith('/')) s.add(a); } catch {} } return s; }
+const dansUtilises = (p, set) => { const q = p + path.sep; for (const u of set) if (u === p || u.startsWith(q)) return true; return false; };
+function statutsGlobaux(cfg) { const st = {}; for (const c of listerCampagnes(cfg)) for (const i of issues(c)) if (i.linear_id && (st[i.linear_id] === undefined || i.statut !== 'close')) st[i.linear_id] = i.statut; return st; }
+function worktreesLies(racine) { const out = []; const voir = (d, prof) => { let e = []; try { e = fs.readdirSync(d, { withFileTypes: true }); } catch { return; } for (const x of e) { if (!x.isDirectory()) continue; const p = path.join(d, x.name); let g = null; try { g = fs.lstatSync(path.join(p, '.git')); } catch {} if (g?.isFile()) out.push(p); else if (!g && prof < 2) voir(p, prof + 1); } }; voir(racine, 0); return out; }
+const gitSortie = (dir, args) => { const r = spawnSync('git', ['-C', dir, ...args], { encoding: 'utf8', windowsHide: true, timeout: 60000 }); return r.status === 0 ? (r.stdout || '').trim() : null; };
+export function nettoyerDisque(cfg, { appliquer = false, maintenant = Date.now(), tailles = !appliquer } = {}) {
+  const N = configNettoyage(cfg); if (!N.actif) refuser('NETTOYAGE INACTIF', 'nettoyage.actif doit valoir true dans poste.local.json (atelier) ; hors Linux, nettoyage.tmp, nettoyage.corbeille et nettoyage.worktrees explicites'); const t0 = typeof maintenant === 'number' ? maintenant : Date.parse(maintenant); const uid = process.getuid ? process.getuid() : null;
+  const utilises = cheminsUtilises(); const res = { appliquer, libre_avant_gio: libreGio(N.corbeille.startsWith(os.homedir()) ? os.homedir() : N.tmp), tmp: { supprimes: 0, octets: 0, gardes_recents: 0, gardes_utilises: 0 }, corbeille: { supprimes: 0, octets: 0, gardes_recents: 0 }, worktrees: { deplaces: [], octets: 0, gardes: [] }, erreurs: [] };
+  const retirer = (p, cat) => { const o = tailles ? tailleOctets(p) : 0; if (appliquer) { try { fs.rmSync(p, { recursive: true, force: true }); } catch (e) { res.erreurs.push(p + ' : ' + e.code); return; } } res[cat].supprimes++; res[cat].octets += o; };
+  // 1. /tmp : rien de modifié depuis tmp_heures, aucun processus dessus, appartenant à l'agent
+  let ents = []; try { if (N.tmp) ents = fs.readdirSync(N.tmp); } catch {}
+  for (const nom of ents) { if (nom.startsWith('.')) continue; const p = path.join(N.tmp, nom); let st; try { st = fs.lstatSync(p); } catch { continue; } if (st.isSocket() || st.isFIFO() || (uid !== null && st.uid !== uid)) continue;
+    if (dansUtilises(p, utilises)) { res.tmp.gardes_utilises++; continue; } if (recentDans(p, t0 - N.tmp_heures * 3600000)) { res.tmp.gardes_recents++; continue; } retirer(p, 'tmp'); }
+  // 2. Corbeille d'atelier : purge après corbeille_heures (date d'entrée = ctime, mise à jour par le déplacement)
+  let cb = []; try { cb = fs.readdirSync(N.corbeille); } catch {}
+  for (const nom of cb) { const p = path.join(N.corbeille, nom); let st; try { st = fs.lstatSync(p); } catch { continue; } if (st.ctimeMs > t0 - N.corbeille_heures * 3600000 || dansUtilises(p, utilises)) { res.corbeille.gardes_recents++; continue; } retirer(p, 'corbeille'); }
+  // 3. Worktrees liés d'issues closes, propres et poussés : déplacés dans la corbeille (purgés après corbeille_heures)
+  const st = statutsGlobaux(cfg); const proteges = livrablesProteges(cfg).map((x) => path.resolve(cheminNett(x))); const lot = path.join(N.corbeille, 'nettoyage-' + new Date(t0).toISOString().slice(0, 16).replace(/[-:T]/g, ''));
+  for (const wt of worktreesLies(N.worktrees)) { const rel = path.relative(N.worktrees, wt); const m = rel.match(/DEV-?(\d{1,6})(?!\d)/i); const id = m ? 'DEV-' + m[1] : null; const garder = (raison) => res.worktrees.gardes.push({ worktree: rel, raison });
+    if (!id) { garder('sans issue'); continue; } if (st[id] !== 'close') { garder(id + ' ' + (st[id] || 'inconnue')); continue; }
+    if (proteges.some((x) => x === wt || x.startsWith(wt + path.sep))) { garder('livrables protégés'); continue; } if (dansUtilises(wt, utilises)) { garder('utilisé par un processus'); continue; }
+    const sale = gitSortie(wt, ['status', '--porcelain']); if (sale === null || sale) { garder('modifications locales'); continue; }
+    const np = gitSortie(wt, ['log', '--oneline', 'HEAD', '--not', '--remotes']); if (np === null || np) { garder('commits non poussés'); continue; }
+    const commun = gitSortie(wt, ['rev-parse', '--path-format=absolute', '--git-common-dir']); const o = tailles ? tailleOctets(wt) : 0;
+    if (appliquer) { try { const dest = path.join(lot, rel); fs.mkdirSync(path.dirname(dest), { recursive: true }); fs.renameSync(wt, dest); if (commun) gitSortie(path.dirname(commun), ['worktree', 'prune']); } catch (e) { res.erreurs.push(rel + ' : ' + e.code); continue; } }
+    res.worktrees.deplaces.push(rel); res.worktrees.octets += o; }
+  res.libre_apres_gio = appliquer ? libreGio(os.homedir()) : null;
+  if (appliquer && cfg.etat) { try { ecrireJson(path.join(cfg.etat, 'nettoyage.json'), { le: new Date(t0).toISOString(), tmp: res.tmp.supprimes, corbeille: res.corbeille.supprimes, worktrees: res.worktrees.deplaces.length, libre_avant_gio: res.libre_avant_gio, libre_apres_gio: res.libre_apres_gio, erreurs: res.erreurs.length }); } catch {} }
+  const g = (o) => Math.round(o / 2 ** 30 * 10) / 10; res.resume = (appliquer ? 'Nettoyage' : 'Répétition à blanc') + ' : /tmp ' + res.tmp.supprimes + (tailles ? ' (' + g(res.tmp.octets) + ' Gio)' : '') + ', corbeille ' + res.corbeille.supprimes + (tailles ? ' (' + g(res.corbeille.octets) + ' Gio)' : '') + ', worktrees ' + res.worktrees.deplaces.length + (tailles ? ' (' + g(res.worktrees.octets) + ' Gio)' : '') + ' ; libre ' + res.libre_avant_gio + ' Gio' + (res.libre_apres_gio !== null ? ' → ' + res.libre_apres_gio + ' Gio' : '');
+  return res;
+}
+export function nettoyageDu(cfg, maintenant = Date.now()) { const N = configNettoyage(cfg); if (!N.actif || !cfg.etat) return false; const der = lireJson(path.join(cfg.etat, 'nettoyage.json'), {}); const age = der.le ? (maintenant - Date.parse(der.le)) / 3600000 : Infinity; const libre = libreGio(os.homedir()); return age >= N.intervalle_heures || (libre !== null && libre < N.seuil_libre_gio && age >= 1); }
 export async function reveil(cfg, { maintenant = new Date(), intervalleMin = 10 } = {}) {
   const res = []; const { connecter } = await import('./appserver.mjs'); let s = null;
+  try { if (nettoyageDu(cfg, maintenant.getTime())) { const n = nettoyerDisque(cfg, { appliquer: true, maintenant: maintenant.getTime() }); res.push({ action: 'nettoyage du disque (v2.14)', resume: n.resume, erreurs: n.erreurs.length }); } } catch (e) { res.push({ action: 'nettoyage du disque', erreur: e.message }); }
   try {
     const campsR = listerCampagnes(cfg).filter((x) => x.statut === 'en_cours' && x.chat); const taillesR = taillesSessions(path.join(os.homedir(), '.codex', 'sessions'), campsR.map((x) => x.chat)); const seuilO = cfg.chats?.seuil_orchestrateur ?? 150000;
     for (let c of campsR) {
@@ -1491,7 +1531,7 @@ export function rendrePoint(p) {
   const arrets = p.campagnes.flatMap((c) => c.arrets.map((a) => ({ ...a, campagne: c.campagne })));
   L.push('', '**Blocages**', ''); if (!arrets.length) L.push('Aucun.'); else { L.push('| Issue | Campagne | Qui débloque | Cause |', '|---|---|---|---|'); for (const a of arrets) L.push('| ' + a.issue + ' (' + a.statut + ') | ' + a.campagne + ' | ' + a.qui + ' | ' + String(a.quoi).replace(/\|/g, '/') + ' |'); }
   L.push('', '**Ce que tu dois faire**', ''); if (!p.actions_paul.length) L.push('Rien.'); else p.actions_paul.forEach((a, k) => L.push((k + 1) + '. ' + a.action + ' — débloque ' + a.debloque + ' issue(s) (' + a.issues.join(', ') + ')'));
-  const r = p.ressources; L.push('', '**Ressources** (' + r.hote + ') : RAM libre ' + r.ram_libre_gio + ' Gio · charge ' + r.charge_1min + ' pour ' + r.coeurs + ' cœurs' + (r.pression_cpu_60s !== null ? ' · attente CPU ' + r.pression_cpu_60s + ' % sur 60 s' : '') + ' · places : ' + p.campagnes.map((c) => c.campagne + ' ' + c.places.occupees + '/' + c.places.max).join(', '));
+  const r = p.ressources; L.push('', '**Ressources** (' + r.hote + ') : RAM libre ' + r.ram_libre_gio + ' Gio' + (r.disque_libre_gio !== null && r.disque_libre_gio !== undefined ? ' · disque libre ' + r.disque_libre_gio + ' Gio' + (r.disque_seuil_gio && r.disque_libre_gio < r.disque_seuil_gio ? ' ⚠' : '') : '') + (r.volume?.non_alloue_gio !== undefined ? ' (volume : ' + r.volume.non_alloue_gio + ' Gio non alloués' + (r.volume.non_alloue_gio < 15 ? ' ⚠' : '') + (r.volume.sauvegarde && !['success', 'inconnu'].includes(r.volume.sauvegarde.resultat) ? ' ; sauvegarde en échec (' + r.volume.sauvegarde.resultat + ') ⚠' : '') + ')' : '') + ' · charge ' + r.charge_1min + ' pour ' + r.coeurs + ' cœurs' + (r.pression_cpu_60s !== null ? ' · attente CPU ' + r.pression_cpu_60s + ' % sur 60 s' : '') + ' · places : ' + p.campagnes.map((c) => c.campagne + ' ' + c.places.occupees + '/' + c.places.max).join(', '));
   const ar = p.chats_archives_24h || []; if (ar.length) L.push('', '**Chats archivés (24 h)** : ' + ar.length + ' — ' + ar.slice(0, 6).join(' ; ') + (ar.length > 6 ? ' ; …' : ''));
   L.push('', p.ligne_etat);
   return L.join('\n');
@@ -1520,7 +1560,7 @@ export function point(cfg, noms = [], { maintenant = Date.now() } = {}) {
       places: { occupees: actifsAdmission(l, null, !!c.voie_recette?.chat).length, max: cfg.admission?.dev_max || 4, ouvertes: ouvertesAdmission(l, null, !!c.voie_recette?.chat).length, ouvertes_max: ouvertesMax(cfg) }, arrets, estimation: estimerReste(cfg, c, l, attentePaul, maintenant), ...(({ ligne, bloc }) => ({ ligne_etat: ligne, bloc }))(ligneEtat(cfg, c.id)) }); // v2.10
   }
   const actions_paul = [...actions.values()].map((x) => ({ action: x.action, issues: x.issues, debloque: x.retenues.size, campagnes: [...x.campagnes] })).sort((a, b) => b.debloque - a.debloque);
-  const ressources = { hote: cfg.hote, ram_libre_gio: Math.round(os.freemem() / 2 ** 30 * 10) / 10, charge_1min: Math.round(os.loadavg()[0] * 10) / 10, coeurs: os.cpus().length, pression_cpu_60s: pressionCpu(cfg) };
+  const ressources = { hote: cfg.hote, disque_libre_gio: libreGio(os.homedir()), disque_seuil_gio: configNettoyage(cfg).seuil_libre_gio, volume: cfg.etat ? lireJson(path.join(cfg.etat, 'executant', 'btrfs.json'), null) : null, ram_libre_gio: Math.round(os.freemem() / 2 ** 30 * 10) / 10, charge_1min: Math.round(os.loadavg()[0] * 10) / 10, coeurs: os.cpus().length, pression_cpu_60s: pressionCpu(cfg) };
   const n = campagnes.length; const qualifier = campagnes.flatMap((c) => c.arrets.filter((a) => a.attend === 'a_qualifier').map((a) => a.issue));
   const toi = actions_paul.slice(0, 2).map((a) => a.action + ' (' + a.issues.join(', ') + ')').join(' ; ') + (actions_paul.length > 2 ? ' ; et ' + (actions_paul.length - 2) + ' autre(s) action(s)' : '');
   const ligne_etat = actions_paul.length ? formatLigne('⏸', 'point de ' + n + ' campagne(s) fait' + (qualifier.length ? ', ' + qualifier.length + ' blocage(s) à qualifier' : ''), toi) : formatLigne('✅', 'point de ' + n + ' campagne(s) fait, rien ne t’attend' + (qualifier.length ? ' ; ' + qualifier.length + ' blocage(s) à qualifier par les orchestrateurs' : ''), 'rien');
@@ -1834,6 +1874,7 @@ function executerBrut(argv, cfg = null) {
     case 'chaine-critique': return { campagne: a[0], chaine: chaineCritique(C(), lireCampagne(C(), a[0])) };
     case 'aide': { if (a[0] === 'enregistrer') return enregistrerAide(C(), a[1], o.modele); const ch = o['chats-fichier'] ? lireJson(o['chats-fichier'], null) : o.chats ? JSON.parse(o.chats) : []; if (!Array.isArray(ch)) refuser('CHATS ILLISIBLES', 'attendu un tableau JSON [{ id, titre, archive, maj }]'); return aide(C(), { chats: ch, recreer: !!o.recreer, indisponibles: o.indisponible ? String(o.indisponible).split(',') : [] }); }
     case 'archi': { if (a[0] === 'enregistrer') return enregistrerArchi(C(), a[1], o.modele); refuser('COMMANDE INCONNUE', 'archi ' + (a[0] || '') + ' — usage : pilote.mjs archi enregistrer <chat_id> ; pour ouvrir le chat : pilote.mjs lancer archi'); }
+    case 'nettoyer': return nettoyerDisque(C(), { appliquer: !!o.appliquer, tailles: !o.appliquer || !!o.tailles }); // v2.14
     case 'nettoyeur': { if (a[0] !== 'candidats') refuser('COMMANDE INCONNUE', 'nettoyeur ' + a[0]); const ch = o['chats-fichier'] ? lireJson(o['chats-fichier'], []) : JSON.parse(o.chats || '[]'); return { chats: 'hors périmètre : les chats relèvent de $dev menage', ne_jamais_toucher: livrablesProteges(C()), taches_protegees: tachesProtegees(C()) }; }
     case 'chat-travail': { const cs = o['consigne-stdin'] ? fs.readFileSync(0, 'utf8') : o['consigne-fichier'] ? fs.readFileSync(o['consigne-fichier'], 'utf8') : (o.consigne || ''); return ouvrirChatTravail(C(), { role: a[0], projet: a[1], objet: a.slice(2).join(' '), hote: o.hote || null, livraison: !!o.livraison, modele: o.modele, cwd: o.cwd, consigne: cs, campagne: o.campagne || null, issue: o.issue || null, effort: o.effort || 'medium' }); }
     case 'acces-restreint': return accesRestreint(C(), a[0]);

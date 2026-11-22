@@ -3,7 +3,7 @@ name: dev-orchestrator
 description: Orchestrateur de campagnes autonomes et supervisées (Linear Milestones et Issues) : composition à froid, chats identifiables d'un coup d'œil, routage économe des modèles et exécution hybride (PC local / VPS atelier).
 ---
 
-# Orchestrateur Dev — Workflow opérationnel (v2.13.1)
+# Orchestrateur Dev — Workflow opérationnel (v2.14)
 
 Ce skill régit l'orchestration des travaux via `pilote.mjs`, sur le poste local Windows et sur le VPS `atelier` (Linux).
 
@@ -49,7 +49,7 @@ Paul intervient **une fois, au cadrage**. Ensuite, les agents travaillent seuls 
 | `$dev digest [nom]` | Résumé des dernières 24 h : avancement, décisions prises seul, blocages | inline |
 | `$dev prototype <sujet>` | Composer une page avec les vrais composants dans l'éditeur, exporter un `spec.json` v1 vérifié (`prototype.md`) | `PROTO` |
 | `$dev test <projet>` | Recette ou tests ciblés (`test.md`) | inline ou `TEST` |
-| `$dev nettoyeur` | Worktrees, branches closes, processus orphelins ; les chats relèvent de `$dev menage` (`nettoyeur.md`) | `RELAIS` |
+| `$dev nettoyeur` | Worktrees, branches closes, processus orphelins ; les chats relèvent de `$dev menage` ; v2.14 : nettoyage automatique du disque d'atelier par le réveil (`pilote.mjs nettoyer`) (`nettoyeur.md`) | `RELAIS` |
 | `$dev livrer <campagne> [--a-blanc]` | **Poste uniquement**, après un GO enregistré : plan figé (empreinte), répétition à blanc, arrêt à la première erreur, journal et messages dans le chat SUP (`livraison.md`) | `SUP` |
 | `$dev menage` | Analyse des chats des deux hôtes, en lecture seule : à clôturer, archiver, renommer, ranger, rattacher, doublons, dormants, trop lourds (`menage.md`) | inline |
 | `$dev menage appliquer surs|<numéros>|tout` | Applique les actions validées ; jamais de suppression, AIDE et campagnes en cours protégés (`menage.md`) | inline |

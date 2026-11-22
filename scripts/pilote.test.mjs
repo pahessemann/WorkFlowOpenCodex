@@ -288,6 +288,42 @@ test('v2.13 : sous-agents Sonnet, Sol et Astra ; nom de catalogue ; relais OpenA
   assert.match(P.contexte.toString(), /jamais le nom court/);
 });
 
+test('v2.14 : nettoyage du disque : tmp ancien, corbeille expirée, worktrees d’issues closes propres et poussés ; le reste est gardé', () => {
+  assert.equal(P.configNettoyage(configTest({ hote: 'atelier' })).actif, false, 'jamais actif sans nettoyage.actif explicite');
+  assert.equal(code(() => P.nettoyerDisque(configTest({ hote: 'atelier' }))), 'NETTOYAGE INACTIF');
+  if (process.platform === 'win32') assert.equal(P.configNettoyage(configTest({ nettoyage: { actif: true } })).actif, false, 'Windows : chemins explicites obligatoires');
+  const at = configTest({ hote: 'atelier', deploiement_serveurs: false });
+  const racine = fs.mkdtempSync(path.join(os.tmpdir(), 'nett-'));
+  const tmp = path.join(racine, 'tmp'), corb = path.join(racine, 'corbeille'), wts = path.join(racine, 'worktrees'); for (const d of [tmp, corb, wts]) fs.mkdirSync(d, { recursive: true });
+  at.nettoyage = { actif: true, tmp, corbeille: corb, worktrees: wts, seuil_libre_gio: 0 };
+  fs.mkdirSync(path.join(at.etat, 'campagnes'), { recursive: true });
+  const il = (k, statut) => ({ type: 'issue_standalone', linear_id: 'DEV-' + k, statut, blocked_by: [] });
+  fs.writeFileSync(path.join(at.etat, 'campagnes', 'k.json'), JSON.stringify({ id: 'k', projet: 'p', mode: 'auto', statut: 'en_cours', items: [il(1, 'close'), il(2, 'en_cours'), il(3, 'close'), il(4, 'close')] }));
+  fs.mkdirSync(path.join(tmp, 'ancien')); fs.writeFileSync(path.join(tmp, 'ancien', 'f'), 'x'); fs.mkdirSync(path.join(tmp, 'recent')); fs.writeFileSync(path.join(tmp, 'recent', 'f'), 'x');
+  const vieux = new Date(Date.now() - 3 * 86400000); fs.utimesSync(path.join(tmp, 'ancien', 'f'), vieux, vieux); fs.utimesSync(path.join(tmp, 'ancien'), vieux, vieux);
+  fs.mkdirSync(path.join(corb, 'vieux-lot'));
+  const g = (d, ...a) => { const r = spawnSync('git', ['-C', d, '-c', 'user.email=a@b', '-c', 'user.name=t', ...a], { encoding: 'utf8' }); assert.equal(r.status, 0, a.join(' ') + ' : ' + r.stderr); return r.stdout; };
+  const nu = path.join(racine, 'nu.git'), dep = path.join(racine, 'depot'); spawnSync('git', ['init', '--bare', '-q', nu]); spawnSync('git', ['init', '-q', dep]);
+  g(dep, 'commit', '-q', '--allow-empty', '-m', 'init'); g(dep, 'remote', 'add', 'origin', nu); g(dep, 'push', '-q', 'origin', 'HEAD:refs/heads/main');
+  for (const n of [1, 2, 3, 4]) g(dep, 'worktree', 'add', '-q', '-b', 'b' + n, path.join(wts, 'p', 'DEV-' + n));
+  fs.writeFileSync(path.join(wts, 'p', 'DEV-3', 'sale.txt'), 'x');
+  g(path.join(wts, 'p', 'DEV-4'), 'commit', '-q', '--allow-empty', '-m', 'local');
+  const blanc = P.nettoyerDisque(at);
+  assert.ok(fs.existsSync(path.join(tmp, 'ancien')) && fs.existsSync(path.join(wts, 'p', 'DEV-1')), 'répétition à blanc : rien ne bouge');
+  assert.equal(blanc.tmp.supprimes, 1); assert.deepEqual(blanc.worktrees.deplaces, [path.join('p', 'DEV-1')]); assert.equal(blanc.corbeille.supprimes, 0, 'entrée récente de la corbeille gardée');
+  const raisons = Object.fromEntries(blanc.worktrees.gardes.map((x) => [path.basename(x.worktree), x.raison]));
+  assert.match(raisons['DEV-2'], /en_cours/); assert.equal(raisons['DEV-3'], 'modifications locales'); assert.equal(raisons['DEV-4'], 'commits non poussés');
+  P.nettoyerDisque(at, { appliquer: true });
+  assert.ok(!fs.existsSync(path.join(tmp, 'ancien')) && fs.existsSync(path.join(tmp, 'recent')));
+  assert.ok(!fs.existsSync(path.join(wts, 'p', 'DEV-1')) && fs.existsSync(path.join(wts, 'p', 'DEV-3')) && fs.existsSync(path.join(wts, 'p', 'DEV-4')));
+  assert.ok(!g(dep, 'worktree', 'list').includes('DEV-1'), 'worktree élagué du dépôt');
+  assert.ok(fs.readdirSync(corb).some((x) => x.startsWith('nettoyage-')), 'worktree placé dans la corbeille, pas effacé');
+  const t3 = Date.now() + 3 * 86400000; P.nettoyerDisque(at, { appliquer: true, maintenant: t3 });
+  assert.equal(fs.readdirSync(corb).length, 0, 'corbeille purgée après 48 h');
+  assert.equal(P.nettoyageDu(at, t3 + 3600000), false); assert.equal(P.nettoyageDu(at, t3 + 7 * 3600000), true, 'nouveau passage après 6 h');
+});
+
+
 test('passerelle poste : dépôt hors quota, relève, preuves, retour, essais selon la cause, délai dépassé (v2.5)', () => {
   const at = configTest({ hote: 'atelier', deploiement_serveurs: false, admission: { dev_max: 1, lourdes_max: 1 } });
   const fa = path.join(at.etat, 'atelier.json'); fs.writeFileSync(fa, JSON.stringify(at));
