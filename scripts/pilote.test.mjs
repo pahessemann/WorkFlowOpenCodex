@@ -1151,3 +1151,11 @@ test('2.20.1 : temps restant : poste à part, total stable dans le temps', () =>
   const rendu = P.rendrePoint({ campagnes: [{ campagne: 'k', mode: 'supervise', closes: 2, total: 4, pourcent: 50, closes_24h: 0, reste: 2, estimation: e3, arrets: [], places: { occupees: 0, max: 6 } }], actions_paul: [], ressources: { hote: 'x', ram_libre_gio: 1, charge_1min: 0, coeurs: 1, pression_cpu_60s: null }, ligne_etat: 'x' });
   assert.match(rendu, /\| en attente du poste \(DEV-3, DEV-4\) \|/);
 });
+
+test('2.20.2 : blocages séparés, à toi puis agents seuls', () => {
+  const e = { si_actions_faites: [1, 2], sinon: [1, 2], plafond_sans_toi: 3, fiabilite: 'bonne', au_poste: [] };
+  const arrets = [{ issue: 'DEV-1', statut: 'en_attente', attend: 'agents', qui: 'agents', quoi: 'dépendance DEV-9 non fusionnée' }, { issue: 'DEV-2', statut: 'en_cours', attend: 'paul', qui: 'Toi', quoi: 'captures avec les comptes de recette' }, { issue: 'DEV-3', statut: 'recette', attend: 'poste', qui: 'poste', quoi: 'retour du poste Windows attendu' }];
+  const r = P.rendrePoint({ campagnes: [{ campagne: 'k', mode: 'auto', closes: 1, total: 4, pourcent: 25, closes_24h: 0, reste: 3, estimation: e, arrets, places: { occupees: 0, max: 6 } }], actions_paul: [], ressources: { hote: 'x', ram_libre_gio: 1, charge_1min: 0, coeurs: 1, pression_cpu_60s: null }, ligne_etat: 'x' });
+  const iToi = r.indexOf('👤 **À toi** (1)'), iAg = r.indexOf('🤖 **Les agents s’en chargent seuls** (2)'); assert.ok(iToi > 0 && iAg > iToi, r);
+  assert.ok(r.indexOf('| DEV-2 | k | captures') > iToi && r.indexOf('| DEV-2 | k | captures') < iAg); assert.match(r, /\| DEV-3 \| k \| poste Windows \|/);
+});

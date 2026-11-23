@@ -1,5 +1,9 @@
 # Changelog du socle public
 
+## 2.20.2 — 23/11/2026
+
+Le point sépare les blocages qui attendent l'humain de ceux que les agents règlent seuls. 104 évaluations, 89 tests.
+
 ## 2.20.1 — 23/11/2026
 
 Temps restant du point : seul le travail des agents est chiffré, les issues au poste sont affichées « en attente du poste », et le total ne grimpe plus avec l'horloge. 104 évaluations, 88 tests.
