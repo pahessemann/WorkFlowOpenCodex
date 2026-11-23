@@ -102,7 +102,9 @@ examine le `WIP` de `branche_reprise` avant de coder.
 
 - `contexte` donne `chaine_critique` (plus longue suite de dépendances non closes, campagnes sœurs comprises), `admissibles`
   (avec « empilée sur X » le cas échéant) et `a_rebaser`. Traite d'abord la chaîne critique.
-- Une issue dont les dépendances sont en `recette` est admissible : `pilote.mjs ouvrir` part de `origin/<branche de la
+- Une issue dont les dépendances sont en `recette` ou ont une revue favorable inscrite (v2.21) est admissible. Inscrire chaque revue favorable
+  aussitôt : `pilote.mjs revue <c> <ID> favorable --sha <SHA>` (une décision qui commence par FAVORABLE l'inscrit aussi, DÉFAVORABLE la retire
+  et remet en attente les issues empilées ; un retour en développement la retire aussi). Ensuite : `pilote.mjs ouvrir` part de `origin/<branche de la
   dépendance>` (même dépôt) et rend `empilement` ; sa PR vise cette branche. Dépendance d'un autre dépôt : empilement logique,
   base par défaut. Profondeur maximale : `admission.empilement_max` (3). Plusieurs dépendances du même dépôt en recette : attendre.
 - Clôture d'une issue empilée refusée tant que sa dépendance n'est pas fusionnée ou close (`CLÔTURE PRÉMATURÉE`). Si la

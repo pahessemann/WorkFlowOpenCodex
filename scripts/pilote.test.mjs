@@ -812,7 +812,7 @@ test('2.8 : clôture prématurée refusée, désempilement quand la dépendance 
   const b = P.issues(P.lireCampagne(at, 'k')).find((x) => x.linear_id === 'B'); assert.equal(b.statut, 'en_attente'); assert.equal(b.empile_sur, undefined);
   assert.match(fs.readFileSync(path.join(at.etat, 'campagnes', 'k.decisions.md'), 'utf8'), /B · Désempilée \(v2\.8\) : la dépendance A repasse en en_cours/);
   P.statutIssue(at, 'k', 'A', 'recette'); empiler(at, 'B', 1, ['A']); P.modifierCampagne(at, 'k', (c) => { c.items[0].statut = 'fusionnee'; });
-  const k = P.contexte(at, 'k'); assert.deepEqual(k.a_rebaser, ['B']); assert.match(k.consigne, /Admission empilée \(v2\.8\)/);
+  const k = P.contexte(at, 'k'); assert.deepEqual(k.a_rebaser, ['B']); assert.match(k.consigne, /Admission empilée \(v2\.8, v2\.21\)/);
   P.desempiler(at, 'k', 'B'); assert.deepEqual(P.contexte(at, 'k').a_rebaser, []);
 });
 test('2.8 : chaîne critique et admissibles dans contexte', () => {
@@ -1163,4 +1163,17 @@ test('2.20.2 : blocages séparés, à toi puis agents seuls', () => {
 test('2.20.3 : une fiche qui cite du code n’est jamais classée livrable', () => {
   assert.equal(P.natureFiche('Surface(s) d’exécution : backend (`deployer/src/erreurs.ts`). ## Recette développeur Statut : SANS OBJET. Constat : aucun code de la chaîne de migration n’a d’entrée.'), 'code');
   assert.equal(P.natureFiche('Aucun code. ## Recette développeur Statut : SANS OBJET'), 'livrable');
+});
+
+test('2.21 : une revue favorable inscrite suffit pour empiler, et se perd au retour en développement', () => {
+  const at = campagneChaine(); const c = () => P.lireCampagne(at, 'k'); const i = (id) => P.issues(c()).find((x) => x.linear_id === id);
+  assert.equal(P.admissibilite(at, c(), i('S')).ok, false, 'revue sans verdict : attendre');
+  const r = P.revueIssue(at, 'k', 'R', 'favorable', { sha: 'abc1234' }); assert.equal(r.sha, 'abc1234'); assert.equal(i('R').statut, 'revue');
+  const s = P.admissibilite(at, c(), i('S')); assert.equal(s.ok, true); assert.deepEqual(s.empile.sur, ['R']); assert.equal(s.empile.branche, 'codex/issue-R');
+  P.modifierCampagne(at, 'k', (k) => { const x = k.items.find((y) => y.linear_id === 'S'); x.statut = 'en_cours'; x.empile_sur = ['R']; x.empile_profondeur = 1; });
+  const d = P.statutIssue(at, 'k', 'R', 'en_cours'); assert.deepEqual(d.desempilees.map((x) => x.issue), ['S']); assert.equal(i('R').revue_favorable, undefined);
+  P.statutIssue(at, 'k', 'R', 'revue'); P.decision(at, 'k', 'R', 'FAVORABLE sur le diff au SHA 0146c85 (contenu identique à 2739122)'); assert.equal(i('R').revue_favorable.sha, '0146c85');
+  P.decision(at, 'k', 'R', 'DÉFAVORABLE : critère 2 non couvert'); assert.equal(i('R').revue_favorable, undefined);
+  assert.equal(code(() => P.revueIssue(at, 'k', 'S', 'favorable')), 'REVUE HORS STATUT');
+  assert.match(P.contexte(at, 'k').consigne, /pilote\.mjs revue <campagne> <ID> favorable/);
 });

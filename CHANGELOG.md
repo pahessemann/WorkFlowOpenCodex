@@ -1,5 +1,9 @@
 # Changelog du socle public
 
+## 2.21 — 23/11/2026
+
+Une revue favorable inscrite suffit pour démarrer les issues qui en dépendent, sans attendre la recette (`pilote.mjs revue`). 104 évaluations, 91 tests.
+
 ## 2.20.3 — 23/11/2026
 
 Une fiche qui cite du code n'est plus classée « livrable » au démarrage, et `ouvrir --nature code|livrable` corrige une issue déjà admise. 104 évaluations, 90 tests.
