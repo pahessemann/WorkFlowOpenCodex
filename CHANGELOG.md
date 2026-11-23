@@ -1,5 +1,9 @@
 # Changelog du socle public
 
+## 2.19.1 — 23/11/2026
+
+Le lanceur accepte une commande de chat (`discute`, `cadrage`, `prototype`…) sans le mot `lancer`. 104 évaluations, 83 tests.
+
 ## 2.19 — 23/11/2026
 
 Mains du poste : tout chat de l'hôte d'exécution fait jouer une commande sur le poste, ou sur un serveur que seul le poste joint, sans passer par l'humain (`poste demander`, résultat rendu dans le même tour) ; écoute permanente du poste quand il est connecté. 104 évaluations, 82 tests.

@@ -15,7 +15,7 @@ export const ETATS_ISSUE = ['en_attente', 'preflight', 'en_cours', 'revue', 'rec
 export const ETATS_CAMPAGNE = ['brouillon', 'en_cours', 'en_pause', 'close'];
 export const CRITICITES = ['leger', 'standard', 'sensible'];
 export const MAX_ESSAIS = 3;
-export const VERSION = '2.19';
+export const VERSION = '2.19.1';
 const PASTILLES = { AUTO: '🟢', SUP: '🟠', MS: '🔷', DEV: '🔵', CADRE: '🟣', PROTO: '🎨', TEST: '🧪', RELAIS: '⚙️', BILAN: '📘', AIDE: '❓', ARCHI: '🏛', PROJET: '💬' };
 const DOSSIERS = { AUTO: '01 Campagnes', SUP: '01 Campagnes', MS: '01 Campagnes', DEV: '02 Développement', CADRE: '03 Cadrage & prototypes', PROTO: '03 Cadrage & prototypes', TEST: '04 Relais & maintenance', RELAIS: '04 Relais & maintenance', BILAN: '04 Relais & maintenance', AIDE: '00 Accueil', ARCHI: '00 Accueil', PROJET: '00 Accueil' };
 export const TITRE_ARCHI = '🏛 ARCHI · workflow';
@@ -2063,8 +2063,10 @@ export function gardeCpu(cfg, i) {
 function options(argv) { const o = { _: [] }; for (let k = 0; k < argv.length; k++) { const a = argv[k]; if (a.startsWith('--')) { const n = a.slice(2); const v = argv[k + 1] && !argv[k + 1].startsWith('--') ? argv[++k] : true; o[n] = v; } else o._.push(a); } return o; }
 // v2.7 : une commande visant une issue transférée (scission) est rejouée sur la campagne sœur.
 export function executer(argv, cfg = null) { try { return executerBrut(argv, cfg); } catch (e) { if (e instanceof Refus && e.titre === 'ISSUE TRANSFÉRÉE' && e.de && e.vers && argv.includes(e.de)) return executerBrut(argv.map((x) => x === e.de ? e.vers : x), cfg); throw e; } }
+const COMMANDES_LANCEUR_SEUL = ['discuter', 'discute', 'discussion', 'cadrage', 'prototype', 'issue', 'iteration', 'milestone', 'cloture', 'cadrage-court', 'finaliser', 'projet', 'evolution']; // archi a sa propre sous-commande (archi enregistrer) // v2.19.1 : « lancer » oublié par un chat lanceur
 function executerBrut(argv, cfg = null) {
   const o = options(argv); const [cmd, ...a] = o._; const C = () => cfg || (cfg = lireConfig());
+  if (COMMANDES_LANCEUR_SEUL.includes(cmd) && !(cmd === 'projet' && !o['depuis-modele'] && !o['depuis-role'] && !o['fiche-stdin'])) return executerBrut(['lancer', ...argv], cfg); // ces commandes n’existent que par le lanceur : « lancer » est sous-entendu
   switch (cmd) {
     case 'etat': if (a[0] === 'chats') return chatsEtat(C(), { chats: o['chats-stdin'] ? JSON.parse(fs.readFileSync(0, 'utf8') || '[]') : o['chats-fichier'] ? lireJson(o['chats-fichier'], []) : [], local: !!o.local }); return etat(C(), a[0]);
     case 'modele': { const r = router(C(), { tache: a[0], criticite: a[1], volumetrie: a[2] || 'compact', sousAgent: !!o['sous-agent'], entree: Number(o.entree || 0), trivial: !!o.trivial }); const camp = o.campagne && o.campagne !== true ? o.campagne : a[3]; if (o['sous-agent'] && camp && o.issue && o.issue !== true) r.garde_boucle = gardeBoucle(C(), camp, o.issue, a[0]); return r; } // v2.17 : garde de boucle

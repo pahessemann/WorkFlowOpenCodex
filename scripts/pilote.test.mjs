@@ -1095,3 +1095,11 @@ test('2.19 : mains du poste : commande demandée par atelier, écoutée et joué
   assert.match(P.reglePoste(at), /ne se demande JAMAIS à Paul : node .* poste demander --shell ssh:<alias>\|powershell/);
   const hors = configTest({ hote: 'local', atelier_simule: path.join(at.etat, 'absent.json'), passerelle: { actif: true, ecoute_pause_ms: 1, ecoute_echecs_max: 2 } }); assert.equal(P.posteEcouter(hors).action, 'arret', 'atelier injoignable : l’écoute s’arrête, la tâche planifiée la relancera');
 });
+
+test('2.19.1 : « lancer » oublié par le chat lanceur : la commande $dev est quand même lancée', async () => {
+  const c = configTest({ hote: 'atelier' }); c.appServerFactice = path.join(c.etat, 'app.jsonl'); c.projets = { 'projet-a': { chemin: c.etat } }; const f = path.join(c.etat, 'poste.local.json'); fs.writeFileSync(f, JSON.stringify(c));
+  const run = (argv, input) => spawnSync(process.execPath, [path.join(path.dirname(fileURLToPath(import.meta.url)), 'pilote.mjs'), ...argv], { input, encoding: 'utf8', env: { ...process.env, PILOTE_CONFIG: f } });
+  const r = run(['discute', '--depuis-modele', 'gpt-6-luna', '--fiche-stdin'], 'Paul : $dev discute'); assert.equal(r.status, 0, r.stderr); assert.match(r.stdout, /💬 PROJET · general · discussion du/);
+  const r2 = run(['cadrage', 'exports', '--projet', 'projet-a', '--depuis-modele', 'gpt-6-luna', '--fiche-stdin'], 'x'); assert.equal(r2.status, 0, r2.stderr); assert.match(r2.stdout, /🟣 CADRE · projet-a · exports/);
+  const r3 = run(['inconnue', '--fiche-stdin'], 'x'); assert.notEqual(r3.status, 0);
+});

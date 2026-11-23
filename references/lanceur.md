@@ -19,3 +19,5 @@ Le chat lanceur ne fait que lancer : il ne cadre pas et ne code pas. **ARCHI** l
 6. **Réponse au lanceur**, en une ligne : `→ ouvert : 🟣 CADRE · deployeur · <objet> (Opus 5.5, 03 Cadrage & prototypes)`.
 
 **Repli** : si aucun chat ne peut être créé par programme, `lancer` rend un bloc prêt à coller (dossier, titre exact, modèle, premier message). Il inscrit quand même le chat au registre avec le statut `a_creer`, et `$dev menage` le rattache ensuite.
+
+v2.19.1 : `node <pilote> discuter|cadrage|prototype|issue|… --depuis-modele … --fiche-stdin` sans le mot `lancer` est accepté comme `lancer <commande> …` : ces commandes n’existent que par le lanceur.
