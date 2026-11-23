@@ -15,7 +15,7 @@ export const ETATS_ISSUE = ['en_attente', 'preflight', 'en_cours', 'revue', 'rec
 export const ETATS_CAMPAGNE = ['brouillon', 'en_cours', 'en_pause', 'close'];
 export const CRITICITES = ['leger', 'standard', 'sensible'];
 export const MAX_ESSAIS = 3;
-export const VERSION = '2.19.1';
+export const VERSION = '2.19.2';
 const PASTILLES = { AUTO: '🟢', SUP: '🟠', MS: '🔷', DEV: '🔵', CADRE: '🟣', PROTO: '🎨', TEST: '🧪', RELAIS: '⚙️', BILAN: '📘', AIDE: '❓', ARCHI: '🏛', PROJET: '💬' };
 const DOSSIERS = { AUTO: '01 Campagnes', SUP: '01 Campagnes', MS: '01 Campagnes', DEV: '02 Développement', CADRE: '03 Cadrage & prototypes', PROTO: '03 Cadrage & prototypes', TEST: '04 Relais & maintenance', RELAIS: '04 Relais & maintenance', BILAN: '04 Relais & maintenance', AIDE: '00 Accueil', ARCHI: '00 Accueil', PROJET: '00 Accueil' };
 export const TITRE_ARCHI = '🏛 ARCHI · workflow';
@@ -669,7 +669,7 @@ export const LANCEUR = { cadrage: { role: 'CADRE', tache: 'cadrage' }, prototype
   milestone: { role: 'MS', tache: 'pilotage' }, test: { role: 'TEST', tache: 'recette-milestone' }, cloture: { role: 'BILAN', tache: 'finalisation' }, nettoyeur: { role: 'RELAIS', tache: 'automatisation', criticite: 'leger' },
   'cadrage-court': { inline: true, tache: 'cadrage' }, finaliser: { inline: true, tache: 'finalisation' }, projet: { inline: true, tache: 'cadrage' }, menage: { inline: true, tache: 'pilotage', criticite: 'leger' },
   archi: { role: 'ARCHI', fixe: true }, evolution: { role: 'ARCHI', fixe: true }, poste: { direct: true }, discuter: { role: 'PROJET', tache: 'discussion', nouveau: true }, discute: { role: 'PROJET', tache: 'discussion', nouveau: true }, discussion: { role: 'PROJET', tache: 'discussion', nouveau: true }, // v2.18 : toujours un nouveau chat ; v2.18.1 : alias
-  digest: { direct: true }, etat: { direct: true }, point: { direct: true }, modele: { direct: true }, aide: { direct: true }, livrer: { direct: true }, pause: { direct: true }, reprendre: { direct: true }, campagne: { direct: true } };
+  digest: { direct: true }, etat: { direct: true }, point: { direct: true }, modele: { direct: true }, aide: { direct: true }, livrer: { direct: true }, pause: { direct: true }, reprendre: { direct: true }, campagne: { direct: true }, fournisseur: { direct: true }, abonnement: { direct: true } }; // v2.19.2
 function registresFusionnes(cfg) {
   const local = Object.fromEntries(Object.entries(lireRegistreChats(cfg)).map(([k, v]) => [k, { ...v, chat_id: k, hote: v.hote || cfg.hote }]));
   if (!cfg.registre_distant) return local;
@@ -679,6 +679,7 @@ export async function lancerCommande(cfg, { commande, args = [], depuisModele = 
   const spec = LANCEUR[commande]; if (!spec) refuser('COMMANDE INCONNUE', '$dev ' + commande);
   if (spec.fixe) return lancerArchi(cfg, { commande, args, fiche });
   const ligneCommande = '$dev ' + [commande, ...args].join(' ');
+  if (spec.direct && !['poste', 'campagne', 'livrer'].includes(commande)) { try { return { action: 'executer_ici', commande: ligneCommande, resultat: executer([commande, ...args], cfg), consigne: 'commande déterministe exécutée par le lanceur : recopie resultat (ou son champ rendu/__texte) tel quel' }; } catch (e) { if (e instanceof Refus) throw e; } } // v2.19.2
   if (spec.direct) return { action: 'executer_ici', commande: ligneCommande, consigne: 'commande déterministe : node <pilote> ' + [commande, ...args].join(' ') + (commande === 'point' ? ' --texte, puis recopier la sortie telle quelle (lecture seule)' : '') + ', aucun modèle requis' };
   const r = router(cfg, { tache: spec.tache, criticite: spec.criticite || criticite || 'standard' });
   const ici = !spec.nouveau && depuisModele && String(depuisModele).replace(/^[a-z]+\//, '') === r.modele && !['ARCHI', 'AUTO', 'SUP', 'PROJET'].includes(String(depuisRole || '').toUpperCase()); // v2.18 : un chat 💬 PROJET délègue toujours // ARCHI et les orchestrateurs délèguent toujours (v2.6.3)
@@ -1401,7 +1402,7 @@ export const COMMANDES = {
   iteration: ['iteration.md', 'DEV'], finaliser: ['finalisation.md', 'inline'], cadrage: ['cadrage.md', 'CADRE'], 'cadrage-court': ['cadrage-court.md', 'inline'],
   projet: ['projet.md', 'inline'], digest: ['campagne.md', 'inline'], prototype: ['prototype.md', 'PROTO'], test: ['test.md', 'inline ou TEST'],
   nettoyeur: ['nettoyeur.md', 'RELAIS'], aide: ['aide.md', 'AIDE'], menage: ['menage.md', 'inline'], lancer: ['lanceur.md', 'inline'], livrer: ['livraison.md', 'SUP'], cloture: ['cloture.md', 'BILAN'], pause: ['campagne.md', 'inline'], reprendre: ['campagne.md', 'inline'], etat: [null, 'inline'], modele: ['modeles.md', 'inline'],
-  archi: ['archi.md', 'ARCHI'], evolution: ['archi.md', 'ARCHI'], poste: ['poste.md', 'inline'], discuter: ['discuter.md', 'PROJET'], discute: ['discuter.md', 'PROJET'], discussion: ['discuter.md', 'PROJET'],
+  archi: ['archi.md', 'ARCHI'], evolution: ['archi.md', 'ARCHI'], poste: ['poste.md', 'inline'], fournisseur: ['modeles.md', 'inline'], abonnement: ['modeles.md', 'inline'], discuter: ['discuter.md', 'PROJET'], discute: ['discuter.md', 'PROJET'], discussion: ['discuter.md', 'PROJET'],
 };
 export function contrat(commande) {
   if (commande === 'img2code') refuser('COMMANDE NON REPRISE', 'img2code reste dans l’archive');

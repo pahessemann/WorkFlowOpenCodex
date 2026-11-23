@@ -1,5 +1,9 @@
 # Changelog du socle public
 
+## 2.19.2 — 23/11/2026
+
+`fournisseur` et `abonnement` connus du lanceur, commandes directes exécutées par le lanceur, test de couverture des commandes documentées. 104 évaluations, 84 tests.
+
 ## 2.19.1 — 23/11/2026
 
 Le lanceur accepte une commande de chat (`discute`, `cadrage`, `prototype`…) sans le mot `lancer`. 104 évaluations, 83 tests.

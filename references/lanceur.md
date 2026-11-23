@@ -4,7 +4,7 @@
 
 - à un **chat dédié** si la commande a un type de chat (`CADRE`, `PROTO`, `DEV`, `TEST`, `MS`, `BILAN`, `RELAIS`, `PROJET`) ; `discuter` crée toujours un nouveau chat, sans recherche de doublon (v2.18), et un chat `💬 PROJET` délègue toujours (`--depuis-role PROJET`) ;
 - à un **sous-agent** si elle s'exécute inline (`cadrage-court`, `finaliser`, `projet`, `menage`) : le résultat revient en 5 lignes dans le chat courant ;
-- les commandes déterministes (`digest`, `etat`, `point`, `modele`, `fournisseur`, `abonnement`, `aide`, `livrer`, `campagne`, `pause`, `reprendre`, `poste`) s'exécutent sur place, sans modèle.
+- les commandes déterministes (`digest`, `etat`, `point`, `modele`, `fournisseur`, `abonnement`, `aide`, `livrer`, `campagne`, `pause`, `reprendre`, `poste`) s'exécutent sur place, sans modèle ; v2.19.2 : le lanceur les exécute lui-même (sauf `poste`, `campagne` et `livrer`) et rend `resultat`, que le chat recopie.
 - `archi` et `evolution` visent le chat fixe `🏛 ARCHI · workflow` (v2.4, `archi.md`) : pas de routeur. Le chat ARCHI enregistré (y compris en `a_creer`) est toujours rouvert, jamais doublé ; pour `evolution`, la réponse porte le message à y poster (`poster` : fiche de lancement, puis la commande). Sans chat ARCHI : bloc à coller et entrée `a_creer` sur le poste, refus `CHAT ARCHI SUR LE POSTE` sur atelier.
 
 Le chat lanceur ne fait que lancer : il ne cadre pas et ne code pas. **ARCHI** lance toujours avec `--depuis-role ARCHI` : jamais `executer_ici`, même si son modèle est celui du routeur (v2.5.4).

@@ -1103,3 +1103,10 @@ test('2.19.1 : « lancer » oublié par le chat lanceur : la commande $dev est q
   const r2 = run(['cadrage', 'exports', '--projet', 'projet-a', '--depuis-modele', 'gpt-6-luna', '--fiche-stdin'], 'x'); assert.equal(r2.status, 0, r2.stderr); assert.match(r2.stdout, /🟣 CADRE · projet-a · exports/);
   const r3 = run(['inconnue', '--fiche-stdin'], 'x'); assert.notEqual(r3.status, 0);
 });
+
+test('2.19.2 : toute commande $dev du SKILL est connue du lanceur ; les commandes directes sont exécutées dans la foulée', async () => {
+  const skill = fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'SKILL.md'), 'utf8'); const doc = [...new Set([...skill.matchAll(/\| `\$dev ([a-z-]+)/g)].map((m) => m[1]))];
+  const manquantes = doc.filter((c) => !P.LANCEUR[c] && !P.COMMANDES[c]); assert.deepEqual(manquantes, [], 'commandes documentées mais inconnues du lanceur');
+  const c = configTest(); const r = await P.lancerCommande(c, { commande: 'fournisseur', args: ['mixte'], depuisModele: 'gpt-6-luna', fiche: 'x' }); assert.equal(r.action, 'executer_ici'); assert.equal(r.resultat.effectif, 'mixte'); assert.equal(P.modeFournisseur(c).effectif, 'mixte');
+  const a = await P.lancerCommande(c, { commande: 'abonnement', args: [], depuisModele: 'gpt-6-luna' }); assert.equal(a.action, 'executer_ici'); assert.ok('releves' in a.resultat);
+});
