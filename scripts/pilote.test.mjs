@@ -1159,3 +1159,8 @@ test('2.20.2 : blocages séparés, à toi puis agents seuls', () => {
   const iToi = r.indexOf('👤 **À toi** (1)'), iAg = r.indexOf('🤖 **Les agents s’en chargent seuls** (2)'); assert.ok(iToi > 0 && iAg > iToi, r);
   assert.ok(r.indexOf('| DEV-2 | k | captures') > iToi && r.indexOf('| DEV-2 | k | captures') < iAg); assert.match(r, /\| DEV-3 \| k \| poste Windows \|/);
 });
+
+test('2.20.3 : une fiche qui cite du code n’est jamais classée livrable', () => {
+  assert.equal(P.natureFiche('Surface(s) d’exécution : backend (`deployer/src/erreurs.ts`). ## Recette développeur Statut : SANS OBJET. Constat : aucun code de la chaîne de migration n’a d’entrée.'), 'code');
+  assert.equal(P.natureFiche('Aucun code. ## Recette développeur Statut : SANS OBJET'), 'livrable');
+});

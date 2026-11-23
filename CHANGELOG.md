@@ -1,5 +1,9 @@
 # Changelog du socle public
 
+## 2.20.3 — 23/11/2026
+
+Une fiche qui cite du code n'est plus classée « livrable » au démarrage, et `ouvrir --nature code|livrable` corrige une issue déjà admise. 104 évaluations, 90 tests.
+
 ## 2.20.2 — 23/11/2026
 
 Le point sépare les blocages qui attendent l'humain de ceux que les agents règlent seuls. 104 évaluations, 89 tests.

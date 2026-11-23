@@ -15,7 +15,7 @@ export const ETATS_ISSUE = ['en_attente', 'preflight', 'en_cours', 'revue', 'rec
 export const ETATS_CAMPAGNE = ['brouillon', 'en_cours', 'en_pause', 'close'];
 export const CRITICITES = ['leger', 'standard', 'sensible'];
 export const MAX_ESSAIS = 3;
-export const VERSION = '2.20.2';
+export const VERSION = '2.20.3';
 const PASTILLES = { AUTO: '🟢', SUP: '🟠', MS: '🔷', DEV: '🔵', CADRE: '🟣', PROTO: '🎨', TEST: '🧪', RELAIS: '⚙️', BILAN: '📘', AIDE: '❓', ARCHI: '🏛', PROJET: '💬' };
 const DOSSIERS = { AUTO: '01 Campagnes', SUP: '01 Campagnes', MS: '01 Campagnes', DEV: '02 Développement', CADRE: '03 Cadrage & prototypes', PROTO: '03 Cadrage & prototypes', TEST: '04 Relais & maintenance', RELAIS: '04 Relais & maintenance', BILAN: '04 Relais & maintenance', AIDE: '00 Accueil', ARCHI: '00 Accueil', PROJET: '00 Accueil' };
 export const TITRE_ARCHI = '🏛 ARCHI · workflow';
@@ -387,8 +387,9 @@ export function mentionsModele(cfg, texte) {
 export const signalementModele = (id, m) => id + ' : la fiche nomme ' + m.modele + ', mention ignorée (une issue ne nomme jamais de modèle ; le routeur choisit)' + (m.reserve_paul ? ' — réservé à Paul : à lancer à la main si Paul le souhaite' : '');
 export function natureFiche(texte) {
   const t = texte || '';
-  const sansCode = /recette d[ée]veloppeur[\s\S]{0,120}sans objet/i.test(t) && /aucun code|aucune r[ée]alisation applicative|sans modification de d[ée]p[ôo]t/i.test(t);
-  return sansCode ? 'livrable' : 'code';
+  const sansCode = /recette d[ée]veloppeur[\s\S]{0,120}sans objet/i.test(t) && /aucun code\b(?! de\b| du\b| des\b| d’| d')|aucune r[ée]alisation applicative|sans modification de d[ée]p[ôo]t/i.test(t);
+  const citeCode = /`[^`\s]+\.(ts|tsx|mjs|cjs|js|vue|cs|py|sql|sh|ps1)`|surface\(?s?\)? d.ex[ée]cution\s*:\s*(backend|frontend|infrastructure)/i.test(t); // v2.20.3 : une fiche qui cite du code reste du code
+  return sansCode && !citeCode ? 'livrable' : 'code';
 }
 function dossierLivrables(projet, id) {
   const pj = path.join(projet.chemin, 'PROJECT.md'); const m = fs.existsSync(pj) && fs.readFileSync(pj, 'utf8').match(/^[>*\s-]*\**Livrables\**\s*:\s*`?([^`\n]+)`?/mi);
@@ -430,7 +431,7 @@ export function genererCarte(cfg, nomProjet, projet) {
   fs.writeFileSync(f, corps); return f;
 }
 
-export function ouvrir(cfg, nom, id, { compte, fiche, livrable, aBlanc } = {}) { nom = redirigerCampagne(cfg, nom, id);
+export function ouvrir(cfg, nom, id, { compte, fiche, livrable, aBlanc, nature: natureForcee = null } = {}) { nom = redirigerCampagne(cfg, nom, id);
   const c = lireCampagne(cfg, nom); const i = trouverIssue(c, id); const nomProjet = i.projet || c.projet; const projet = (cfg.projets || {})[nomProjet]; // dépôt propre à l'issue (campagne multi-dépôts)
   const bloque = (raison) => { if (!aBlanc) statutIssue(cfg, nom, id, 'bloquee'); refuser('PRÉFLIGHT TECHNIQUE BLOQUÉ', id + ' : ' + raison); };
   const reparations = []; const signalements = [];
@@ -441,7 +442,9 @@ export function ouvrir(cfg, nom, id, { compte, fiche, livrable, aBlanc } = {}) {
   let texteFiche = fiche ? (fs.existsSync(fiche) ? fs.readFileSync(fiche, 'utf8') : fiche) : '';
   if (!fiche) { const lu = lireFiche(cfg, id); texteFiche = lu.texte; if (!lu.source) signalements.push(id + ' : fiche Linear non analysée (lecture par sous-agent impossible) ; démarrage poursuivi'); }
   for (const m of mentionsModele(cfg, texteFiche)) signalements.push(signalementModele(id, m));
-  const nature = livrable ? 'livrable' : (i.nature || natureFiche(texteFiche));
+  if (natureForcee && !['code', 'livrable'].includes(natureForcee)) refuser('NATURE INCONNUE', natureForcee + ' (code ou livrable)');
+  if (natureForcee === 'code' && i.nature === 'livrable' && !aBlanc) { modifierCampagne(cfg, nom, (cc) => { const ii = trouverIssue(cc, id); delete ii.nature; delete ii.livrables; }); decision(cfg, nom, id, 'Nature corrigée en code (pilote.mjs ouvrir --nature code, v2.20.3) : démarrage avec worktree et branche.'); i.nature = undefined; } // v2.20.3
+  const nature = livrable || natureForcee === 'livrable' ? 'livrable' : (natureForcee || i.nature || natureFiche(texteFiche));
   const routage = nature === 'livrable' && /visuel|direction artistique|maquette|planche|identit[ée] visuelle/i.test(texteFiche + ' ' + (i.titre || '')) ? router(cfg, { tache: 'choix-visuel', criticite: i.criticite }) : null;
   if (signalements.length && !aBlanc) modifierCampagne(cfg, nom, (cc) => { const ii = trouverIssue(cc, id); ii.signalements = [...new Set([...(ii.signalements || []), ...signalements])]; });
   if (nature === 'livrable') {
@@ -2147,7 +2150,7 @@ function executerBrut(argv, cfg = null) {
     case 'recettes': return recettesVoie(C(), a[0]);
     case 'contexte': return contexte(C(), a[0]);
     case 'digest': return digest(C(), a[0]);
-    case 'ouvrir': return ouvrir(C(), a[0], a[1], { compte: o.compte, fiche: o.fiche, livrable: !!o.livrable, aBlanc: !!(o['a-blanc'] || o['dry-run']) }); // v2.8.3 : --dry-run = --a-blanc
+    case 'ouvrir': return ouvrir(C(), a[0], a[1], { compte: o.compte, fiche: o.fiche, livrable: !!o.livrable, aBlanc: !!(o['a-blanc'] || o['dry-run']), nature: o.nature && o.nature !== true ? o.nature : null }); // v2.8.3 : --dry-run = --a-blanc
     case 'carte': { const cf = C(); const pr = cf.projets[a[0]]; if (!pr) refuser('PROJET INCONNU', a[0]); const f0 = path.join(cf.etat, 'carte', a[0] + '.md'); if (!fs.existsSync(f0) || o.squelette) genererCarte(cf, a[0], pr); return { carte: f0, agent_pid: lancerAgentCarte(cf, a[0]) }; }
     case 'fiche': return lireFiche(C(), a[0], { maxAgeMin: o.rafraichir ? 0 : 60 });
     case 'mentions': { const t = o.fiche && fs.existsSync(o.fiche) ? fs.readFileSync(o.fiche, 'utf8') : String(o.fiche || a.join(' ')); return { mentions: mentionsModele(C(), t), signalements: mentionsModele(C(), t).map((m) => signalementModele(o.id || 'issue', m)) }; }
