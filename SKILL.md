@@ -3,7 +3,7 @@ name: dev-orchestrator
 description: Orchestrateur de campagnes autonomes et supervisées (Linear Milestones et Issues) : composition à froid, chats identifiables d'un coup d'œil, routage économe des modèles et exécution hybride (PC local / VPS atelier).
 ---
 
-# Orchestrateur Dev — Workflow opérationnel (v2.17)
+# Orchestrateur Dev — Workflow opérationnel (v2.18)
 
 Ce skill régit l'orchestration des travaux via `pilote.mjs`, sur le poste local Windows et sur le VPS `atelier` (Linux).
 
@@ -53,6 +53,7 @@ Paul intervient **une fois, au cadrage**. Ensuite, les agents travaillent seuls 
 | `$dev livrer <campagne> [--a-blanc]` | **Poste uniquement**, après un GO enregistré : plan figé (empreinte), répétition à blanc, arrêt à la première erreur, journal et messages dans le chat SUP (`livraison.md`) | `SUP` |
 | `$dev menage` | Analyse des chats des deux hôtes, en lecture seule : à clôturer, archiver, renommer, ranger, rattacher, doublons, dormants, trop lourds (`menage.md`) | inline |
 | `$dev menage appliquer surs|<numéros>|tout` | Applique les actions validées ; jamais de suppression, AIDE et campagnes en cours protégés (`menage.md`) | inline |
+| `$dev discuter <projet> [sujet]` | **Discuter d’un projet** sans rien déclencher (v2.18) : un **nouveau** chat `💬 PROJET` à chaque appel, sur atelier, Sonnet 5.5, lecture seule ; contexte du projet chargé à l’ouverture ; une action demandée par Paul part au lanceur (`--depuis-role PROJET`) ; rangé après 24 h sans activité (`discuter.md`) | `PROJET` |
 | `$dev aide [--recreer]` | Ouvrir le chat d'aiguillage, ou le recréer s'il manque ou n'est plus à jour (`aide.md`) | `AIDE` |
 | `$dev archi` | Ouvrir le chat de l'architecte du workflow `🏛 ARCHI · workflow` (`archi.md`) | `ARCHI` |
 | `$dev evolution <sujet>` | Démarrer une évolution du workflow dans `🏛 ARCHI` : analyse, fiche d'évolution, GO de Paul, implémentation sur les deux hôtes (`archi.md`) | `ARCHI` |
@@ -117,6 +118,7 @@ Exceptions : le chat d'aiguillage s'appelle toujours `❓ AIDE · workflow` et c
 | :---: | :--- | :--- | :--- |
 | ❓ | `AIDE` : aiguillage | `❓ AIDE · workflow` | 00 Accueil |
 | 🏛 | `ARCHI` : architecte du workflow | `🏛 ARCHI · workflow` | 00 Accueil |
+| 💬 | `PROJET` : discussion d’un projet (v2.18), lecture seule | `💬 PROJET · mon-app · discussion du 23/11 10h30` | 00 Accueil |
 | 🟢 | `AUTO` : campagne autonome | `🟢 AUTO · mon-api · refonte-auth · 42%` | 01 Campagnes |
 | 🟠 | `SUP` : campagne supervisée | `🟠 SUP · deployeur · release-v3 · 10% · ⏸ GO` | 01 Campagnes |
 | 🔷 | `MS` : milestone isolé | `🔷 MS · mon-api · auth-core · 3/7` | 01 Campagnes |

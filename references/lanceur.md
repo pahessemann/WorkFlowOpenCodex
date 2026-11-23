@@ -2,7 +2,7 @@
 
 **Règle de délégation.** Le chat courant n'exécute une commande `$dev` que si son modèle est celui que le routeur désigne pour cette commande. Sinon, il délègue :
 
-- à un **chat dédié** si la commande a un type de chat (`CADRE`, `PROTO`, `DEV`, `TEST`, `MS`, `BILAN`, `RELAIS`) ;
+- à un **chat dédié** si la commande a un type de chat (`CADRE`, `PROTO`, `DEV`, `TEST`, `MS`, `BILAN`, `RELAIS`, `PROJET`) ; `discuter` crée toujours un nouveau chat, sans recherche de doublon (v2.18), et un chat `💬 PROJET` délègue toujours (`--depuis-role PROJET`) ;
 - à un **sous-agent** si elle s'exécute inline (`cadrage-court`, `finaliser`, `projet`, `menage`) : le résultat revient en 5 lignes dans le chat courant ;
 - les commandes déterministes (`digest`, `etat`, `point`, `modele`, `fournisseur`, `abonnement`, `aide`, `livrer`, `campagne`, `pause`, `reprendre`, `poste`) s'exécutent sur place, sans modèle.
 - `archi` et `evolution` visent le chat fixe `🏛 ARCHI · workflow` (v2.4, `archi.md`) : pas de routeur. Le chat ARCHI enregistré (y compris en `a_creer`) est toujours rouvert, jamais doublé ; pour `evolution`, la réponse porte le message à y poster (`poster` : fiche de lancement, puis la commande). Sans chat ARCHI : bloc à coller et entrée `a_creer` sur le poste, refus `CHAT ARCHI SUR LE POSTE` sur atelier.

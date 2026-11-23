@@ -75,6 +75,7 @@ Format : `primaire / fallback (429)`.
 | `choix-visuel` (trancher entre options, valider un rendu) | **Fable 5.1** / Opus | **Fable 5.1** / Opus | **Fable 5.1** / Opus |
 | `prototype` (éditeur, `spec.json`) | Sonnet / Sol | Sonnet / Sol | **Opus** / Sonnet |
 | `ingestion` (sous-agent `obsidian`) | Haiku / Luna | Sonnet / Sol | **Opus** / Sonnet |
+| `discussion` (chat `💬 PROJET`, v2.18) | Sonnet / Sol | **Sonnet** / Sol | Opus / Sonnet |
 | `finalisation` | Haiku / Luna | Haiku / Sonnet | Sonnet / Opus |
 | `pilotage` / `automatisation` | Haiku / Luna | Haiku / Sonnet | **Opus** / Sonnet |
 

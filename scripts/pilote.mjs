@@ -15,9 +15,9 @@ export const ETATS_ISSUE = ['en_attente', 'preflight', 'en_cours', 'revue', 'rec
 export const ETATS_CAMPAGNE = ['brouillon', 'en_cours', 'en_pause', 'close'];
 export const CRITICITES = ['leger', 'standard', 'sensible'];
 export const MAX_ESSAIS = 3;
-export const VERSION = '2.17';
-const PASTILLES = { AUTO: '🟢', SUP: '🟠', MS: '🔷', DEV: '🔵', CADRE: '🟣', PROTO: '🎨', TEST: '🧪', RELAIS: '⚙️', BILAN: '📘', AIDE: '❓', ARCHI: '🏛' };
-const DOSSIERS = { AUTO: '01 Campagnes', SUP: '01 Campagnes', MS: '01 Campagnes', DEV: '02 Développement', CADRE: '03 Cadrage & prototypes', PROTO: '03 Cadrage & prototypes', TEST: '04 Relais & maintenance', RELAIS: '04 Relais & maintenance', BILAN: '04 Relais & maintenance', AIDE: '00 Accueil', ARCHI: '00 Accueil' };
+export const VERSION = '2.18';
+const PASTILLES = { AUTO: '🟢', SUP: '🟠', MS: '🔷', DEV: '🔵', CADRE: '🟣', PROTO: '🎨', TEST: '🧪', RELAIS: '⚙️', BILAN: '📘', AIDE: '❓', ARCHI: '🏛', PROJET: '💬' };
+const DOSSIERS = { AUTO: '01 Campagnes', SUP: '01 Campagnes', MS: '01 Campagnes', DEV: '02 Développement', CADRE: '03 Cadrage & prototypes', PROTO: '03 Cadrage & prototypes', TEST: '04 Relais & maintenance', RELAIS: '04 Relais & maintenance', BILAN: '04 Relais & maintenance', AIDE: '00 Accueil', ARCHI: '00 Accueil', PROJET: '00 Accueil' };
 export const TITRE_ARCHI = '🏛 ARCHI · workflow';
 const SUFFIXES = ['⏸ GO', '⛔ BLOQUÉ', '✅'];
 
@@ -87,6 +87,7 @@ export const MATRICE = {
   digest: { leger: ['H', 'Luna'], standard: ['H', 'Luna'], sensible: ['H', 'Luna'] },
   'recette-milestone': { leger: ['S', 'Sol'], standard: ['S', 'Sol'], sensible: ['S', 'Sol'] },
   lecteur: { leger: ['H', 'Luna'], standard: ['H', 'Luna'], sensible: ['H', 'Luna'] },
+  discussion: { leger: ['S', 'Sol'], standard: ['S', 'Sol'], sensible: ['O', 'S'] }, // v2.18 : chat 💬 PROJET
 };
 // Substitutions en sous-agent quand la matrice désigne un modèle indisponible (§1 bis).
 const SUBSTITUTS = { revue: 'O', tests: 'H', visuel: 'O', prototype: 'O', lecteur: 'O', cadrage: 'O', ingestion: 'O', finalisation: 'O', pilotage: 'O', automatisation: 'O', dev: 'O' };
@@ -667,7 +668,7 @@ async function rangerChat(cfg, s, chat, dossier) {
 export const LANCEUR = { cadrage: { role: 'CADRE', tache: 'cadrage' }, prototype: { role: 'PROTO', tache: 'prototype' }, issue: { role: 'DEV', tache: 'dev' }, iteration: { role: 'DEV', tache: 'dev' },
   milestone: { role: 'MS', tache: 'pilotage' }, test: { role: 'TEST', tache: 'recette-milestone' }, cloture: { role: 'BILAN', tache: 'finalisation' }, nettoyeur: { role: 'RELAIS', tache: 'automatisation', criticite: 'leger' },
   'cadrage-court': { inline: true, tache: 'cadrage' }, finaliser: { inline: true, tache: 'finalisation' }, projet: { inline: true, tache: 'cadrage' }, menage: { inline: true, tache: 'pilotage', criticite: 'leger' },
-  archi: { role: 'ARCHI', fixe: true }, evolution: { role: 'ARCHI', fixe: true }, poste: { direct: true },
+  archi: { role: 'ARCHI', fixe: true }, evolution: { role: 'ARCHI', fixe: true }, poste: { direct: true }, discuter: { role: 'PROJET', tache: 'discussion', nouveau: true }, // v2.18 : toujours un nouveau chat
   digest: { direct: true }, etat: { direct: true }, point: { direct: true }, modele: { direct: true }, aide: { direct: true }, livrer: { direct: true }, pause: { direct: true }, reprendre: { direct: true }, campagne: { direct: true } };
 function registresFusionnes(cfg) {
   const local = Object.fromEntries(Object.entries(lireRegistreChats(cfg)).map(([k, v]) => [k, { ...v, chat_id: k, hote: v.hote || cfg.hote }]));
@@ -680,7 +681,7 @@ export async function lancerCommande(cfg, { commande, args = [], depuisModele = 
   const ligneCommande = '$dev ' + [commande, ...args].join(' ');
   if (spec.direct) return { action: 'executer_ici', commande: ligneCommande, consigne: 'commande déterministe : node <pilote> ' + [commande, ...args].join(' ') + (commande === 'point' ? ' --texte, puis recopier la sortie telle quelle (lecture seule)' : '') + ', aucun modèle requis' };
   const r = router(cfg, { tache: spec.tache, criticite: spec.criticite || criticite || 'standard' });
-  const ici = depuisModele && String(depuisModele).replace(/^[a-z]+\//, '') === r.modele && !['ARCHI', 'AUTO', 'SUP'].includes(String(depuisRole || '').toUpperCase()); // ARCHI et les orchestrateurs délèguent toujours (v2.6.3)
+  const ici = !spec.nouveau && depuisModele && String(depuisModele).replace(/^[a-z]+\//, '') === r.modele && !['ARCHI', 'AUTO', 'SUP', 'PROJET'].includes(String(depuisRole || '').toUpperCase()); // v2.18 : un chat 💬 PROJET délègue toujours // ARCHI et les orchestrateurs délèguent toujours (v2.6.3)
   if (ici) return { action: 'executer_ici', commande: ligneCommande, modele: r.modele, consigne: 'le modèle du chat courant est celui du routeur : exécuter ici' };
   const resume = String(fiche || '').split('\n').filter((l) => l.trim()).slice(0, 15).join('\n');
   if (spec.inline) {
@@ -691,6 +692,7 @@ export async function lancerCommande(cfg, { commande, args = [], depuisModele = 
     const res = fs.existsSync(sortie) ? fs.readFileSync(sortie, 'utf8').trim().split('\n').slice(0, 5).join('\n') : ''; fs.rmSync(sortie, { force: true });
     return { action: 'sous_agent', modele: r.modele, execute: true, code: x.status, resultat: res || 'aucune réponse du sous-agent (code ' + x.status + ')' };
   }
+  if (spec.nouveau) return lancerDiscussion(cfg, { args, projet, resume, ligneCommande, r });
   const objet = args.join(' ').trim() || commande;
   projet ||= Object.keys(cfg.projets || {}).find((p) => normaliserObjet(objet + ' ' + resume).includes(normaliserObjet(p))) || 'general';
   const t = titre(spec.role, projet, objet); const reg = registresFusionnes(cfg);
@@ -714,6 +716,23 @@ export async function lancerCommande(cfg, { commande, args = [], depuisModele = 
     const id = 'a_creer-' + Date.now(); const premier = '▣ ' + t.titre + '\nModèle     : ' + r.modele + '\n\n' + consigne;
     inscrireChat(cfg, { chat_id: id, titre: t.titre, role: spec.role, objet, projet, dossier: t.dossier, modele: r.catalogue, hote: cfg.hote, statut: 'a_creer', lien: { type: 'sujet', id: objet }, action: 'à créer à la main (' + e.titre + ')' });
     return { action: 'a_creer', registre: id, bloc: { dossier: sectionDe(t.dossier), titre: t.titre, modele: r.catalogue, premier_message: premier }, raison: e.message };
+  }
+}
+// v2.18 : $dev discuter <projet> [sujet] : un nouveau chat 💬 PROJET à chaque appel, jamais rouvert (contextes courts), lecture seule, relais par le lanceur.
+async function lancerDiscussion(cfg, { args, projet, resume, ligneCommande, r }) {
+  const p = projet || args[0]; if (!p) refuser('PROJET ABSENT', 'usage : $dev discuter <projet> [sujet]');
+  const connus = Object.keys(cfg.projets || {}); if (connus.length && !connus.includes(p)) refuser('PROJET INCONNU', p + ' (projets : ' + connus.join(', ') + ')');
+  const sujet = (projet ? args : args.slice(1)).join(' ').trim(); const d = new Date().toLocaleString('fr-FR', { timeZone: 'Europe/Paris', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).replace(' ', ' ').replace(':', 'h');
+  const objet = sujet || 'discussion du ' + d.replace(/\s+/g, ' ');
+  const consigne = (resume ? 'Fiche de lancement (seul contexte transmis) :\n' + resume + '\n\n' : '') + 'Commande : ' + ligneCommande + '. Tu es le chat de discussion 💬 PROJET du projet ' + p + ' : lis ' + path.join(RACINE, 'references', 'discuter.md').replace(/\\/g, '/') + ' et suis-le (lecture seule, relais par le lanceur avec --depuis-role PROJET). Charge le contexte décrit, présente-toi en 5 lignes au plus, puis attends la question de Paul.';
+  try {
+    const c = await ouvrirChatTravail(cfg, { role: 'PROJET', projet: p, objet, modele: r.modele, consigne });
+    return { action: 'cree', chat: c.chat, hote: c.delegue_a || cfg.hote, titre: c.titre, dossier: sectionDe(c.dossier), modele: r.modele, range: c.range ?? null, ligne: '→ ouvert : ' + c.titre + ' (' + nomCourt(r.modele) + ', ' + sectionDe(c.dossier) + ')' };
+  } catch (e) {
+    if (!(e instanceof Refus) || !['APP-SERVER INDISPONIBLE', 'CHAT NON CRÉÉ'].includes(e.titre)) throw e;
+    const t = titre('PROJET', p, objet); const id = 'a_creer-' + Date.now();
+    inscrireChat(cfg, { chat_id: id, titre: t.titre, role: 'PROJET', objet, projet: p, dossier: t.dossier, modele: r.catalogue, hote: cfg.hote, statut: 'a_creer', lien: { type: 'sujet', id: objet }, action: 'à créer à la main (' + e.titre + ')' });
+    return { action: 'a_creer', registre: id, bloc: { dossier: sectionDe(t.dossier), titre: t.titre, modele: r.catalogue, premier_message: '▣ ' + t.titre + '\nModèle     : ' + r.modele + '\n\n' + consigne }, raison: e.message };
   }
 }
 // ----- ménage -----
@@ -751,7 +770,7 @@ export function enregistrerArchi(cfg, id, modele) {
   return inscrireChat(cfg, { chat_id: id, role: 'ARCHI', titre: TITRE_ARCHI, objet: 'workflow', projet: 'workflow', dossier: DOSSIERS.ARCHI, modele: modele || reg[id]?.modele || modeleArchi(cfg), hote: 'local', lien: { type: 'sujet', id: 'workflow' }, statut: 'actif', action: 'chat ARCHI enregistré' });
 }
 // ----- ménage -----
-const PASTILLE_ROLE = /^(🟢|🟠|🔷|🔵|🟣|🎨|🧪|⚙️|📘|❓|🏛\uFE0F?)\s(AUTO|SUP|MS|DEV|CADRE|PROTO|TEST|RELAIS|BILAN|AIDE|ARCHI)\s·\s(.+)$/u;
+const PASTILLE_ROLE = /^(🟢|🟠|🔷|🔵|🟣|🎨|🧪|⚙️|📘|❓|💬|🏛\uFE0F?)\s(AUTO|SUP|MS|DEV|CADRE|PROTO|TEST|RELAIS|BILAN|AIDE|PROJET|ARCHI)\s·\s(.+)$/u;
 function taillesSessions(racine, ids = null) {
   const voulus = ids ? new Set(ids) : null; const chemins = {}; const pile = [racine];
   while (pile.length) { const d = pile.pop(); let l = []; try { l = fs.readdirSync(d, { withFileTypes: true }); } catch { continue; }
@@ -882,7 +901,7 @@ export function regleAcces(cfg, id) {
 }
 export async function ouvrirChatTravail(cfg, { role, projet, objet, modele, cwd, consigne, campagne = null, issue = null, effort = 'medium', hote = null, livraison = false }) {
   if (hote === 'local' || livraison) refuser('CHAT LOCAL INDISPONIBLE', (livraison ? 'chat de livraison' : 'chat local') + ' demandé pour ' + projet + ' : ' + MESSAGE_CHAT_LOCAL, 6);
-  role = String(role).toUpperCase(); if (!['DEV', 'TEST', 'CADRE', 'PROTO', 'MS', 'RELAIS', 'BILAN'].includes(role)) refuser('RÔLE INCONNU', role + ' (chats de travail : DEV, TEST, CADRE, PROTO, MS ; campagnes : pilote.mjs chat)');
+  role = String(role).toUpperCase(); if (!['DEV', 'TEST', 'CADRE', 'PROTO', 'MS', 'RELAIS', 'BILAN', 'PROJET'].includes(role)) refuser('RÔLE INCONNU', role + ' (chats de travail : DEV, TEST, CADRE, PROTO, MS ; campagnes : pilote.mjs chat)');
   if (!modele) refuser('MODÈLE ABSENT', 'passer --modele <id issu du routeur>');
   if (!cfg.appServerSocket && !cfg.appServerFactice) {
     if (!cfg.ssh?.atelier || !cfg.pilote_atelier) refuser('APP-SERVER INDISPONIBLE', 'aucun app-server joignable sur cet hôte : Paul doit renseigner appServerSocket, ou ssh.atelier et pilote_atelier dans poste.local.json');
@@ -1105,7 +1124,7 @@ export function chatsAArchiver(cfg, maintenant = new Date()) {
     // ou par 48 h d'inactivité (chats.inactif_archive_heures), sauf attente du GO de Paul et chat DEV d'une issue ouverte.
     const issue = x.lien?.type === 'issue' ? x.lien.id : x.issue || (RE_ID_ISSUE.test(x.objet || '') ? x.objet : (String(x.objet || '').match(/\b[A-Z][A-Z0-9]*-\d+\b/) || [])[0] || null);
     const fini = x.statut === 'clos' || /✅\s*$/.test(t); const issueClose = !!issue && etatIssue[issue] === 'close'; const issueOuverte = !!issue && !!etatIssue[issue] && !issueClose;
-    const age = depuisH(x.derniere_ligne_le || x.derniere_activite || x.cree_le); const inactifH = cfg.chats?.inactif_archive_heures ?? 48;
+    const age = depuisH(x.derniere_ligne_le || x.derniere_activite || x.cree_le); const inactifH = x.role === 'PROJET' ? (cfg.chats?.discussion_archive_heures ?? 24) : (cfg.chats?.inactif_archive_heures ?? 48); // v2.18 : discussions rangées après 24 h
     const enGo = x.statut === 'attente_go' || /⏸/.test(String(x.ligne_etat || '')) || /⏸ GO\s*$/u.test(t);
     let motif = null;
     if (issueClose && age >= h) motif = 'issue ' + issue + ' close';
@@ -1382,7 +1401,7 @@ export const COMMANDES = {
   iteration: ['iteration.md', 'DEV'], finaliser: ['finalisation.md', 'inline'], cadrage: ['cadrage.md', 'CADRE'], 'cadrage-court': ['cadrage-court.md', 'inline'],
   projet: ['projet.md', 'inline'], digest: ['campagne.md', 'inline'], prototype: ['prototype.md', 'PROTO'], test: ['test.md', 'inline ou TEST'],
   nettoyeur: ['nettoyeur.md', 'RELAIS'], aide: ['aide.md', 'AIDE'], menage: ['menage.md', 'inline'], lancer: ['lanceur.md', 'inline'], livrer: ['livraison.md', 'SUP'], cloture: ['cloture.md', 'BILAN'], pause: ['campagne.md', 'inline'], reprendre: ['campagne.md', 'inline'], etat: [null, 'inline'], modele: ['modeles.md', 'inline'],
-  archi: ['archi.md', 'ARCHI'], evolution: ['archi.md', 'ARCHI'], poste: ['poste.md', 'inline'],
+  archi: ['archi.md', 'ARCHI'], evolution: ['archi.md', 'ARCHI'], poste: ['poste.md', 'inline'], discuter: ['discuter.md', 'PROJET'],
 };
 export function contrat(commande) {
   if (commande === 'img2code') refuser('COMMANDE NON REPRISE', 'img2code reste dans l’archive');
@@ -1786,7 +1805,7 @@ function tenirVerrouVoie(f) { // null : la voie est à ce processus ; sinon le p
   catch (e) { if (e.code !== 'EEXIST') throw e; const pid = Number(fs.readFileSync(f, 'utf8')); let vivant = false; try { process.kill(pid, 0); vivant = pid !== process.pid; } catch {} if (vivant) return pid; fs.writeFileSync(f, String(process.pid)); return null; }
 }
 // ---------- v2.16 : archivage automatique des chats du poste par la passerelle (app-server local) ----------
-const ROLE_TRAVAIL = /^(🔵 DEV|🟣 CADRE|🎨 PROTO|⚙️ RELAIS|🧪 TEST|📘 BILAN|🟢 AUTO|🟠 SUP|🟡 MS)\s·/u;
+const ROLE_TRAVAIL = /^(🔵 DEV|🟣 CADRE|🎨 PROTO|⚙️ RELAIS|🧪 TEST|📘 BILAN|🟢 AUTO|🟠 SUP|🟡 MS|💬 PROJET)\s·/u;
 export function clientAppServerLocal(cfg) {
   const exe = cfg.codexExecutable; if (!exe || !fs.existsSync(exe)) throw new Error('codexExecutable introuvable');
   const p = spawn(exe, ['app-server'], { stdio: ['pipe', 'pipe', 'ignore'], windowsHide: true });

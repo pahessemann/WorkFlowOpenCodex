@@ -2437,6 +2437,74 @@
         "code": 2,
         "contient": "MODE INCONNU"
       }
+    },
+    {
+      "id": "discuter-nouveau-chat",
+      "commande": "$dev discuter relancé : un second chat 💬 PROJET est créé, jamais rouvert (v2.18)",
+      "config": {
+        "hote": "atelier",
+        "deploiement_serveurs": false,
+        "execution": {
+          "sandbox": "danger-full-access",
+          "approvalPolicy": "never"
+        },
+        "appServerFactice": "as.jsonl",
+        "projets": {
+          "deployeur": {
+            "chemin": "."
+          }
+        }
+      },
+      "avant": [
+        [
+          "lancer",
+          "discuter",
+          "deployeur",
+          "registre",
+          "--fiche",
+          "Paul : $dev discuter deployeur registre"
+        ]
+      ],
+      "argv": [
+        "lancer",
+        "discuter",
+        "deployeur",
+        "registre",
+        "--fiche",
+        "Paul : $dev discuter deployeur registre"
+      ],
+      "attendu": {
+        "code": 0,
+        "contient": "\"chat\": \"factice-2\""
+      }
+    },
+    {
+      "id": "discuter-sans-projet",
+      "commande": "$dev discuter sans projet : refusé (v2.18)",
+      "config": {
+        "hote": "atelier",
+        "deploiement_serveurs": false,
+        "execution": {
+          "sandbox": "danger-full-access",
+          "approvalPolicy": "never"
+        },
+        "appServerFactice": "as.jsonl",
+        "projets": {
+          "deployeur": {
+            "chemin": "."
+          }
+        }
+      },
+      "argv": [
+        "lancer",
+        "discuter",
+        "--fiche",
+        "x"
+      ],
+      "attendu": {
+        "code": 2,
+        "contient": "PROJET ABSENT"
+      }
     }
   ]
 }

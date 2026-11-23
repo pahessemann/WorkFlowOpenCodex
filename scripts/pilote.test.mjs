@@ -1054,3 +1054,22 @@ test('2.17 : modes de fournisseur, cadreurs sur Fable 5.1, mode auto, chats exis
   P.decision(c, 'boucle', 'DEV-1', 'Conclusion du cadreur : rejouer la recette avec le jeu corrigé ; réservé à Paul : non'); assert.equal(P.gardeBoucle(c, 'boucle', 'DEV-1', 'tests', { maintenant: Date.now() + 1000 }).a_neuf_12h, 1, 'la conclusion du cadreur rouvre les essais');
   assert.equal(P.gardeBoucle(c, 'boucle', 'DEV-1', 'tests', { maintenant: Date.now() + 13 * 3600000 }).a_neuf_12h, 1, 'fenêtre de 12 h');
 });
+
+test('2.18 : $dev discuter ouvre toujours un nouveau chat 💬 PROJET sur Sonnet, délègue toujours, rangé après 24 h', async () => {
+  const c = configTest({ hote: 'atelier' }); c.appServerFactice = path.join(c.etat, 'app.jsonl'); c.projets = { 'projet-a': { chemin: c.etat } }; c.modeles.sous_agents = [HAIKU, SONNET, OPUS];
+  const a = await P.lancerCommande(c, { commande: 'discuter', args: ['projet-a'], depuisModele: SONNET });
+  const b = await P.lancerCommande(c, { commande: 'discuter', args: ['projet-a'] });
+  assert.equal(a.action, 'cree', 'jamais exécuté sur place, même depuis un chat Sonnet'); assert.equal(b.action, 'cree'); assert.notEqual(a.chat, b.chat, 'un nouveau chat à chaque appel');
+  assert.match(a.titre, /^💬 PROJET · projet-a · discussion du \d\d\/\d\d \d\dh\d\d$/); assert.equal(a.modele, SONNET); assert.equal(a.dossier, '00 Accueil');
+  const s = await P.lancerCommande(c, { commande: 'discuter', args: ['projet-a', 'les', 'exports'] }); assert.equal(s.titre, '💬 PROJET · projet-a · les exports');
+  const s2 = await P.lancerCommande(c, { commande: 'discuter', args: ['projet-a', 'les', 'exports'] }); assert.notEqual(s2.chat, s.chat, 'même sujet : nouveau chat quand même');
+  await assert.rejects(P.lancerCommande(c, { commande: 'discuter', args: [] }), (e) => e.titre === 'PROJET ABSENT');
+  await assert.rejects(P.lancerCommande(c, { commande: 'discuter', args: ['inconnu'] }), (e) => e.titre === 'PROJET INCONNU');
+  const relais = await P.lancerCommande(c, { commande: 'cadrage', args: ['exports'], depuisModele: FABLE51, depuisRole: 'PROJET', projet: 'projet-a', nouveau: true });
+  assert.equal(relais.action, 'cree', 'un chat 💬 PROJET délègue toujours'); assert.match(relais.titre, /^🟣 CADRE · projet-a · exports/);
+  const app = fs.readFileSync(c.appServerFactice, 'utf8'); assert.match(app, /references\/discuter\.md/); assert.match(app, /--depuis-role PROJET/);
+  const reg = P.lireRegistreChats(c); assert.equal(reg[a.chat].role, 'PROJET');
+  const plus = (h) => new Date(Date.now() + h * 3600000);
+  const ids25 = P.chatsAArchiver(c, plus(25)).map((x) => x.chat); assert.ok(ids25.includes(a.chat) && ids25.includes(s.chat), 'discussion inactive 24 h : rangée'); assert.ok(!ids25.includes(relais.chat), 'cadreur : 48 h');
+  assert.ok(!P.chatsAArchiver(c, plus(23)).some((x) => x.chat === a.chat));
+});

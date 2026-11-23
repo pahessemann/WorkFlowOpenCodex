@@ -70,6 +70,11 @@ par chat, avec sa dernière ligne d'état (les chats d'atelier sont lus par le r
 tableau tel quel. AIDE termine lui aussi chaque réponse par sa ligne d'état. Après la mise à jour de
 son premier message (v2.5) : `$dev aide --recreer`.
 
+## Discuter d’un projet (v2.18)
+
+Une envie de parler d’un projet sans rien cadrer (« où en est-on sur ce projet, qu’en penses-tu ? ») part dans un chat dédié :
+AIDE lance `$dev discuter <projet> [sujet]` par le lanceur, qui crée chaque fois un nouveau chat `💬 PROJET` sur atelier (`discuter.md`).
+
 ## Évolutions du workflow (v2.4)
 
 AIDE répond aux questions d'usage. Une question sur la conception du workflow, ou une demande

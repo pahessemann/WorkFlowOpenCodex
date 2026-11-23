@@ -1,5 +1,9 @@
 # Changelog du socle public
 
+## 2.18 — 23/11/2026
+
+`$dev discuter <projet> [sujet]` : un nouveau chat de discussion `💬 PROJET` à chaque appel, en lecture seule, qui charge le contexte du projet et confie au lanceur toute action demandée ; rangé après 24 h sans activité. 102 évaluations, 81 tests.
+
 ## 2.17 — 23/11/2026
 
 Modes de fournisseur `$dev fournisseur claude|mixte|gpt|auto` (tout Claude, revues et tests chez OpenAI, tout GPT, ou bascule selon l'abonnement), cadreurs sur Fable 5.1, relevé horaire de l'abonnement dans `$dev point`, orchestrateurs plus légers (100 k) et garde de boucle avant cadreur. 100 évaluations, 80 tests.
