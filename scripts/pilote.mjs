@@ -15,7 +15,7 @@ export const ETATS_ISSUE = ['en_attente', 'preflight', 'en_cours', 'revue', 'rec
 export const ETATS_CAMPAGNE = ['brouillon', 'en_cours', 'en_pause', 'close'];
 export const CRITICITES = ['leger', 'standard', 'sensible'];
 export const MAX_ESSAIS = 3;
-export const VERSION = '2.18';
+export const VERSION = '2.18.1';
 const PASTILLES = { AUTO: '🟢', SUP: '🟠', MS: '🔷', DEV: '🔵', CADRE: '🟣', PROTO: '🎨', TEST: '🧪', RELAIS: '⚙️', BILAN: '📘', AIDE: '❓', ARCHI: '🏛', PROJET: '💬' };
 const DOSSIERS = { AUTO: '01 Campagnes', SUP: '01 Campagnes', MS: '01 Campagnes', DEV: '02 Développement', CADRE: '03 Cadrage & prototypes', PROTO: '03 Cadrage & prototypes', TEST: '04 Relais & maintenance', RELAIS: '04 Relais & maintenance', BILAN: '04 Relais & maintenance', AIDE: '00 Accueil', ARCHI: '00 Accueil', PROJET: '00 Accueil' };
 export const TITRE_ARCHI = '🏛 ARCHI · workflow';
@@ -668,7 +668,7 @@ async function rangerChat(cfg, s, chat, dossier) {
 export const LANCEUR = { cadrage: { role: 'CADRE', tache: 'cadrage' }, prototype: { role: 'PROTO', tache: 'prototype' }, issue: { role: 'DEV', tache: 'dev' }, iteration: { role: 'DEV', tache: 'dev' },
   milestone: { role: 'MS', tache: 'pilotage' }, test: { role: 'TEST', tache: 'recette-milestone' }, cloture: { role: 'BILAN', tache: 'finalisation' }, nettoyeur: { role: 'RELAIS', tache: 'automatisation', criticite: 'leger' },
   'cadrage-court': { inline: true, tache: 'cadrage' }, finaliser: { inline: true, tache: 'finalisation' }, projet: { inline: true, tache: 'cadrage' }, menage: { inline: true, tache: 'pilotage', criticite: 'leger' },
-  archi: { role: 'ARCHI', fixe: true }, evolution: { role: 'ARCHI', fixe: true }, poste: { direct: true }, discuter: { role: 'PROJET', tache: 'discussion', nouveau: true }, // v2.18 : toujours un nouveau chat
+  archi: { role: 'ARCHI', fixe: true }, evolution: { role: 'ARCHI', fixe: true }, poste: { direct: true }, discuter: { role: 'PROJET', tache: 'discussion', nouveau: true }, discute: { role: 'PROJET', tache: 'discussion', nouveau: true }, discussion: { role: 'PROJET', tache: 'discussion', nouveau: true }, // v2.18 : toujours un nouveau chat ; v2.18.1 : alias
   digest: { direct: true }, etat: { direct: true }, point: { direct: true }, modele: { direct: true }, aide: { direct: true }, livrer: { direct: true }, pause: { direct: true }, reprendre: { direct: true }, campagne: { direct: true } };
 function registresFusionnes(cfg) {
   const local = Object.fromEntries(Object.entries(lireRegistreChats(cfg)).map(([k, v]) => [k, { ...v, chat_id: k, hote: v.hote || cfg.hote }]));
@@ -720,11 +720,11 @@ export async function lancerCommande(cfg, { commande, args = [], depuisModele = 
 }
 // v2.18 : $dev discuter <projet> [sujet] : un nouveau chat 💬 PROJET à chaque appel, jamais rouvert (contextes courts), lecture seule, relais par le lanceur.
 async function lancerDiscussion(cfg, { args, projet, resume, ligneCommande, r }) {
-  const p = projet || args[0]; if (!p) refuser('PROJET ABSENT', 'usage : $dev discuter <projet> [sujet]');
-  const connus = Object.keys(cfg.projets || {}); if (connus.length && !connus.includes(p)) refuser('PROJET INCONNU', p + ' (projets : ' + connus.join(', ') + ')');
-  const sujet = (projet ? args : args.slice(1)).join(' ').trim(); const d = new Date().toLocaleString('fr-FR', { timeZone: 'Europe/Paris', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).replace(' ', ' ').replace(':', 'h');
+  const connus = Object.keys(cfg.projets || {}); if (projet && connus.length && !connus.includes(projet) && projet !== 'general') refuser('PROJET INCONNU', projet + ' (projets : ' + connus.join(', ') + ')');
+  const premier = !projet && args[0] && connus.includes(args[0]) ? args[0] : null; const p = projet || premier || 'general'; // v2.18.1 : sans projet connu, discussion générale sur les projets en cours
+  const sujet = (premier ? args.slice(1) : args).join(' ').trim(); const d = new Date().toLocaleString('fr-FR', { timeZone: 'Europe/Paris', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }).replace(' ', ' ').replace(':', 'h');
   const objet = sujet || 'discussion du ' + d.replace(/\s+/g, ' ');
-  const consigne = (resume ? 'Fiche de lancement (seul contexte transmis) :\n' + resume + '\n\n' : '') + 'Commande : ' + ligneCommande + '. Tu es le chat de discussion 💬 PROJET du projet ' + p + ' : lis ' + path.join(RACINE, 'references', 'discuter.md').replace(/\\/g, '/') + ' et suis-le (lecture seule, relais par le lanceur avec --depuis-role PROJET). Charge le contexte décrit, présente-toi en 5 lignes au plus, puis attends la question de Paul.';
+  const consigne = (resume ? 'Fiche de lancement (seul contexte transmis) :\n' + resume + '\n\n' : '') + 'Commande : ' + ligneCommande + '. Tu es le chat de discussion 💬 PROJET ' + (p === 'general' ? 'général (tous les projets en cours : point de toutes les campagnes en cours, sans PROJECT.md particulier)' : 'du projet ' + p) + ' : lis ' + path.join(RACINE, 'references', 'discuter.md').replace(/\\/g, '/') + ' et suis-le (lecture seule, relais par le lanceur avec --depuis-role PROJET). Charge le contexte décrit, présente-toi en 5 lignes au plus, puis attends la question de Paul.';
   try {
     const c = await ouvrirChatTravail(cfg, { role: 'PROJET', projet: p, objet, modele: r.modele, consigne });
     return { action: 'cree', chat: c.chat, hote: c.delegue_a || cfg.hote, titre: c.titre, dossier: sectionDe(c.dossier), modele: r.modele, range: c.range ?? null, ligne: '→ ouvert : ' + c.titre + ' (' + nomCourt(r.modele) + ', ' + sectionDe(c.dossier) + ')' };
@@ -1401,7 +1401,7 @@ export const COMMANDES = {
   iteration: ['iteration.md', 'DEV'], finaliser: ['finalisation.md', 'inline'], cadrage: ['cadrage.md', 'CADRE'], 'cadrage-court': ['cadrage-court.md', 'inline'],
   projet: ['projet.md', 'inline'], digest: ['campagne.md', 'inline'], prototype: ['prototype.md', 'PROTO'], test: ['test.md', 'inline ou TEST'],
   nettoyeur: ['nettoyeur.md', 'RELAIS'], aide: ['aide.md', 'AIDE'], menage: ['menage.md', 'inline'], lancer: ['lanceur.md', 'inline'], livrer: ['livraison.md', 'SUP'], cloture: ['cloture.md', 'BILAN'], pause: ['campagne.md', 'inline'], reprendre: ['campagne.md', 'inline'], etat: [null, 'inline'], modele: ['modeles.md', 'inline'],
-  archi: ['archi.md', 'ARCHI'], evolution: ['archi.md', 'ARCHI'], poste: ['poste.md', 'inline'], discuter: ['discuter.md', 'PROJET'],
+  archi: ['archi.md', 'ARCHI'], evolution: ['archi.md', 'ARCHI'], poste: ['poste.md', 'inline'], discuter: ['discuter.md', 'PROJET'], discute: ['discuter.md', 'PROJET'], discussion: ['discuter.md', 'PROJET'],
 };
 export function contrat(commande) {
   if (commande === 'img2code') refuser('COMMANDE NON REPRISE', 'img2code reste dans l’archive');
@@ -1436,6 +1436,7 @@ export function premierMessageAide(cfg, modele) {
     '- Si une question révèle un manque ou une contradiction dans le workflow, je le signale', '  en une ligne commençant par « ⚠ Workflow : ».',
     '- Une question ou une demande d\'évolution du workflow lui-même va vers 🏛 ARCHI · workflow :', '  je lance $dev evolution <sujet> (ou $dev archi) par le lanceur, qui rouvre ce chat sans doublon.',
     '- « Où en sont mes chats ? » : je lis le dernier message des chats locaux (read_thread), puis je passe [{ id, titre, dernier_message }] sur l\'entrée standard de node ' + (cfg.pilote || path.join(RACINE, 'scripts', 'pilote.mjs')) + ' etat chats --chats-stdin (aucun fichier écrit) ; je recopie le tableau.',
+    '- $dev discuter [projet] [sujet] (ou $dev discute, ou « je veux discuter d\'un projet ») : je le lance par le lanceur comme toute commande ; il ouvre à chaque fois un nouveau chat 💬 PROJET sur atelier (sans projet : discussion générale sur les projets en cours) ; je réponds par sa ligne « → ouvert : … ».',
     '- $dev point [campagne…], ou « où en sont les campagnes, qu\'est-ce qui bloque, combien de temps reste-t-il ? » : seule commande que j\'exécute moi-même, car elle n\'écrit rien : node ' + (cfg.pilote || path.join(RACINE, 'scripts', 'pilote.mjs')) + ' point [campagne…] --texte ; je recopie sa sortie telle quelle, sans rien ajouter ni retirer.', '- ' + REGLE_LIGNE_ETAT,
     '- Si la réponse n\'est pas dans SKILL.md, je le dis au lieu d\'inventer.'].join('\n');
 }

@@ -1,5 +1,8 @@
 # 💬 PROJET — discuter d'un projet sans rien déclencher (v2.18)
 
+Alias (v2.18.1) : `$dev discute`, `$dev discussion`. Sans projet connu en premier argument, la discussion est **générale** :
+`💬 PROJET · general · <sujet ou date>`, contexte = point de toutes les campagnes en cours, sans `PROJECT.md` particulier.
+
 `$dev discuter <projet> [sujet]` ouvre **à chaque appel un nouveau chat** `💬 PROJET · <projet> · <sujet ou « discussion du JJ/MM HHhMM »>`,
 sur atelier, dans `00 Accueil`, avec le modèle du routeur (`discussion standard` : Sonnet 5.5 ; Sol en mode `gpt`). Un chat de
 discussion n'est jamais rouvert par la commande : on repart d'un contexte court. Il est rangé dans `99 Archives` après 24 h sans

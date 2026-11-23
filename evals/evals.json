@@ -2480,7 +2480,7 @@
     },
     {
       "id": "discuter-sans-projet",
-      "commande": "$dev discuter sans projet : refusé (v2.18)",
+      "commande": "$dev discute sans projet : discussion générale ouverte (v2.18.1)",
       "config": {
         "hote": "atelier",
         "deploiement_serveurs": false,
@@ -2497,13 +2497,13 @@
       },
       "argv": [
         "lancer",
-        "discuter",
+        "discute",
         "--fiche",
         "x"
       ],
       "attendu": {
-        "code": 2,
-        "contient": "PROJET ABSENT"
+        "code": 0,
+        "contient": "💬 PROJET · general · discussion du"
       }
     }
   ]

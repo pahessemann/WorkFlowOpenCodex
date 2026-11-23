@@ -1063,8 +1063,9 @@ test('2.18 : $dev discuter ouvre toujours un nouveau chat 💬 PROJET sur Sonnet
   assert.match(a.titre, /^💬 PROJET · projet-a · discussion du \d\d\/\d\d \d\dh\d\d$/); assert.equal(a.modele, SONNET); assert.equal(a.dossier, '00 Accueil');
   const s = await P.lancerCommande(c, { commande: 'discuter', args: ['projet-a', 'les', 'exports'] }); assert.equal(s.titre, '💬 PROJET · projet-a · les exports');
   const s2 = await P.lancerCommande(c, { commande: 'discuter', args: ['projet-a', 'les', 'exports'] }); assert.notEqual(s2.chat, s.chat, 'même sujet : nouveau chat quand même');
-  await assert.rejects(P.lancerCommande(c, { commande: 'discuter', args: [] }), (e) => e.titre === 'PROJET ABSENT');
-  await assert.rejects(P.lancerCommande(c, { commande: 'discuter', args: ['inconnu'] }), (e) => e.titre === 'PROJET INCONNU');
+  const g = await P.lancerCommande(c, { commande: 'discute', args: [] }); assert.match(g.titre, /^💬 PROJET · general · discussion du /, 'alias discute, sans projet : discussion générale');
+  assert.equal((await P.lancerCommande(c, { commande: 'discuter', args: ['les', 'priorités'] })).titre, '💬 PROJET · general · les priorités');
+  await assert.rejects(P.lancerCommande(c, { commande: 'discuter', args: [], projet: 'inconnu' }), (e) => e.titre === 'PROJET INCONNU');
   const relais = await P.lancerCommande(c, { commande: 'cadrage', args: ['exports'], depuisModele: FABLE51, depuisRole: 'PROJET', projet: 'projet-a', nouveau: true });
   assert.equal(relais.action, 'cree', 'un chat 💬 PROJET délègue toujours'); assert.match(relais.titre, /^🟣 CADRE · projet-a · exports/);
   const app = fs.readFileSync(c.appServerFactice, 'utf8'); assert.match(app, /references\/discuter\.md/); assert.match(app, /--depuis-role PROJET/);

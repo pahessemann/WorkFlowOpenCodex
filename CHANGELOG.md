@@ -1,5 +1,9 @@
 # Changelog du socle public
 
+## 2.18.1 — 23/11/2026
+
+Alias `$dev discute` et `$dev discussion` ; sans projet, une discussion générale sur les projets en cours ; le chat d'aiguillage nomme la commande. 102 évaluations, 81 tests.
+
 ## 2.18 — 23/11/2026
 
 `$dev discuter <projet> [sujet]` : un nouveau chat de discussion `💬 PROJET` à chaque appel, en lecture seule, qui charge le contexte du projet et confie au lanceur toute action demandée ; rangé après 24 h sans activité. 102 évaluations, 81 tests.
