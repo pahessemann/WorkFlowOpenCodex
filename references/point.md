@@ -7,7 +7,7 @@ ce que Paul doit faire, et le temps restant. Lecture seule : elle n'écrit rien 
 
 - Dans `❓ AIDE` : AIDE l'exécute lui-même, seule exception à sa délégation, car elle n'écrit rien.
 - Dans tout chat du workflow, `🏛 ARCHI` compris. Pas de chat dédié.
-- Commande : `node <pilote> point [campagne…] --texte`, puis recopier la sortie telle quelle, sans rien
+- Commande : `node <pilote> point [campagne…] --texte`, puis recopier la sortie telle quelle, en texte normal (ni bloc de code, ni `<pre>`), sans rien
   ajouter ni retirer. Sans nom : toutes les campagnes `en_cours` ; avec des noms : celles-ci, même en pause.
 - Sur le poste, le script interroge atelier par SSH (`registre_distant`) ; les chiffres sont ceux d'atelier.
 

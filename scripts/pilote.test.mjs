@@ -962,8 +962,8 @@ test('2.10 : bloc d’état rendu par le script, Toi en premier, dernière ligne
   const longue = P.ligneEtat(at, 'k').bloc.split('\n')[1]; assert.ok(longue.length < 175 && /…/.test(longue) && /→ débloque 2 issue\(s\)$/.test(longue), 'action longue coupée sur un mot : ' + longue);
   assert.equal(lignes[2], '- 🤖 Agents (2) : DEV-2 démarrage · DEV-3 revue');
   assert.ok(lignes.includes('- 🕓 À venir (2) : 2 attendent leurs dépendances'));
-  assert.ok(lignes.includes('- ⛔ Bloquée (1) : DEV-4 (toi)'));
-  assert.equal(e.ligne, '▶ EN COURS · 2 agent(s) au travail · 2 à venir · 1 bloquée(s) · Toi : 1 action(s), voir 👤 Toi');
+  assert.ok(!lignes.some((x) => x.startsWith('- ⛔')), '2.21.1 : une bloquée qui attend Paul n’apparaît que dans 👤 Toi');
+  assert.equal(e.ligne, '▶ EN COURS · 2 agent(s) au travail · 2 à venir · Toi : DEV-4 · installer PowerShell 7 sur le poste');
   { const f = P.ligneEtat(at, 'k'); assert.equal(P.executer(['ligne-etat', 'k', '--texte'], at).__texte, f.bloc + '\n\n' + f.ligne); }
   assert.match(e.detail, /décider pour DEV-4/, 'la ligne détaillée reste disponible');
   P.statutIssue(at, 'k', 'DEV-3', 'fusionnee'); assert.match(P.ligneEtat(at, 'k').bloc, /🤖 Agents \(2\) : DEV-2 démarrage · DEV-3 à recetter/, '2.11.2 : une issue fusionnée à recetter reste visible');
@@ -1176,4 +1176,18 @@ test('2.21 : une revue favorable inscrite suffit pour empiler, et se perd au ret
   P.decision(at, 'k', 'R', 'DÉFAVORABLE : critère 2 non couvert'); assert.equal(i('R').revue_favorable, undefined);
   assert.equal(code(() => P.revueIssue(at, 'k', 'S', 'favorable')), 'REVUE HORS STATUT');
   assert.match(P.contexte(at, 'k').consigne, /pilote\.mjs revue <campagne> <ID> favorable/);
+});
+
+test('2.21.1 : bloc lisible, issue arrêtée hors admissibles, action de Paul en clair dans la ligne courte', () => {
+  const at = configTest({ hote: 'atelier', deploiement_serveurs: false, gh: false });
+  fs.mkdirSync(path.join(at.etat, 'campagnes'), { recursive: true });
+  const it = (id, statut, extra = {}) => ({ type: 'issue_standalone', linear_id: id, statut, blocked_by: [], ...extra });
+  fs.writeFileSync(path.join(at.etat, 'campagnes', 'q.json'), JSON.stringify({ id: 'q', projet: 'p', mode: 'auto', statut: 'en_cours', items: [it('DEV-1431', 'bloquee'), it('DEV-1413', 'en_attente'), it('DEV-1437', 'en_attente')] }));
+  P.executer(['arret', 'q', 'DEV-1431', '--attend', 'paul', '--quoi', 'fusionner la PR #145 vers main', '--reserve', 'fusion dans main du déployeur'], at);
+  P.executer(['arret', 'q', 'DEV-1413', '--attend', 'agents', '--quoi', 'close sans fusion après fusion de DEV-1431'], at);
+  const e = P.ligneEtat(at, 'q'); const lignes = e.bloc.split('\n');
+  assert.ok(lignes.includes('- 🕓 À venir (2) : admissibles DEV-1437 · en attente DEV-1413 (close sans fusion après fusion de DEV-1431)'), e.bloc);
+  assert.ok(!/0 attendent|⛔/.test(e.bloc), e.bloc);
+  assert.equal(e.ligne, '▶ EN COURS · 1 admissible(s) · 1 en attente · Toi : DEV-1431 · fusionner la PR #145 vers main');
+  assert.match(P.contexte(at, 'q').consigne, /ni balise <pre>/);
 });

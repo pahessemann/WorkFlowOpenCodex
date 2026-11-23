@@ -65,7 +65,7 @@ contrat est mise de côté et signalée dans le digest.
 - Une issue de `poste_a_debloquer` a atteint le plafond des échecs d'environnement au poste : ne la redépose pas, elle attend une action de Paul (v2.5.4). Une admission peut être différée par la garde CPU : réessaie au réveil suivant.
 - Une issue de `exclues_poste` a été retirée de la passerelle par Paul : ni redéposée, ni admise ; elle attend Paul (`poste retirer`, v2.5.1).
 - Chaque message final de l'orchestrateur se termine par la sortie de `node <pilote> ligne-etat <campagne> --texte` (bloc d'état puis
-  ligne courte), recopiée à l'identique ; au-dessus, 5 lignes au plus « Depuis le dernier tour » ; aucune action de Paul
+  ligne courte), recopiée à l'identique en texte normal (ni bloc de code, ni `<pre>`) ; au-dessus, 5 lignes au plus « Depuis le dernier tour » ; aucune action de Paul
   hors de la rubrique 👤 Toi (SKILL.md §2.3 bis, v2.10).
 
 ## Interruptions
