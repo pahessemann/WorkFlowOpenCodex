@@ -957,10 +957,10 @@ test('2.10 : bloc d’état rendu par le script, Toi en premier, dernière ligne
   P.executer(['arret', 'k', 'DEV-4', '--attend', 'paul', '--quoi', 'installer PowerShell 7 sur le poste', '--reserve', 'installation sur le poste de Paul'], at);
   const e = P.ligneEtat(at, 'k'); const lignes = e.bloc.split('\n');
   assert.equal(lignes[0], '**k** · 1/6 closes · ▶ EN COURS');
-  assert.match(lignes[1], /^- 👤 Toi \(1\) : 1\. DEV-4 · installer PowerShell 7 sur le poste → débloque 2 issue\(s\)$/, 'Toi en premier, avec ce que l’action débloque');
+  assert.equal(lignes[1], '- 👤 **À toi (1)** :'); assert.equal(lignes[2], '  1. DEV-4 · installer PowerShell 7 sur le poste → débloque 2 issue(s)', 'Toi en premier, une action par ligne, avec ce qu’elle débloque');
   P.executer(['arret', 'k', 'DEV-4', '--attend', 'paul', '--quoi', 'Action root sur le dispositif : ajouter « archives » au script appliquer, correctif prêt dans le dossier de qualification ; réponse proposée : oui, option A réversible', '--reserve', 'root'], at);
-  const longue = P.ligneEtat(at, 'k').bloc.split('\n')[1]; assert.ok(longue.length < 175 && /…/.test(longue) && /→ débloque 2 issue\(s\)$/.test(longue), 'action longue coupée sur un mot : ' + longue);
-  assert.equal(lignes[2], '- 🤖 Agents (2) : DEV-2 démarrage · DEV-3 revue');
+  const longue = P.ligneEtat(at, 'k').bloc.split('\n')[2]; assert.ok(longue.length < 205 && /…/.test(longue) && /→ débloque 2 issue\(s\)$/.test(longue), 'action longue coupée sur un mot : ' + longue);
+  assert.equal(lignes[3], '- 🤖 Agents (2) : DEV-2 démarrage · DEV-3 revue');
   assert.ok(lignes.includes('- 🕓 À venir (2) : 2 attendent leurs dépendances'));
   assert.ok(!lignes.some((x) => x.startsWith('- ⛔')), '2.21.1 : une bloquée qui attend Paul n’apparaît que dans 👤 Toi');
   assert.equal(e.ligne, '▶ EN COURS · 2 agent(s) au travail · 2 à venir · Toi : DEV-4 · installer PowerShell 7 sur le poste');
@@ -968,7 +968,7 @@ test('2.10 : bloc d’état rendu par le script, Toi en premier, dernière ligne
   assert.match(e.detail, /décider pour DEV-4/, 'la ligne détaillée reste disponible');
   P.statutIssue(at, 'k', 'DEV-3', 'fusionnee'); assert.match(P.ligneEtat(at, 'k').bloc, /🤖 Agents \(2\) : DEV-2 démarrage · DEV-3 à recetter/, '2.11.2 : une issue fusionnée à recetter reste visible');
   P.statutIssue(at, 'k', 'DEV-4', 'en_cours');
-  assert.doesNotMatch(P.ligneEtat(at, 'k').bloc, /👤 Toi/, 'rubrique absente quand Paul n’a rien à faire'); assert.match(P.ligneEtat(at, 'k').ligne, /Toi : rien$/);
+  assert.doesNotMatch(P.ligneEtat(at, 'k').bloc, /👤/, 'rubrique absente quand Paul n’a rien à faire'); assert.match(P.ligneEtat(at, 'k').ligne, /Toi : rien$/);
 });
 
 
@@ -991,9 +991,9 @@ test('2.11 : demandes à l’exécutant de l’hôte, rubrique 🛠, refus remon
   assert.match(P.ligneEtat(at, 'k').bloc, /🛠 Exécutant \(2\) : DEV-1 root-atelier \(en attente\) · DEV-2 serveur-cli \(en attente\)/);
   fs.mkdirSync(path.join(at.etat, 'executant', 'resultats'), { recursive: true });
   fs.writeFileSync(path.join(at.etat, 'executant', 'resultats', d.id + '.json'), JSON.stringify({ id: d.id, statut: 'refus', message: 'cible hors de la liste fermée', le: new Date().toISOString() }));
-  assert.doesNotMatch(P.ligneEtat(at, 'k').bloc, /👤 Toi/, '2.15.2 : un refus technique reste aux agents'); assert.match(P.ligneEtat(at, 'k').bloc, /DEV-1 root-atelier \(refusé\)/);
+  assert.doesNotMatch(P.ligneEtat(at, 'k').bloc, /👤/, '2.15.2 : un refus technique reste aux agents'); assert.match(P.ligneEtat(at, 'k').bloc, /DEV-1 root-atelier \(refusé\)/);
   fs.writeFileSync(path.join(at.etat, 'executant', 'resultats', d.id + '.json'), JSON.stringify({ id: d.id, statut: 'refus', message: 'aucun mandat root-atelier de Paul', le: new Date().toISOString() }));
-  assert.match(P.ligneEtat(at, 'k').bloc, /👤 Toi \(1\) : 1\. DEV-1 · exécutant root-atelier refusé : aucun mandat root-atelier de Paul/);
+  assert.match(P.ligneEtat(at, 'k').bloc, /👤 \*\*À toi \(1\)\*\* :\n  1\. DEV-1 · exécutant root-atelier refusé : aucun mandat root-atelier de Paul/);
   const c = P.lireCampagne(at, 'k'); const E = P.empreinteReprise(at, c);
   const dr = P.decisionReprise(at, { ...c, dernier_reveil: '2026-11-21T21:00:00Z', empreinte_repos: E, repos_le: '2026-11-21T21:35:00Z' }, { maintenant: new Date('2026-11-21T22:00:00Z') });
   assert.equal(dr.relancer, true); assert.match(dr.raison, /issues admises sans mouvement depuis 25 min/);

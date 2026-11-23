@@ -15,7 +15,7 @@ export const ETATS_ISSUE = ['en_attente', 'preflight', 'en_cours', 'revue', 'rec
 export const ETATS_CAMPAGNE = ['brouillon', 'en_cours', 'en_pause', 'close'];
 export const CRITICITES = ['leger', 'standard', 'sensible'];
 export const MAX_ESSAIS = 3;
-export const VERSION = '2.21.1';
+export const VERSION = '2.21.2';
 const PASTILLES = { AUTO: '🟢', SUP: '🟠', MS: '🔷', DEV: '🔵', CADRE: '🟣', PROTO: '🎨', TEST: '🧪', RELAIS: '⚙️', BILAN: '📘', AIDE: '❓', ARCHI: '🏛', PROJET: '💬' };
 const DOSSIERS = { AUTO: '01 Campagnes', SUP: '01 Campagnes', MS: '01 Campagnes', DEV: '02 Développement', CADRE: '03 Cadrage & prototypes', PROTO: '03 Cadrage & prototypes', TEST: '04 Relais & maintenance', RELAIS: '04 Relais & maintenance', BILAN: '04 Relais & maintenance', AIDE: '00 Accueil', ARCHI: '00 Accueil', PROJET: '00 Accueil' };
 export const TITRE_ARCHI = '🏛 ARCHI · workflow';
@@ -1579,15 +1579,15 @@ export function ligneEtat(cfg, nom) {
   const ex = etatExecutant(cfg, nom).filter((x) => x.statut === 'en_attente' || (x.le && Date.now() - Date.parse(x.le) < 86400000)); const exKo = ex.filter((x) => x.statut === 'refus' && /aucun mandat/i.test(x.message || '') && !ex.some((y) => y.issue === x.issue && y.type === x.type && y.statut === 'fait' && String(y.le) > String(x.le))); // v2.15.2 : seul un mandat manquant revient à Paul ; les autres échecs restent dans 🛠 Exécutant
   const court = (s, n = 110) => { s = net(s).replace(/\.$/, ''); if (s.length <= n) return s; const t = s.slice(0, n); return t.slice(0, Math.max(40, t.lastIndexOf(' '))) + '…'; };
   const toi = [...(c.statut === 'brouillon' ? ['valider le contrat, puis $dev campagne lancer ' + nom] : []), ...(c.attente_go ? [c.hote_livraison === 'local' ? 'donner ton GO, puis $dev livrer ' + nom + ' depuis le poste' : 'donner ton GO dans ce chat'] : []), ...(c.livraison_echec ? ['lire le journal de livraison, puis décider'] : []),
-    ...pourPaul.map((i) => i.linear_id + ' · ' + court(i.arret.quoi) + deb(i.linear_id)),
-    ...exclus.map((i) => i.linear_id + ' · ' + court(i.poste_exclu) + deb(i.linear_id)),
+    ...pourPaul.map((i) => i.linear_id + ' · ' + court(i.arret.quoi, 160) + deb(i.linear_id)),
+    ...exclus.map((i) => i.linear_id + ' · ' + court(i.poste_exclu, 160) + deb(i.linear_id)),
     ...debloquer.map((i) => i.linear_id + ' · débloquer le poste Windows : ' + court(i.poste_env_cause || 'voir le retour du poste', 80) + deb(i.linear_id)),
     ...(poste.length && posteAbsent && !travail.length ? ['ouvrir ta session sur le poste pour que la passerelle relève la file (' + liste(poste) + ')'] : []),
     ...exKo.map((x) => x.issue + ' · exécutant ' + x.type + (x.statut === 'refus' ? ' refusé : ' : ' en échec : ') + court(x.message || 'voir le journal', 90))];
   const icone = ligne.split(' ')[0]; const av = avancement(c); const attenteExt = dehors.filter((i) => i.arret.attend !== 'paul'); const bloqueesV = bloquees.filter((i) => i.arret?.attend !== 'paul'); // v2.21.1 : une bloquée qui t’attend est déjà dans 👤 Toi
   const agents = [...travail, ...l.filter((i) => i.statut === 'fusionnee' && !auPoste(i) && i.poste !== 'retour' && !i.poste_exclu)]; // v2.11.2 : les issues fusionnées à recetter restent visibles
   const bloc = ['**' + nom + '** · ' + av.closes + '/' + l.length + ' closes · ' + icone + ' ' + ETATS_LIGNE[icone],
-    ...(toi.length ? ['- 👤 Toi (' + toi.length + ') : ' + toi.map((t, k) => (k + 1) + '. ' + t).join(' · ')] : []),
+    ...(toi.length ? ['- 👤 **À toi (' + toi.length + ')** :', ...toi.map((t, k) => '  ' + (k + 1) + '. ' + t)] : []), // v2.21.2 : une action par ligne
     ...(ex.length ? ['- 🛠 Exécutant (' + ex.length + ') : ' + six(ex, (x) => x.issue + ' ' + x.type + ' (' + ({ en_attente: 'en attente', fait: 'fait', refus: 'refusé', echec: 'échec' }[x.statut] || x.statut) + ')')] : []),
     ...(agents.length ? ['- 🤖 Agents (' + agents.length + ') : ' + six(agents, (i) => i.linear_id + ' ' + (MOTS[i.statut] || i.statut))] : []),
     ...(poste.length || retours.length ? ['- 🪟 Poste Windows (' + poste.length + ')' + (poste.length ? ' : ' + six(poste, (i) => i.linear_id) : '') + (retours.length ? ' · retour à lire : ' + six(retours, (i) => i.linear_id) : '') + (posteAbsent ? ' · poste éteint' + (vu?.le ? ' depuis ' + new Date(vu.le).toLocaleString('fr-FR', { timeZone: 'Europe/Paris', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '') : '')] : []), // v2.11
@@ -1596,7 +1596,7 @@ export function ligneEtat(cfg, nom) {
     ...(bloqueesV.length ? ['- ⛔ Bloquée (' + bloqueesV.length + ') : ' + six(bloqueesV, (i) => i.linear_id + ' (' + (i.arret ? (i.arret.attend === 'paul' ? 'toi' : ATTENTES[i.arret.attend]) : i.cadreur ? 'cadreur' : 'à qualifier') + ')')] : [])].join('\n');
   const special = ['close', 'brouillon', 'en_pause'].includes(c.statut) || !!c.livraison_echec || !!c.attente_go || icone === '✅';
   const comptes = [agents.length ? agents.length + ' agent(s) au travail' : null, poste.length ? poste.length + ' au poste' : null, retours.length ? retours.length + ' retour(s) à lire' : null, eligibles.length ? eligibles.length + ' admissible(s)' : null, attenteExt.length + gelees.length ? (attenteExt.length + gelees.length) + ' en attente' : null, attente.length - eligibles.length - gelees.length ? (attente.length - eligibles.length - gelees.length) + ' à venir' : null, bloqueesV.length ? bloqueesV.length + ' bloquée(s)' : null].filter(Boolean);
-  const courte = special ? ligne : formatLigne(icone, comptes.join(' · ') || 'rien en cours', toi.length ? court(toi[0].replace(/ → débloque .*$/, ''), 90) + (toi.length > 1 ? ' (+' + (toi.length - 1) + ' dans 👤 Toi)' : '') : 'rien'); // v2.21.1 : l’action elle-même, plus de renvoi
+  const courte = special ? ligne : formatLigne(icone, comptes.join(' · ') || 'rien en cours', toi.length ? court(toi[0].replace(/ → débloque .*$/, ''), 90) + (toi.length > 1 ? ' (+' + (toi.length - 1) + ' dans À toi)' : '') : 'rien'); // v2.21.1 : l’action elle-même, plus de renvoi
   return { campagne: nom, ligne: courte, bloc, detail: ligne, texte: bloc + '\n\n' + courte };
 }
 

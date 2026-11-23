@@ -1,5 +1,9 @@
 # Changelog du socle public
 
+## 2.21.2 — 23/11/2026
+
+Les actions attendues de l'humain s'affichent une par ligne, sous « À toi » en gras. 104 évaluations, 92 tests.
+
 ## 2.21.1 — 23/11/2026
 
 Bloc d'état plus lisible : l'action attendue de l'humain en clair dans la dernière ligne, plus de doublon entre « Toi » et « Bloquée », issues arrêtées affichées « en attente », recopie sans bloc de code. 104 évaluations, 92 tests.

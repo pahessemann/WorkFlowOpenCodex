@@ -5,7 +5,7 @@ Un skill Codex qui organise le développement assisté par agents autour d'un pr
 (« atelier ») développe et teste, le poste Windows pilote, livre et fait les tests qui exigent
 Windows. Chaque chat dit d'un coup d'œil qui parle, sur quoi, et s'il faut agir.
 
-**Version actuelle : 2.21.1** (23/11/2026) — détail des versions dans [CHANGELOG.md](CHANGELOG.md), étiquettes Git `vX.Y.Z`.
+**Version actuelle : 2.21.2** (23/11/2026) — détail des versions dans [CHANGELOG.md](CHANGELOG.md), étiquettes Git `vX.Y.Z`.
 
 Ce dépôt est le **socle commun**, sans règle propre à un projet : les règles d'un projet vivent
 dans le `PROJECT.md` de son dépôt.
