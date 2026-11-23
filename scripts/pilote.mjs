@@ -15,7 +15,7 @@ export const ETATS_ISSUE = ['en_attente', 'preflight', 'en_cours', 'revue', 'rec
 export const ETATS_CAMPAGNE = ['brouillon', 'en_cours', 'en_pause', 'close'];
 export const CRITICITES = ['leger', 'standard', 'sensible'];
 export const MAX_ESSAIS = 3;
-export const VERSION = '2.15.2';
+export const VERSION = '2.15.3';
 const PASTILLES = { AUTO: '🟢', SUP: '🟠', MS: '🔷', DEV: '🔵', CADRE: '🟣', PROTO: '🎨', TEST: '🧪', RELAIS: '⚙️', BILAN: '📘', AIDE: '❓', ARCHI: '🏛' };
 const DOSSIERS = { AUTO: '01 Campagnes', SUP: '01 Campagnes', MS: '01 Campagnes', DEV: '02 Développement', CADRE: '03 Cadrage & prototypes', PROTO: '03 Cadrage & prototypes', TEST: '04 Relais & maintenance', RELAIS: '04 Relais & maintenance', BILAN: '04 Relais & maintenance', AIDE: '00 Accueil', ARCHI: '00 Accueil' };
 export const TITRE_ARCHI = '🏛 ARCHI · workflow';
@@ -1005,14 +1005,21 @@ export function chatsAArchiver(cfg, maintenant = new Date()) {
     if (c || ['AUTO', 'SUP'].includes(x.role)) { // chat de campagne : campagne close et bilan terminé
       if (!c || c.statut !== 'close') continue;
       const bilan = Object.values(reg).some((b) => b.role === 'BILAN' && [b.campagne, b.lien?.id, b.objet].includes(c.id) && ['clos', 'archive'].includes(b.statut));
-      if (bilan && depuisH(x.derniere_ligne_le || x.derniere_activite || c.maj) >= h) out.push({ chat: id, titre: t, motif: 'campagne ' + c.id + ' close, bilan fait' });
+      const closeDepuis = depuisH(c.cloture_le || c.maj); // v2.15.3 : bilan versé hors chat 📘 BILAN : campagne close depuis 24 h
+      if ((bilan || closeDepuis >= 24) && depuisH(x.derniere_ligne_le || x.derniere_activite || c.maj) >= h) out.push({ chat: id, titre: t, motif: 'campagne ' + c.id + ' close' + (bilan ? ', bilan fait' : ' depuis ' + Math.floor(closeDepuis) + ' h') });
       continue;
     }
-    if (!(x.statut === 'clos' || /✅\s*$/.test(t))) continue; // seuls les chats terminés (ligne ✅ TERMINÉ)
-    const issue = x.lien?.type === 'issue' ? x.lien.id : x.issue || (RE_ID_ISSUE.test(x.objet || '') ? x.objet : null);
-    if (issue && etatIssue[issue] && etatIssue[issue] !== 'close') continue; // chat d'une issue non close : gardé
-    const age = depuisH(x.derniere_ligne_le || x.derniere_activite || x.cree_le);
-    if (age >= h) out.push({ chat: id, titre: t, motif: 'terminé depuis ' + Math.floor(age) + ' h' });
+    // v2.15.3 : un chat est terminé par sa ligne ✅, par la clôture de son issue (aussi lue dans le sujet d'un cadreur : deblocage-DEV-1050),
+    // ou par 48 h d'inactivité (chats.inactif_archive_heures), sauf attente du GO de Paul et chat DEV d'une issue ouverte.
+    const issue = x.lien?.type === 'issue' ? x.lien.id : x.issue || (RE_ID_ISSUE.test(x.objet || '') ? x.objet : (String(x.objet || '').match(/\b[A-Z][A-Z0-9]*-\d+\b/) || [])[0] || null);
+    const fini = x.statut === 'clos' || /✅\s*$/.test(t); const issueClose = !!issue && etatIssue[issue] === 'close'; const issueOuverte = !!issue && !!etatIssue[issue] && !issueClose;
+    const age = depuisH(x.derniere_ligne_le || x.derniere_activite || x.cree_le); const inactifH = cfg.chats?.inactif_archive_heures ?? 48;
+    const enGo = x.statut === 'attente_go' || /⏸/.test(String(x.ligne_etat || '')) || /⏸ GO\s*$/u.test(t);
+    let motif = null;
+    if (issueClose && age >= h) motif = 'issue ' + issue + ' close';
+    else if (fini && !issueOuverte && age >= h) motif = 'terminé depuis ' + Math.floor(age) + ' h';
+    else if (!fini && !enGo && !(x.role === 'DEV' && issueOuverte) && age >= inactifH) motif = 'inactif depuis ' + Math.floor(age) + ' h';
+    if (motif) out.push({ chat: id, titre: t, motif });
   }
   return out;
 }
@@ -1023,7 +1030,7 @@ export async function archiverTermines(cfg, s, maintenant = new Date()) {
     if (lu?.thread?.status?.type === 'active') continue; // en plein tour : au prochain réveil
     try { await rangerChat(cfg, s, x.chat, '99 Archives'); await s.call('thread/archive', { threadId: x.chat });
       inscrireChat(cfg, { chat_id: x.chat, statut: 'archive', archive_le: maintenant.toISOString(), action: 'archivé par le réveil : ' + x.motif }); res.push({ chat: x.chat, titre: x.titre, action: 'archive', motif: x.motif }); }
-    catch (e) { res.push({ chat: x.chat, titre: x.titre, action: 'archivage impossible', erreur: e.message }); }
+    catch (e) { if (/no rollout found|not found/i.test(e.message || '')) { inscrireChat(cfg, { chat_id: x.chat, statut: 'archive', archive_le: maintenant.toISOString(), action: 'chat disparu de l’application : retiré du registre actif (v2.15.3)' }); res.push({ chat: x.chat, titre: x.titre, action: 'disparu', motif: x.motif }); } else res.push({ chat: x.chat, titre: x.titre, action: 'archivage impossible', erreur: e.message }); }
   }
   return res;
 }

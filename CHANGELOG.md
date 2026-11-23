@@ -1,5 +1,9 @@
 # Changelog du socle public
 
+## 2.15.3 — 23/11/2026
+
+Archivage automatique des chats : fin reconnue par la clôture de l'issue liée, par 48 h d'inactivité (hors attente de décision), et campagne close sans chat de bilan rangée après 24 h. 97 évaluations, 78 tests.
+
 ## 2.15.2 — 22/11/2026
 
 Construction de contrôle sur l'environnement de test par l'exécutant de l'hôte (versions, plan, apply, status ; sans migration). Le bloc d'état ne renvoie à l'humain que les refus de l'exécutant faute de mandat. 97 évaluations, 77 tests.

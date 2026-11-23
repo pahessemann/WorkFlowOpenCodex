@@ -29,3 +29,15 @@ En tête du rapport viennent les rappels : `⏸ GO` en attente depuis plus de 24
 ## Passage hebdomadaire
 
 `menage.hebdo` (lundi 08:00) : une automatisation du poste lance l'analyse et applique `surs`, puis poste dans `❓ AIDE` un rapport de 10 lignes au plus (ce qui a été fait, ce qui attend une décision). Le digest de chaque campagne affiche « Ménage : N actions en attente de décision » quand N > 0.
+
+## Archivage automatique : fin d'un chat (v2.15.3)
+
+Le réveil range dans `99 Archives`, après `chats.archive_apres_heures` (1 h), tout chat terminé :
+
+- ligne `✅ TERMINÉ` ou statut `clos`, sauf chat d'une issue encore ouverte ;
+- **issue close** : chat lié à une issue close, quelle que soit sa dernière ligne (l'issue est aussi lue dans le sujet d'un cadreur, ex.
+  `deblocage-DEV-1050`, `fusion-DEV-1385`, `livraison-DEV-1360`) ;
+- **inactif** : aucune activité depuis `chats.inactif_archive_heures` (48 h), sauf GO de Paul attendu (`⏸`) et chat `DEV` d'une issue ouverte ;
+- **campagne close** : chat de campagne quand son 📘 BILAN est terminé, ou 24 h après la clôture si le bilan a été versé sans chat.
+
+Jamais : `❓ AIDE`, `🏛 ARCHI`, une campagne en cours, un chat en plein tour. L'archivage est réversible (désarchiver dans l'application).

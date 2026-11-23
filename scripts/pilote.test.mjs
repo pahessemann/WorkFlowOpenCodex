@@ -630,6 +630,24 @@ test('2.6.2 : le réveil archive les chats terminés depuis 1 h, jamais AIDE, AR
   assert.match(P.point(at).rendu, /\*\*Chats archivés \(24 h\)\*\* : 2 —/);
 });
 
+test('2.15.3 : archivage du cadreur d’une issue close, du chat inactif 48 h, de la campagne close sans chat de bilan ; jamais un GO en attente ni le DEV d’une issue ouverte', () => {
+  const at = etatArchivage(); const f = path.join(at.etat, 'chats.json'); const reg = JSON.parse(fs.readFileSync(f, 'utf8'));
+  const il2 = new Date(Date.now() - 2 * 3600000).toISOString(), il72 = new Date(Date.now() - 72 * 3600000).toISOString();
+  const ch = (role, titre, x = {}) => ({ role, titre, hote: 'atelier', statut: 'actif', derniere_ligne_le: il2, ...x });
+  Object.assign(reg, {
+    'C-CADRE-ISSUE': ch('CADRE', '🟣 CADRE · p · deblocage-DEV-1', { objet: 'deblocage-DEV-1', ligne_etat: '⏳ EN ATTENTE · fusion attendue · Toi : rien' }),
+    'C-CADRE-OUV': ch('CADRE', '🟣 CADRE · p · deblocage-DEV-2', { objet: 'deblocage-DEV-2' }),
+    'C-CADRE-VIEUX': ch('CADRE', '🟣 CADRE · p · logiciel', { objet: 'logiciel', derniere_ligne_le: il72 }),
+    'C-CADRE-GO': ch('CADRE', '🟣 CADRE · p · lot · ⏸ GO', { statut: 'attente_go', objet: 'lot', derniere_ligne_le: il72 }),
+    'C-DEV-OUV': ch('DEV', '🔵 DEV · p · DEV-2', { lien: { type: 'issue', id: 'DEV-2' }, derniere_ligne_le: il72 }) });
+  fs.writeFileSync(f, JSON.stringify(reg));
+  const sb = path.join(at.etat, 'campagnes', 'sansbilan.json'); fs.writeFileSync(sb, JSON.stringify({ ...JSON.parse(fs.readFileSync(sb, 'utf8')), maj: new Date(Date.now() - 30 * 3600000).toISOString() }));
+  const a = P.chatsAArchiver(at).map((x) => x.chat);
+  for (const k of ['C-CADRE-ISSUE', 'C-CADRE-VIEUX', 'C-AUTO-3', 'C-AUTO-2', 'C-CADRE-FINI', 'C-DEV-VIEUX']) assert.ok(a.includes(k), k + ' devait être archivé');
+  for (const k of ['C-CADRE-OUV', 'C-CADRE-GO', 'C-DEV-OUV', 'C-CADRE-ACTIF', 'C-AIDE', 'C-ARCHI', 'C-AUTO-1', 'C-DEV-NONCLOSE', 'C-POSTE']) assert.ok(!a.includes(k), k + ' devait être gardé');
+});
+
+
 test('2.6.2 : le ménage archive après archive_apres_heures (1 h)', () => {
   const at = configTest({ chats: { archive_apres_heures: 1 } });
   const vieux = new Date(Date.now() - 2 * 3600000).toISOString();
