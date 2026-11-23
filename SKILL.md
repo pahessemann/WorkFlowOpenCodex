@@ -3,7 +3,7 @@ name: dev-orchestrator
 description: Orchestrateur de campagnes autonomes et supervisées (Linear Milestones et Issues) : composition à froid, chats identifiables d'un coup d'œil, routage économe des modèles et exécution hybride (PC local / VPS atelier).
 ---
 
-# Orchestrateur Dev — Workflow opérationnel (v2.21.2)
+# Orchestrateur Dev — Workflow opérationnel (v2.22)
 
 Ce skill régit l'orchestration des travaux via `pilote.mjs`, sur le poste local Windows et sur le VPS `atelier` (Linux).
 
@@ -369,6 +369,7 @@ Dès que le correctif est validé, **redescendre au niveau nominal**.
 
 ## 7. Garde-fous
 
+* **Livraison par Paul (v2.22)** : les projets listés dans `livraison_par_paul` (`poste.local.json` de chaque hôte) sont déployés par Paul lui-même depuis le déployeur. Pour eux, le travail des agents s'arrête au commit et à la fusion dans la branche principale : `livrer`, `livraison-go` et `executant demander … livraison` répondent `LIVRAISON PAR PAUL`, la consigne de `contexte` le rappelle en tête, et une issue de livraison, de phase 2 ou de vérification sur serveur se clôt sans fusion (motif « livraison par Paul depuis le déployeur »).
 * **Droits d'écriture dans Linear** : seuls `$dev cadrage` et `$dev cadrage-court` écrivent le **contenu** d'une issue (titre, description, critères d'acceptation, découpage). Les autres étapes n'écrivent que l'état, des commentaires et le bilan. Un agent ne réécrit jamais les critères de l'issue qu'il traite : s'il les juge faux, il le signale dans le digest, rubrique « À confirmer ».
 * **Journal de décisions** (`.pilote/campagnes/<nom>.decisions.md`) : chaque choix fait sans Paul y est consigné en une ligne (issue, décision, règle appliquée, comment revenir en arrière). Paul le parcourt dans le digest et peut annuler une décision a posteriori. Quand une règle commune change après un GO de Paul (limite d'admission, par exemple), `🏛 ARCHI` inscrit une ligne `GLOBAL · Paul (…) : …` dans le journal de chaque campagne en cours (`node <pilote> decision-globale <texte>`, sur l'hôte d'exécution).
 * **Qui débloque (v2.6)** : quand un orchestrateur arrête une issue (`bloquee`, ou `revue`/`recette` qui attend autre chose que son travail), il le dit : `pilote.mjs statut … --attend paul|agents|poste|env --quoi "<cause ; pour Paul : action exacte et réponse proposée>"`, ou `pilote.mjs arret …` sans changer le statut. `$dev point` s'en sert ; une issue arrêtée sans ce champ y apparaît « à qualifier » (`point.md`).

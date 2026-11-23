@@ -1,5 +1,9 @@
 # Changelog du socle public
 
+## 2.22 — 23/11/2026
+
+Projets livrés par l'humain lui-même (`livraison_par_paul` dans `poste.local.json`) : les agents s'arrêtent à la fusion ; livraison, GO et exécutant de livraison sont refusés pour ces projets. 104 évaluations, 93 tests.
+
 ## 2.21.2 — 23/11/2026
 
 Les actions attendues de l'humain s'affichent une par ligne, sous « À toi » en gras. 104 évaluations, 92 tests.

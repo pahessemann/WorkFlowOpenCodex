@@ -1191,3 +1191,12 @@ test('2.21.1 : bloc lisible, issue arrêtée hors admissibles, action de Paul en
   assert.equal(e.ligne, '▶ EN COURS · 1 admissible(s) · 1 en attente · Toi : DEV-1431 · fusionner la PR #145 vers main');
   assert.match(P.contexte(at, 'q').consigne, /ni balise <pre>/);
 });
+
+test('2.22 : projet livré par Paul : ni GO, ni exécutant de livraison, ni livrer ; consigne explicite', async () => {
+  const at = campagneChaine(); at.livraison_par_paul = ['p'];
+  assert.equal(code(() => P.goLivraison(at, 'k', 'plan.md')), 'LIVRAISON PAR PAUL');
+  assert.equal(code(() => P.demanderExecutant(at, 'k', 'livraison', { plan: 'x' })), 'LIVRAISON PAR PAUL');
+  await assert.rejects(() => P.livrer(at, 'k', { aBlanc: true }), /déployé par Paul depuis le déployeur/);
+  assert.match(P.contexte(at, 'k').consigne, /^Livraison par Paul \(v2\.22\) : le projet p est déployé par Paul/);
+  at.livraison_par_paul = []; assert.doesNotMatch(P.contexte(at, 'k').consigne, /Livraison par Paul/);
+});
