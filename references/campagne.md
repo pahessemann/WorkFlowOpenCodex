@@ -112,3 +112,5 @@ examine le `WIP` de `branche_reprise` avant de coder.
   Ne s'applique ni aux issues de milestone, ni aux livrables, ni aux issues sans branche.
 - Après fusion de la dépendance (`a_rebaser`) : rebase sur la cible, PR rétablie vers la cible, `pilote.mjs desempiler <c> <ID>`.
 - Charges lourdes : `pilote.mjs lourde <c> --issue <ID> -- <commande>` ; priorité = issues retenues, +1000 sur la chaîne critique.
+
+v2.20 : `$dev reprendre <nom>` relance aussitôt l’orchestrateur (avant : la campagne repassait en cours, mais son chat attendait le réveil). `$dev pause <nom> --economie` marque une pause par économie de quota, reprise seule par le réveil dès qu’un compte offre une fenêtre à consommer.

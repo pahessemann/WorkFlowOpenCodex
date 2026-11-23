@@ -61,3 +61,5 @@ closes / fenêtre où elles ont tourné, plafonné à `dev_max`) ; sinon, rythme
 places occupées à l'instant du point n'entre plus dans le calcul : il faisait varier l'estimation d'un facteur 6 d'un point à
 l'autre. **Plancher** : jamais moins que la plus longue chaîne de dépendances restante × la durée médiane. Fiabilité : `faible` sous
 5 mesures, `moyenne` sous 15, `bonne` au-delà.
+
+v2.20 : sous la ligne **Abonnement**, une ligne **Comptes Anthropic** (pourcentage, compte actif, remise à zéro), avec 🔥 quand un compte offre une fenêtre à consommer (`modeles.md` §v2.20).

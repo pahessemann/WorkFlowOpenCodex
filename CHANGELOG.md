@@ -1,5 +1,9 @@
 # Changelog du socle public
 
+## 2.20 — 23/11/2026
+
+Plusieurs comptes Anthropic : bascule horaire sur celui qui se réinitialise le plus tôt, fenêtre à consommer qui reprend les campagnes mises en pause par économie, comptes affichés dans le point ; la reprise d'une campagne relance son orchestrateur. 104 évaluations, 87 tests.
+
 ## 2.19.2 — 23/11/2026
 
 `fournisseur` et `abonnement` connus du lanceur, commandes directes exécutées par le lanceur, test de couverture des commandes documentées. 104 évaluations, 84 tests.

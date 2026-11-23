@@ -1110,3 +1110,34 @@ test('2.19.2 : toute commande $dev du SKILL est connue du lanceur ; les commande
   const c = configTest(); const r = await P.lancerCommande(c, { commande: 'fournisseur', args: ['mixte'], depuisModele: 'gpt-6-luna', fiche: 'x' }); assert.equal(r.action, 'executer_ici'); assert.equal(r.resultat.effectif, 'mixte'); assert.equal(P.modeFournisseur(c).effectif, 'mixte');
   const a = await P.lancerCommande(c, { commande: 'abonnement', args: [], depuisModele: 'gpt-6-luna' }); assert.equal(a.action, 'executer_ici'); assert.ok('releves' in a.resultat);
 });
+
+test('2.19.3 : Fable 5.1 en standby : ni cadreur, ni choix visuel, ni chat existant sur Fable ; Fable 5.2 non touché', () => {
+  const c = configTest(); c.modeles.fable_standby = true;
+  assert.equal(P.router(c, { tache: 'cadrage', criticite: 'sensible' }).modele, OPUS);
+  assert.equal(P.router(c, { tache: 'choix-visuel', criticite: 'standard' }).modele, OPUS);
+  assert.equal(P.modeleEffectif(c, 'anthropic/' + FABLE51), OPUS);
+  assert.equal(P.modeleEffectif(c, 'anthropic/' + FABLE52), 'anthropic/' + FABLE52);
+});
+
+test('2.19.4 : le compte Anthropic qui se réinitialise le plus tôt est consommé d’abord', () => {
+  const c = configTest(); const ocx = c.opencodex_dir; fs.mkdirSync(ocx, { recursive: true }); const now = Date.now();
+  fs.writeFileSync(path.join(ocx, 'provider-account-quota-cache.json'), JSON.stringify({ rows: { 'anthropic\u0000aaaaaa11': { weeklyPercent: 98, weeklyResetAt: now + 77 * 3600000, updatedAt: now }, 'anthropic\u0000bbbbbb22': { weeklyPercent: 33, weeklyResetAt: now + 28 * 3600000, updatedAt: now - 86400000 } } }));
+  P.choisirFournisseur(c, 'auto'); let a = P.lireAbonnement(c); assert.equal(a.anthropic.compte, 'aaaaaa'); assert.equal(P.modeFournisseur(c).effectif, 'gpt');
+  const ca = P.compteAPrivilegier(a); assert.equal(ca.id, 'bbbbbb22'); assert.equal(ca.heures, 28);
+  assert.equal(P.basculerCompteAnthropic(c, ca.id).action, 'noté'); a = P.lireAbonnement(c); assert.equal(a.anthropic.compte, 'bbbbbb'); assert.equal(P.modeFournisseur(c).effectif, 'claude', 'le mode auto lit le compte actif');
+  assert.equal(P.compteAPrivilegier(a), null, 'déjà sur le bon compte');
+  assert.match(P.rendrePoint({ campagnes: [], actions_paul: [], ressources: { hote: 'x', ram_libre_gio: 1, charge_1min: 0, coeurs: 1, pression_cpu_60s: null }, abonnement: P.resumeAbonnement(c), ligne_etat: 'x' }), /Comptes Anthropic : aaaaaa 98 %.*bbbbbb 33 % \(actif\)/);
+});
+
+test('2.20 : fenêtre à consommer, pause par économie, reprise qui relance l’orchestrateur', async () => {
+  const c = configTest({ hote: 'atelier' }); c.appServerFactice = path.join(c.etat, 'app.jsonl'); const ocx = c.opencodex_dir; fs.mkdirSync(ocx, { recursive: true }); const now = Date.now();
+  const quotas = (pct, h) => fs.writeFileSync(path.join(ocx, 'provider-account-quota-cache.json'), JSON.stringify({ rows: { 'anthropic\u0000bbbbbb22': { weeklyPercent: pct, weeklyResetAt: now + h * 3600000, updatedAt: now } } }));
+  quotas(36, 28); assert.equal(P.fenetreAConsommer(c, P.lireAbonnement(c)).reste, 64); quotas(36, 60); assert.equal(P.fenetreAConsommer(c, P.lireAbonnement(c)), null, 'remise à zéro trop lointaine'); quotas(90, 10); assert.equal(P.fenetreAConsommer(c, P.lireAbonnement(c)), null, 'trop peu de quota libre');
+  P.composer(c, { nom: 'eco', projet: 'p', ids: ['DEV-1'] }); fs.writeFileSync(path.join(c.etat, 'campagnes', 'eco.contrat.md'), 'x'); P.validerContrat(c, 'eco'); P.lancer(c, 'eco');
+  P.modifierCampagne(c, 'eco', (x) => { x.chat = 'chat-eco'; x.chat_modele = 'anthropic/claude-haiku-5-5'; });
+  assert.equal(P.mettreEnPause(c, 'eco', { economie: true }).pause_motif, 'economie');
+  quotas(36, 28); const r = await P.reveil(c); assert.ok(r.some((x) => x.action === 'reprise : fenêtre à consommer (v2.20)' && x.campagne === 'eco' && x.relance?.action === 'relancé'), JSON.stringify(r).slice(0, 600));
+  assert.equal(P.lireCampagne(c, 'eco').statut, 'en_cours'); assert.equal(P.lireCampagne(c, 'eco').pause_motif, undefined);
+  assert.match(fs.readFileSync(c.appServerFactice, 'utf8'), /Reprise \(fenêtre à consommer/);
+  P.mettreEnPause(c, 'eco'); const rr = await P.reprendreCampagne(c, 'eco'); assert.equal(rr.relance.action, 'relancé', 'reprise par Paul : orchestrateur relancé aussitôt');
+});

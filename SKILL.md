@@ -3,7 +3,7 @@ name: dev-orchestrator
 description: Orchestrateur de campagnes autonomes et supervisées (Linear Milestones et Issues) : composition à froid, chats identifiables d'un coup d'œil, routage économe des modèles et exécution hybride (PC local / VPS atelier).
 ---
 
-# Orchestrateur Dev — Workflow opérationnel (v2.19.2)
+# Orchestrateur Dev — Workflow opérationnel (v2.20)
 
 Ce skill régit l'orchestration des travaux via `pilote.mjs`, sur le poste local Windows et sur le VPS `atelier` (Linux).
 
@@ -59,12 +59,13 @@ Paul intervient **une fois, au cadrage**. Ensuite, les agents travaillent seuls 
 | `$dev archi` | Ouvrir le chat de l'architecte du workflow `🏛 ARCHI · workflow` (`archi.md`) | `ARCHI` |
 | `$dev evolution <sujet>` | Démarrer une évolution du workflow dans `🏛 ARCHI` : analyse, fiche d'évolution, GO de Paul, implémentation sur les deux hôtes (`archi.md`) | `ARCHI` |
 | `$dev cloture <campagne>` | **Portée : une campagne entière.** Bilan de campagne dans Obsidian, archivage des chats et registres, fermeture (`cloture.md`) | `BILAN` |
-| `$dev pause <nom>` / `$dev reprendre <nom>` | Suspendre ou relancer une campagne | inline |
+| `$dev pause <nom> [--economie]` / `$dev reprendre <nom>` | Suspendre ou relancer une campagne ; `--economie` : reprise automatique dès qu’un compte offre une fenêtre à consommer ; la reprise relance l’orchestrateur aussitôt (v2.20) | inline |
 | `$dev etat [nom]` | Diagnostic machine, RAM, files d'attente, périmètre, passerelle poste | inline |
 | `$dev etat chats` | Tableau : la dernière ligne d'état de chaque chat (§2.3 bis) | inline |
 | `$dev poste [file\|installer\|retirer <ID> --motif <m>]` | Passerelle poste Windows : file des tests en attente, dernier passage du poste ; `installer` pose la tâche planifiée ; `retirer` sort une tâche de la file et réserve l'issue à Paul (`poste.md`) | inline |
 | `$dev modele <tache> <criticite> <volumetrie>` | Interroger le routeur (`modeles.md`) | inline |
 | `$dev fournisseur [claude|mixte|gpt|auto]` | **Mode de fournisseur** (v2.17) : tout Claude (défaut), mixte (revues et tests sur Sol et Astra), tout GPT (Terra, Sol, Astra ; Luna pour les petites tâches) ou auto selon l’abonnement ; s’applique aux nouveaux chats, aux relances et aux sous-agents ; sans argument, montre le mode et l’abonnement (`modeles.md` §v2.17) | inline |
+| `$dev abonnement compte <id>` | Basculer à la main le compte Anthropic actif d’opencodex (v2.20 ; le relevé horaire le fait seul, `modeles.md` §v2.20) | inline |
 | `$dev abonnement [--relever]` | Pourcentages de la semaine Anthropic (par compte), fenêtre Fable et Codex, vitesse en points par heure ; relevé horaire par le réveil (`.pilote/abonnement.jsonl`) | inline |
 
 ---

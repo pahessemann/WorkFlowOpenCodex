@@ -209,3 +209,12 @@ pas des sous-agents : ils ne prennent pas de place dans la liste des 5. Un cadra
 **Garde de boucle** : `pilote.mjs modele <tâche> <criticité> compact <campagne> --sous-agent --issue <ID>` compte les sous-agents démarrés à
 neuf par issue et par tâche ; au 3ᵉ en 12 h (`admission.boucle_max`, `admission.boucle_fenetre_h`), refus `CADREUR REQUIS` : l’orchestrateur
 lance le cadreur de déblocage, dont la conclusion au journal rouvre deux essais. **Orchestrateurs** recréés dès 100 k tokens (150 k avant).
+
+## v2.20 — comptes Anthropic : consommer d’abord ce qui va expirer
+
+Demande de Paul du 23/11 : deux comptes Claude, l’un réinitialisé le lendemain à 18 h avec 64 % libres, l’autre à 98 % réinitialisé trois jours plus tard ; les campagnes vidaient le second.
+
+- **Bascule horaire** (réveil d’atelier, au relevé de l’abonnement) : le compte actif d’opencodex devient celui qui se réinitialise le plus tôt tant qu’il est sous 95 % (`ocx account use anthropic <id>`). Le compte actif est noté dans `.pilote/fournisseur.json` (`compte_actif`) ; le mode `auto` lit ce compte. À la main : `$dev abonnement compte <id>`.
+- **Fenêtre à consommer** : un compte qui garde au moins `abonnement.consommer.reste_min_pct` (30) % libres et se réinitialise dans `heures_max` (36) h. Le réveil reprend alors les campagnes mises en pause par `$dev pause <nom> --economie` (ligne au journal, orchestrateur relancé).
+- **`$dev point`** : ligne « Comptes Anthropic » (pourcentage, compte actif, remise à zéro de chacun), 🔥 sur une fenêtre à consommer, ⚠ quand un compte qui expire plus tôt n’est pas celui en service.
+- **Fable en standby** (réglage local `modeles.fable_standby`, 2.19.3) : Opus remplace Fable 5.1 pour les cadreurs, les choix visuels, l’escalade et les chats déjà ouverts ; Fable 5.2 n’est pas touché.
