@@ -335,6 +335,27 @@ test('v2.15 : demande construction-ano : applications fermées, référence main
 });
 
 
+test('v2.16 : la passerelle range les chats du workflow terminés ou inactifs du poste, jamais AIDE, ARCHI, un GO attendu, un chat libre ni un chat en plein tour', async () => {
+  const now = Date.parse('2026-11-23T10:00:00Z'); const s = (h) => Math.floor((now - h * 3600000) / 1000);
+  const fils = [
+    { id: 'a', name: '❓ AIDE · workflow', updatedAt: s(100), status: { type: 'notLoaded' } },
+    { id: 'b', name: '🏛 ARCHI · workflow', updatedAt: s(100), status: { type: 'notLoaded' } },
+    { id: 'c', name: '🟣 CADRE · p · sujet · ✅', updatedAt: s(2), status: { type: 'notLoaded' } },
+    { id: 'd', name: '🔵 DEV · p · DEV-1', updatedAt: s(72), status: { type: 'notLoaded' } },
+    { id: 'e', name: '🟣 CADRE · p · lot · ⏸ GO', updatedAt: s(72), status: { type: 'notLoaded' } },
+    { id: 'f', name: 'Discussion libre', updatedAt: s(200), status: { type: 'notLoaded' } },
+    { id: 'g', name: '🧪 TEST · p · recettes · ✅', updatedAt: s(5), status: { type: 'active' } },
+    { id: 'h', name: '🔵 DEV · p · DEV-2', updatedAt: s(3), status: { type: 'idle' } }];
+  const archives = []; const client = { call: async (m, p) => { if (m === 'thread/list') return { data: fils, nextCursor: null }; if (m === 'thread/archive') { archives.push(p.threadId); return {}; } return {}; }, fermer: () => {} };
+  const cfg = configTest({ hote: 'local' });
+  const blanc = await P.archiverChatsPoste(cfg, { client, maintenant: now, appliquer: false });
+  assert.deepEqual(blanc.map((x) => x.chat).sort(), ['c', 'd']); assert.deepEqual(archives, [], 'simulation : rien d’archivé');
+  const r = await P.archiverChatsPoste(cfg, { client, maintenant: now });
+  assert.deepEqual(archives.sort(), ['c', 'd']); assert.match(r.find((x) => x.chat === 'd').motif, /inactif depuis 72 h/);
+  assert.equal(await P.archiverChatsPosteSiDu(cfg, now), null, 'inactif tant que passerelle.archivage_chats n’est pas vrai');
+});
+
+
 test('passerelle poste : dépôt hors quota, relève, preuves, retour, essais selon la cause, délai dépassé (v2.5)', () => {
   const at = configTest({ hote: 'atelier', deploiement_serveurs: false, admission: { dev_max: 1, lourdes_max: 1 } });
   const fa = path.join(at.etat, 'atelier.json'); fs.writeFileSync(fa, JSON.stringify(at));

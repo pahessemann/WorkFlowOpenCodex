@@ -1,5 +1,9 @@
 # Changelog du socle public
 
+## 2.16 — 23/11/2026
+
+La passerelle du poste range automatiquement les chats du workflow terminés ou inactifs du poste, jamais les chats libres. 97 évaluations, 79 tests.
+
 ## 2.15.3 — 23/11/2026
 
 Archivage automatique des chats : fin reconnue par la clôture de l'issue liée, par 48 h d'inactivité (hors attente de décision), et campagne close sans chat de bilan rangée après 24 h. 97 évaluations, 78 tests.

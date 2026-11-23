@@ -41,3 +41,6 @@ Le réveil range dans `99 Archives`, après `chats.archive_apres_heures` (1 h), 
 - **campagne close** : chat de campagne quand son 📘 BILAN est terminé, ou 24 h après la clôture si le bilan a été versé sans chat.
 
 Jamais : `❓ AIDE`, `🏛 ARCHI`, une campagne en cours, un chat en plein tour. L'archivage est réversible (désarchiver dans l'application).
+
+Sur le poste (v2.16), la passerelle applique les mêmes règles aux chats du workflow du poste (✅ depuis 1 h, inactif 48 h), jamais aux
+chats libres de Paul (`poste.md`).

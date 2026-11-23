@@ -15,7 +15,7 @@ export const ETATS_ISSUE = ['en_attente', 'preflight', 'en_cours', 'revue', 'rec
 export const ETATS_CAMPAGNE = ['brouillon', 'en_cours', 'en_pause', 'close'];
 export const CRITICITES = ['leger', 'standard', 'sensible'];
 export const MAX_ESSAIS = 3;
-export const VERSION = '2.15.3';
+export const VERSION = '2.16';
 const PASTILLES = { AUTO: '🟢', SUP: '🟠', MS: '🔷', DEV: '🔵', CADRE: '🟣', PROTO: '🎨', TEST: '🧪', RELAIS: '⚙️', BILAN: '📘', AIDE: '❓', ARCHI: '🏛' };
 const DOSSIERS = { AUTO: '01 Campagnes', SUP: '01 Campagnes', MS: '01 Campagnes', DEV: '02 Développement', CADRE: '03 Cadrage & prototypes', PROTO: '03 Cadrage & prototypes', TEST: '04 Relais & maintenance', RELAIS: '04 Relais & maintenance', BILAN: '04 Relais & maintenance', AIDE: '00 Accueil', ARCHI: '00 Accueil' };
 export const TITRE_ARCHI = '🏛 ARCHI · workflow';
@@ -1691,6 +1691,41 @@ function tenirVerrouVoie(f) { // null : la voie est à ce processus ; sinon le p
   try { const fd = fs.openSync(f, 'wx'); fs.writeSync(fd, String(process.pid)); fs.closeSync(fd); return null; }
   catch (e) { if (e.code !== 'EEXIST') throw e; const pid = Number(fs.readFileSync(f, 'utf8')); let vivant = false; try { process.kill(pid, 0); vivant = pid !== process.pid; } catch {} if (vivant) return pid; fs.writeFileSync(f, String(process.pid)); return null; }
 }
+// ---------- v2.16 : archivage automatique des chats du poste par la passerelle (app-server local) ----------
+const ROLE_TRAVAIL = /^(🔵 DEV|🟣 CADRE|🎨 PROTO|⚙️ RELAIS|🧪 TEST|📘 BILAN|🟢 AUTO|🟠 SUP|🟡 MS)\s·/u;
+export function clientAppServerLocal(cfg) {
+  const exe = cfg.codexExecutable; if (!exe || !fs.existsSync(exe)) throw new Error('codexExecutable introuvable');
+  const p = spawn(exe, ['app-server'], { stdio: ['pipe', 'pipe', 'ignore'], windowsHide: true });
+  let buf = '', n = 0; const att = new Map();
+  p.stdout.on('data', (d) => { buf += d; let i; while ((i = buf.indexOf('\n')) >= 0) { const l = buf.slice(0, i); buf = buf.slice(i + 1); try { const m = JSON.parse(l); if (m.id != null && att.has(m.id)) { att.get(m.id)(m); att.delete(m.id); } } catch {} } });
+  const appel = (method, params) => new Promise((res, rej) => { const k = ++n; att.set(k, (m) => (m.error ? rej(new Error(m.error.message || JSON.stringify(m.error))) : res(m.result))); p.stdin.write(JSON.stringify({ jsonrpc: '2.0', id: k, method, params }) + '\n'); setTimeout(() => { if (att.has(k)) { att.delete(k); rej(new Error('délai dépassé : ' + method)); } }, 20000); });
+  const pret = appel('initialize', { clientInfo: { name: 'pilote-passerelle', title: 'pilote', version: VERSION } }).then(() => p.stdin.write(JSON.stringify({ jsonrpc: '2.0', method: 'initialized' }) + '\n'));
+  return { call: async (m, x) => { await pret; return appel(m, x); }, fermer: () => { try { p.kill(); } catch {} } };
+}
+export async function archiverChatsPoste(cfg, { client = null, maintenant = Date.now(), appliquer = true } = {}) {
+  const h = cfg.chats?.archive_apres_heures ?? 1, inactif = cfg.chats?.inactif_archive_heures ?? 48; const c = client || clientAppServerLocal(cfg); const res = [];
+  try {
+    let cur = null; const fils = [];
+    for (let k = 0; k < 10; k++) { const r = await c.call('thread/list', { limit: 50, ...(cur ? { cursor: cur } : {}) }); fils.push(...(r?.data || [])); cur = r?.nextCursor; if (!cur) break; }
+    for (const t of fils) {
+      const titre = String(t.name || ''); if (!ROLE_TRAVAIL.test(titre) || t.status?.type === 'active') continue; // chats libres de Paul, AIDE et ARCHI : jamais
+      const age = (maintenant - Number(t.updatedAt || 0) * 1000) / 3600000;
+      const motif = /✅\s*$/u.test(titre) && age >= h ? 'terminé depuis ' + Math.floor(age) + ' h' : (!/⏸/u.test(titre) && age >= inactif ? 'inactif depuis ' + Math.floor(age) + ' h' : null);
+      if (!motif) continue;
+      if (!appliquer) { res.push({ chat: t.id, titre, action: 'a_archiver', motif }); continue; }
+      try { await c.call('thread/archive', { threadId: t.id }); res.push({ chat: t.id, titre, action: 'archive', motif }); } catch (e) { res.push({ chat: t.id, titre, action: 'archivage impossible', erreur: e.message }); }
+    }
+  } finally { if (!client) c.fermer(); }
+  return res;
+}
+export async function archiverChatsPosteSiDu(cfg, maintenant = Date.now()) {
+  if (cfg.passerelle?.archivage_chats !== true || cfg.passerelle?.commande_test) return null;
+  const f = path.join(cfg.etat, 'archivage-chats-poste.json'); const der = lireJson(f, {});
+  if (der.le && maintenant - Date.parse(der.le) < 3600000) return null;
+  let r; try { r = await archiverChatsPoste(cfg, { maintenant }); } catch (e) { r = [{ action: 'archivage impossible', erreur: e.message }]; }
+  ecrireJson(f, { le: new Date(maintenant).toISOString(), archives: r.filter((x) => x.action === 'archive').map((x) => x.titre), erreurs: r.filter((x) => x.action !== 'archive').length }); return r;
+}
+
 // Sur le poste : relève une tâche de la file d'atelier (tâche planifiée pilote-poste-passerelle). Voie 1 : relève principale, seule à régler
 // l'imprimante et la veille ; voies 2 et suivantes (v2.12) : ouvertes seulement si la voie 1 est occupée et que la RAM et le CPU le permettent.
 export function posteRelever(cfg) {
@@ -1859,7 +1894,7 @@ function executerBrut(argv, cfg = null) {
       if (s === 'rendre') return posteRendre(C(), a[1] || (o.tache && o.tache !== true ? o.tache : null), { resultat: o.resultat, retour: o['retour-stdin'] ? fs.readFileSync(0, 'utf8') : '', ligne: o.ligne && o.ligne !== true ? o.ligne : null, issue: o.issue && o.issue !== true ? o.issue : null, campagne: o.campagne && o.campagne !== true ? o.campagne : null, preuves: o.preuves && o.preuves !== true ? o.preuves : null });
       if (s === 'preparer-rendu') return postePreparerRendu(C(), { issue: o.issue || null, campagne: o.campagne || null, tache: o.tache || null });
       if (s === 'retirer') return posteRetirer(C(), a[1], { motif: o.motif && o.motif !== true ? o.motif : a.slice(2).join(' '), campagne: o.campagne || null });
-      if (s === 'relever') return posteRelever(C());
+      if (s === 'relever') return archiverChatsPosteSiDu(C()).then((ch) => { const r = posteRelever(C()); return ch ? { ...r, chats_archives: ch } : r; }); // v2.16 : rangement des chats du poste avant la relève
       if (s === 'installer') return posteInstaller(C());
       if (!s || s === 'file') return posteFile(C());
       refuser('COMMANDE INCONNUE', 'poste ' + s + ' — deposer, retirer, prendre, rendre, relever, installer, file'); }

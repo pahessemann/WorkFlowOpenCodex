@@ -104,3 +104,10 @@ qu'une autre voie travaille. Une tâche prise par une voie supplémentaire porte
 prolongée **sur secteur** (`powercfg /setacvalueindex … STANDBYIDLE|HIBERNATEIDLE 0`), après avoir sauvegardé les valeurs dans
 `.pilote/poste-veille.json` ; dès que la file est vide, elle les restaure. Les réglages sur batterie ne sont jamais touchés.
 La fermeture du capot reste du ressort de Paul. Désactivation : `passerelle.eveil_secteur: false`.
+
+## Rangement des chats du poste (v2.16)
+
+Avant chaque relève, au plus une fois par heure et si `passerelle.archivage_chats: true`, la passerelle lance un app-server local et
+archive les chats du workflow du poste terminés par ✅ depuis 1 h ou inactifs depuis 48 h (règles de `menage.md`). Jamais AIDE, ARCHI,
+un chat libre (titre sans rôle du workflow), un GO attendu (⏸) ni un chat en plein tour. Compte rendu :
+`.pilote/archivage-chats-poste.json` ; le résultat de `poste relever` le reprend dans `chats_archives`.
