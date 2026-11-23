@@ -1074,3 +1074,24 @@ test('2.18 : $dev discuter ouvre toujours un nouveau chat 💬 PROJET sur Sonnet
   const ids25 = P.chatsAArchiver(c, plus(25)).map((x) => x.chat); assert.ok(ids25.includes(a.chat) && ids25.includes(s.chat), 'discussion inactive 24 h : rangée'); assert.ok(!ids25.includes(relais.chat), 'cadreur : 48 h');
   assert.ok(!P.chatsAArchiver(c, plus(23)).some((x) => x.chat === a.chat));
 });
+
+test('2.19 : mains du poste : commande demandée par atelier, écoutée et jouée par le poste, résultat rendu au chat', async () => {
+  const at = configTest({ hote: 'atelier', deploiement_serveurs: false }); const fa = path.join(at.etat, 'atelier.json'); fs.writeFileSync(fa, JSON.stringify(at));
+  assert.equal(code(() => P.posteDemander(at, { script: 'op read op://coffre/x', shell: 'ssh:serveur' })), 'COMMANDE REFUSÉE', 'gestionnaire de mots de passe');
+  assert.equal(code(() => P.posteDemander(at, { script: 'Remove-Item D:\\x -Recurse -Force', shell: 'powershell' })), 'COMMANDE REFUSÉE', 'suppression définitive sur le poste');
+  assert.equal(code(() => P.posteDemander(at, { script: 'ls', shell: 'bash' })), 'SHELL INCONNU'); assert.equal(code(() => P.posteDemander(at, { script: ' ', shell: 'powershell' })), 'SCRIPT ABSENT');
+  const d = P.posteDemander(at, { script: 'sudo -n systemctl status deployeurer-maj.path', shell: 'ssh:serveur', objet: 'état de l’unité de mise à jour', demandeur: 'chat-cadreur' });
+  assert.equal(d.statut, 'en_file'); assert.equal(d.connecte, false, 'poste pas encore à l’écoute');
+  assert.equal(P.postePrendre(at, { poste: 'x' }).tache, null, 'la relève des recettes ne prend pas les commandes');
+  assert.match(P.posteResultat(at, d.tache).message, /poste non connecté.*ne pas la confier à Paul/);
+  const echo = path.join(at.etat, 'echo.mjs'); fs.writeFileSync(echo, "const t = require('fs').readFileSync(0, 'utf8'); console.log('sortie de ' + process.argv[2] + ' : ' + t.trim()); process.exit(t.includes('echoue') ? 3 : 0);".replace("const t = require('fs')", "import fs from 'node:fs'; const t = fs"));
+  const po = configTest({ hote: 'local', atelier_simule: fa, passerelle: { actif: true, dossier_travail: path.join(at.etat, 'travail'), ssh_commande: [process.execPath, echo], ecoute_duree_s: 1, ecoute_pause_ms: 10, ecoute_echecs_max: 2 } });
+  assert.equal(P.posteEcouter(po, { cycles: 1 }).faites, 1);
+  const r = P.posteResultat(at, d.tache); assert.equal(r.statut, 'rendu'); assert.equal(r.resultat, 'ok'); assert.equal(r.code, 0); assert.match(r.sortie, /sortie de serveur : sudo -n systemctl status/);
+  assert.equal(P.posteConnecte(at).connecte, true, 'le poste a signalé son écoute');
+  const e = P.posteDemander(at, { script: 'echoue', shell: 'ssh:serveur' }); P.posteEcouter(po, { cycles: 1 }); const re = P.posteResultat(at, e.tache); assert.equal(re.resultat, 'echec'); assert.equal(re.code, 3);
+  const f = P.posteFile(at); assert.equal(f.commandes.rendues_24h, 2); assert.deepEqual(f.en_file, []);
+  const att = P.posteDemander(at, { script: 'x', shell: 'ssh:serveur', attendreS: 1 }); assert.equal(att.statut, 'en_file', 'attente bornée : rend la main avec la suite à suivre'); assert.match(att.suite, /poste resultat/);
+  assert.match(P.reglePoste(at), /ne se demande JAMAIS à Paul : node .* poste demander --shell ssh:<alias>\|powershell/);
+  const hors = configTest({ hote: 'local', atelier_simule: path.join(at.etat, 'absent.json'), passerelle: { actif: true, ecoute_pause_ms: 1, ecoute_echecs_max: 2 } }); assert.equal(P.posteEcouter(hors).action, 'arret', 'atelier injoignable : l’écoute s’arrête, la tâche planifiée la relancera');
+});

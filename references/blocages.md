@@ -29,3 +29,4 @@
 - **Question non bloquante** : option par défaut du contrat (ou la plus simple et
   réversible), journalisée, rubrique « À confirmer » du digest.
 
+v2.19 : une commande à jouer sur le poste ou sur un serveur que seul le poste joint n’est jamais un motif d’attente de Paul : `pilote.mjs poste demander` (`poste.md`, « Mains du poste »). Poste non connecté : `⏳ EN ATTENTE`, pas `⏸ À TOI`.

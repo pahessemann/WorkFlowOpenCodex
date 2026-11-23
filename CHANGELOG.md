@@ -1,5 +1,9 @@
 # Changelog du socle public
 
+## 2.19 — 23/11/2026
+
+Mains du poste : tout chat de l'hôte d'exécution fait jouer une commande sur le poste, ou sur un serveur que seul le poste joint, sans passer par l'humain (`poste demander`, résultat rendu dans le même tour) ; écoute permanente du poste quand il est connecté. 104 évaluations, 82 tests.
+
 ## 2.18.1 — 23/11/2026
 
 Alias `$dev discute` et `$dev discussion` ; sans projet, une discussion générale sur les projets en cours ; le chat d'aiguillage nomme la commande. 102 évaluations, 81 tests.

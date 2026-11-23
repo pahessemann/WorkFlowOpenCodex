@@ -3,7 +3,7 @@ name: dev-orchestrator
 description: Orchestrateur de campagnes autonomes et supervisées (Linear Milestones et Issues) : composition à froid, chats identifiables d'un coup d'œil, routage économe des modèles et exécution hybride (PC local / VPS atelier).
 ---
 
-# Orchestrateur Dev — Workflow opérationnel (v2.18.1)
+# Orchestrateur Dev — Workflow opérationnel (v2.19)
 
 Ce skill régit l'orchestration des travaux via `pilote.mjs`, sur le poste local Windows et sur le VPS `atelier` (Linux).
 
@@ -53,6 +53,7 @@ Paul intervient **une fois, au cadrage**. Ensuite, les agents travaillent seuls 
 | `$dev livrer <campagne> [--a-blanc]` | **Poste uniquement**, après un GO enregistré : plan figé (empreinte), répétition à blanc, arrêt à la première erreur, journal et messages dans le chat SUP (`livraison.md`) | `SUP` |
 | `$dev menage` | Analyse des chats des deux hôtes, en lecture seule : à clôturer, archiver, renommer, ranger, rattacher, doublons, dormants, trop lourds (`menage.md`) | inline |
 | `$dev menage appliquer surs|<numéros>|tout` | Applique les actions validées ; jamais de suppression, AIDE et campagnes en cours protégés (`menage.md`) | inline |
+| `pilote.mjs poste demander --shell ssh:<alias>|powershell --objet "<quoi>" --attendre 300 --script-stdin` | **Mains du poste** (v2.19) : tout chat d’atelier fait jouer une commande sur le poste ou sur un serveur que seul le poste joint, sans passer par Paul ; `--agent --fiche-stdin` pour une session de développement sur le poste ; écoute permanente du poste quand il est connecté (`poste.md`) | inline |
 | `$dev discuter [projet] [sujet]` (alias `discute`) | **Discuter d’un projet**, ou des projets en cours sans projet (v2.18.1) sans rien déclencher (v2.18) : un **nouveau** chat `💬 PROJET` à chaque appel, sur atelier, Sonnet 5.5, lecture seule ; contexte du projet chargé à l’ouverture ; une action demandée par Paul part au lanceur (`--depuis-role PROJET`) ; rangé après 24 h sans activité (`discuter.md`) | `PROJET` |
 | `$dev aide [--recreer]` | Ouvrir le chat d'aiguillage, ou le recréer s'il manque ou n'est plus à jour (`aide.md`) | `AIDE` |
 | `$dev archi` | Ouvrir le chat de l'architecte du workflow `🏛 ARCHI · workflow` (`archi.md`) | `ARCHI` |

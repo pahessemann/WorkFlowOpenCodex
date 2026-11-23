@@ -111,3 +111,26 @@ Avant chaque relève, au plus une fois par heure et si `passerelle.archivage_cha
 archive les chats du workflow du poste terminés par ✅ depuis 1 h ou inactifs depuis 48 h (règles de `menage.md`). Jamais AIDE, ARCHI,
 un chat libre (titre sans rôle du workflow), un GO attendu (⏸) ni un chat en plein tour. Compte rendu :
 `.pilote/archivage-chats-poste.json` ; le résultat de `poste relever` le reprend dans `chats_archives`.
+
+## Mains du poste : commandes à la demande (v2.19)
+
+Tout chat d’atelier (cadreur, DEV, orchestrateur, voie de recette) fait jouer une commande hors atelier **sans passer par Paul** :
+sur le poste Windows, ou sur un serveur que seul le poste joint par ses alias SSH (ex. `deployeur-web`, `sudo -n` permis).
+
+`node <pilote> poste demander --shell ssh:<alias>|powershell --objet "<quoi>" [--attendre <s>] [--delai <s>] --script-stdin`
+
+- Le script complet passe sur l’entrée standard (`bash -s` sur le serveur, fichier `.ps1` UTF-8 sur le poste).
+- `--attendre 300` : la commande rend la main dès le résultat (`statut: rendu`, `resultat` ok/echec/environnement, `code`, `sortie`,
+  `erreurs`, 30 000 caractères au plus chacun) ; sinon `poste resultat <tâche>` le relit plus tard.
+- `--agent --fiche-stdin` : une session de développement sur le poste (Sonnet par le routeur), pour une tâche qui demande du jugement ;
+  retour `retour.md` (40 lignes) et `resultat.json`.
+- Gardes : gestionnaire de mots de passe et suppression définitive sur le poste refusés (`COMMANDE REFUSÉE`). Une action irréversible
+  sur un serveur reste soumise au GO de Paul (la fiche le cite).
+- Poste non connecté : la demande attend sa connexion ; le chat termine son tour en `⏳ EN ATTENTE`, sans rien demander à Paul.
+
+**Écoute du poste** : tâche planifiée `pilote-poste-ecoute` (ouverture de session, déverrouillage, toutes les 10 min, une seule instance,
+sans limite de durée) qui lance `node <pilote> poste ecouter` : une attente longue sur atelier (`poste attendre-commande`, 80 s) répétée
+tant que la session est ouverte ; une demande est prise en 2 s environ, jouée, puis rendue (`poste rendre-commande`). Atelier sait que
+le poste écoute par `.pilote/poste/ecoute.json` (`connecte` si vu depuis moins de 150 s) ; `$dev poste` l’affiche (`commandes.ecoute`).
+Après 10 échecs SSH de suite (poste en veille, réseau), l’écoute s’arrête ; la tâche planifiée la relance. La relève des recettes ne
+prend jamais une commande. Installation : `node <pilote> poste installer` (les deux tâches). Désactivation : `passerelle.ecoute: false`.

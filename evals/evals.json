@@ -2505,6 +2505,54 @@
         "code": 0,
         "contient": "💬 PROJET · general · discussion du"
       }
+    },
+    {
+      "id": "poste-demander-gestionnaire-refuse",
+      "commande": "poste demander un script qui lit un gestionnaire de mots de passe : refusé (v2.19)",
+      "argv": [
+        "poste",
+        "demander",
+        "--shell",
+        "ssh:serveur",
+        "--objet",
+        "x",
+        "--script",
+        "script.txt"
+      ],
+      "avant": [
+        {
+          "fichier": "script.txt",
+          "contenu": "bw get password serveur"
+        }
+      ],
+      "attendu": {
+        "code": 2,
+        "contient": "COMMANDE REFUSÉE"
+      }
+    },
+    {
+      "id": "poste-demander-en-file",
+      "commande": "poste demander une commande serveur : en file pour l’écoute du poste, jamais confiée à Paul (v2.19)",
+      "argv": [
+        "poste",
+        "demander",
+        "--shell",
+        "ssh:serveur",
+        "--objet",
+        "statut",
+        "--script",
+        "script.txt"
+      ],
+      "avant": [
+        {
+          "fichier": "script.txt",
+          "contenu": "sudo -n systemctl status x"
+        }
+      ],
+      "attendu": {
+        "code": 0,
+        "contient": "\"statut\": \"en_file\""
+      }
     }
   ]
 }
