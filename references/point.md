@@ -63,3 +63,5 @@ l'autre. **Plancher** : jamais moins que la plus longue chaîne de dépendances 
 5 mesures, `moyenne` sous 15, `bonne` au-delà.
 
 v2.20 : sous la ligne **Abonnement**, une ligne **Comptes Anthropic** (pourcentage, compte actif, remise à zéro), avec 🔥 quand un compte offre une fenêtre à consommer (`modeles.md` §v2.20).
+
+v2.20.1 : **Temps restant** ne chiffre que le travail des agents. Une issue de livraison ou de recette au poste (`poste_requis: true` dans les items de la campagne, issue déposée à la passerelle, ou arrêt `--attend poste`) est comptée à part : « 3 à 6 h + 2 en attente du poste », ou « en attente du poste (DEV-x, DEV-y) » quand il ne reste qu’elles. L’unité est la durée médiane des issues déjà closes, ou le débit des 24 dernières heures, jamais le temps écoulé depuis le lancement : le total ne grimpe plus avec l’horloge. « estimation faible » ne qualifie que la part chiffrée.

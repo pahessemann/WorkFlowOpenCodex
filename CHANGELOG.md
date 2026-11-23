@@ -1,5 +1,9 @@
 # Changelog du socle public
 
+## 2.20.1 — 23/11/2026
+
+Temps restant du point : seul le travail des agents est chiffré, les issues au poste sont affichées « en attente du poste », et le total ne grimpe plus avec l'horloge. 104 évaluations, 88 tests.
+
 ## 2.20 — 23/11/2026
 
 Plusieurs comptes Anthropic : bascule horaire sur celui qui se réinitialise le plus tôt, fenêtre à consommer qui reprend les campagnes mises en pause par économie, comptes affichés dans le point ; la reprise d'une campagne relance son orchestrateur. 104 évaluations, 87 tests.

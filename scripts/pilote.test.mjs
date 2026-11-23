@@ -1141,3 +1141,13 @@ test('2.20 : fenêtre à consommer, pause par économie, reprise qui relance l�
   assert.match(fs.readFileSync(c.appServerFactice, 'utf8'), /Reprise \(fenêtre à consommer/);
   P.mettreEnPause(c, 'eco'); const rr = await P.reprendreCampagne(c, 'eco'); assert.equal(rr.relance.action, 'relancé', 'reprise par Paul : orchestrateur relancé aussitôt');
 });
+
+test('2.20.1 : temps restant : poste à part, total stable dans le temps', () => {
+  const c = configTest(); const t0 = Date.parse('2026-11-23T08:00:00Z'); const iso = (h) => new Date(t0 + h * 3600000).toISOString();
+  const camp = { id: 'k', lancee_le: iso(0) }; const l = [{ linear_id: 'DEV-1', statut: 'close', admise_le: iso(0), close_le: iso(2) }, { linear_id: 'DEV-2', statut: 'close', admise_le: iso(1), close_le: iso(3) }, { linear_id: 'DEV-3', statut: 'en_cours', arret: { attend: 'poste' } }, { linear_id: 'DEV-4', statut: 'en_attente', poste_requis: true, blocked_by: ['DEV-3'] }, { linear_id: 'DEV-5', statut: 'en_attente', blocked_by: ['DEV-4'] }];
+  const e1 = P.estimerReste(c, camp, l, new Set(), t0 + 5 * 3600000); const e2 = P.estimerReste(c, camp, l, new Set(), t0 + 15 * 3600000);
+  assert.deepEqual(e1.au_poste, ['DEV-3', 'DEV-4']); assert.deepEqual(e1.si_actions_faites, e2.si_actions_faites, 'le total ne grimpe pas avec l’horloge'); assert.deepEqual(e1.si_actions_faites, [1.5, 3]);
+  const seul = l.slice(0, 4); const e3 = P.estimerReste(c, camp, seul, new Set(), t0 + 5 * 3600000);
+  const rendu = P.rendrePoint({ campagnes: [{ campagne: 'k', mode: 'supervise', closes: 2, total: 4, pourcent: 50, closes_24h: 0, reste: 2, estimation: e3, arrets: [], places: { occupees: 0, max: 6 } }], actions_paul: [], ressources: { hote: 'x', ram_libre_gio: 1, charge_1min: 0, coeurs: 1, pression_cpu_60s: null }, ligne_etat: 'x' });
+  assert.match(rendu, /\| en attente du poste \(DEV-3, DEV-4\) \|/);
+});

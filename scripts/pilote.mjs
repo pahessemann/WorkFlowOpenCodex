@@ -15,7 +15,7 @@ export const ETATS_ISSUE = ['en_attente', 'preflight', 'en_cours', 'revue', 'rec
 export const ETATS_CAMPAGNE = ['brouillon', 'en_cours', 'en_pause', 'close'];
 export const CRITICITES = ['leger', 'standard', 'sensible'];
 export const MAX_ESSAIS = 3;
-export const VERSION = '2.20';
+export const VERSION = '2.20.1';
 const PASTILLES = { AUTO: '🟢', SUP: '🟠', MS: '🔷', DEV: '🔵', CADRE: '🟣', PROTO: '🎨', TEST: '🧪', RELAIS: '⚙️', BILAN: '📘', AIDE: '❓', ARCHI: '🏛', PROJET: '💬' };
 const DOSSIERS = { AUTO: '01 Campagnes', SUP: '01 Campagnes', MS: '01 Campagnes', DEV: '02 Développement', CADRE: '03 Cadrage & prototypes', PROTO: '03 Cadrage & prototypes', TEST: '04 Relais & maintenance', RELAIS: '04 Relais & maintenance', BILAN: '04 Relais & maintenance', AIDE: '00 Accueil', ARCHI: '00 Accueil', PROJET: '00 Accueil' };
 export const TITRE_ARCHI = '🏛 ARCHI · workflow';
@@ -1654,22 +1654,24 @@ export function estimerReste(cfg, c, l, attentePaul, maintenant = Date.now()) {
   const fenetre = Math.max(1, Math.min(24, depuis ?? 24, premiere ? (maintenant - premiere) / 3600000 : 24)); // campagne plus jeune que 24 h : fenêtre réduite
   if (recentes >= 3) { parIssue = fenetre / recentes; base = 'débit des ' + Math.round(fenetre) + ' dernières heures : ' + recentes + ' clôture(s)'; }
   else if (med) { parIssue = med / par; base = 'durée médiane de ' + durees.length + ' issues mesurées, parallélisme mesuré ' + par.toFixed(1); }
-  else if (closes && depuis) { parIssue = depuis / closes; base = 'rythme de la campagne : ' + closes + ' clôture(s) en ' + Math.round(depuis) + ' h'; }
+  else if (durees.length) { parIssue = mediane(durees); base = 'durée médiane de ' + durees.length + ' issue(s) mesurée(s)'; } // v2.20.1 : plus de rythme « temps écoulé / clôtures », qui grimpait avec l’horloge
   else base = 'aucune clôture mesurée';
   const mesures = Math.max(durees.length, closes);
-  const reste = l.filter((i) => i.statut !== 'close'); const sansToi = reste.filter((i) => !attentePaul.has(i.linear_id));
+  const auPosteI = (i) => !!(i.poste_requis || i.poste || i.arret?.attend === 'poste'); // v2.20.1 : livraison ou recette au poste, hors temps d’agents
+  const tout = l.filter((i) => i.statut !== 'close'); const au_poste = tout.filter(auPosteI).map((i) => i.linear_id); const reste = tout.filter((i) => !auPosteI(i)); const sansToi = reste.filter((i) => !attentePaul.has(i.linear_id));
   const profondeur = (ens) => { const ids = new Set(ens.map((i) => i.linear_id)); const par_id = new Map(ens.map((i) => [i.linear_id, i])); const memo = new Map(); const pile = new Set();
     const p = (id) => { if (memo.has(id)) return memo.get(id); if (pile.has(id)) return 0; pile.add(id); const d = 1 + Math.max(0, ...((par_id.get(id)?.blocked_by) || []).filter((b) => ids.has(b)).map(p)); pile.delete(id); memo.set(id, d); return d; };
     return Math.max(0, ...ens.map((i) => p(i.linear_id))); };
   const unite = med || parIssue;
   const fourchette = (ens) => { if (!ens.length) return [0, 0]; if (parIssue === null) return null; const centre = Math.max(ens.length * parIssue, profondeur(ens) * unite); return [demiHeure(centre * 0.75), demiHeure(centre * 1.5)]; };
-  return { unite: 'heures de travail des agents', si_actions_faites: fourchette(reste), sinon: fourchette(sansToi), plafond_sans_toi: (l.length - reste.length) + sansToi.length, fiabilite: mesures < 5 ? 'faible' : mesures < 15 ? 'moyenne' : 'bonne', base, chaine_restante: profondeur(reste) };
+  return { unite: 'heures de travail des agents', si_actions_faites: fourchette(reste), sinon: fourchette(sansToi), au_poste, plafond_sans_toi: (l.length - tout.length) + sansToi.length + au_poste.length, fiabilite: mesures < 5 ? 'faible' : mesures < 15 ? 'moyenne' : 'bonne', base, chaine_restante: profondeur(reste) };
 }
 const h = (f) => !f ? 'non mesurable' : f[1] === 0 ? '0 h' : f[0] === f[1] ? f[0] + ' h' : f[0] + ' à ' + f[1] + ' h';
+const tempsRestant = (e) => { const n = (e.au_poste || []).length; if (n && e.si_actions_faites && e.si_actions_faites[1] === 0) return 'en attente du poste (' + e.au_poste.join(', ') + ')'; return h(e.si_actions_faites) + (e.fiabilite === 'faible' && e.si_actions_faites !== null ? ' · estimation faible' : '') + (n ? ' + ' + n + ' en attente du poste' : ''); }; // v2.20.1
 export function rendrePoint(p) {
   const L = ['**Campagnes**', '', '| Campagne | Avancement | Clôtures 24 h | Reste | Temps restant (heures de travail des agents) |', '|---|---|---|---|---|'];
   for (const c of p.campagnes) { const e = c.estimation; const sinon = e.plafond_sans_toi < c.total ? ' ; sans tes actions : ' + h(e.sinon) + ', plafond ' + e.plafond_sans_toi + '/' + c.total : '';
-    L.push('| ' + c.campagne + ' (' + ({ auto: 'AUTO', supervise: 'SUP' }[c.mode] || String(c.mode || '').toUpperCase()) + ') | ' + c.closes + '/' + c.total + ' (' + c.pourcent + ' %) | ' + c.closes_24h + ' | ' + c.reste + ' | ' + h(e.si_actions_faites) + sinon + (e.fiabilite === 'faible' ? ' · estimation faible' : '') + ' |'); }
+    L.push('| ' + c.campagne + ' (' + ({ auto: 'AUTO', supervise: 'SUP' }[c.mode] || String(c.mode || '').toUpperCase()) + ') | ' + c.closes + '/' + c.total + ' (' + c.pourcent + ' %) | ' + c.closes_24h + ' | ' + c.reste + ' | ' + tempsRestant(e) + sinon + ' |'); }
   if (p.campagnes.some((c) => c.bloc)) { L.push('', '**État par campagne**', ''); for (const c of p.campagnes) if (c.bloc) L.push(c.bloc, ''); L.pop(); } // v2.10
   const arrets = p.campagnes.flatMap((c) => c.arrets.map((a) => ({ ...a, campagne: c.campagne })));
   L.push('', '**Blocages**', ''); if (!arrets.length) L.push('Aucun.'); else { L.push('| Issue | Campagne | Qui débloque | Cause |', '|---|---|---|---|'); for (const a of arrets) L.push('| ' + a.issue + ' (' + a.statut + ') | ' + a.campagne + ' | ' + a.qui + ' | ' + String(a.quoi).replace(/\|/g, '/') + ' |'); }

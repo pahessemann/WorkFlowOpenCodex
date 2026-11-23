@@ -403,3 +403,5 @@ même lot.
 Si le cadrage publie une issue destinée à une campagne déjà lancée (mandat de Paul, correctif), le cadreur
 l'y inscrit lui-même : `node <pilote> campagne ajouter <campagne> <ID> --motif "<mandat ou décision>"
 [--bloquee-par ID,ID]`, sur l'hôte d'exécution. L'orchestrateur l'admet au réveil suivant.
+
+v2.20.1 : dans les items de la campagne, marquer `poste_requis: true` une issue qui se livre ou se recette depuis le poste Windows ; `$dev point` la compte alors « en attente du poste » au lieu de la chiffrer en heures d’agents.
