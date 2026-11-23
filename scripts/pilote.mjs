@@ -15,7 +15,7 @@ export const ETATS_ISSUE = ['en_attente', 'preflight', 'en_cours', 'revue', 'rec
 export const ETATS_CAMPAGNE = ['brouillon', 'en_cours', 'en_pause', 'close'];
 export const CRITICITES = ['leger', 'standard', 'sensible'];
 export const MAX_ESSAIS = 3;
-export const VERSION = '2.16';
+export const VERSION = '2.17';
 const PASTILLES = { AUTO: '🟢', SUP: '🟠', MS: '🔷', DEV: '🔵', CADRE: '🟣', PROTO: '🎨', TEST: '🧪', RELAIS: '⚙️', BILAN: '📘', AIDE: '❓', ARCHI: '🏛' };
 const DOSSIERS = { AUTO: '01 Campagnes', SUP: '01 Campagnes', MS: '01 Campagnes', DEV: '02 Développement', CADRE: '03 Cadrage & prototypes', PROTO: '03 Cadrage & prototypes', TEST: '04 Relais & maintenance', RELAIS: '04 Relais & maintenance', BILAN: '04 Relais & maintenance', AIDE: '00 Accueil', ARCHI: '00 Accueil' };
 export const TITRE_ARCHI = '🏛 ARCHI · workflow';
@@ -93,11 +93,101 @@ const SUBSTITUTS = { revue: 'O', tests: 'H', visuel: 'O', prototype: 'O', lecteu
 const estOpenAI = (id) => /^gpt-/.test(id);
 // v2.13 : relais chez l'autre fournisseur quand un modèle Anthropic est refusé (quota, panne) : Sol pour Sonnet et Haiku, Astra pour Opus et Fable.
 function relaisOpenAI(ids, id) { return [ids.O, ids.F].includes(id) ? ids.Astra : ([ids.S, ids.H].includes(id) ? ids.Sol : null); }
+// ---------- v2.17 : modes de fournisseur (claude, mixte, gpt, auto) et relevé de l’abonnement ----------
+export const MODES_FOURNISSEUR = ['claude', 'mixte', 'gpt', 'auto'];
+const SEUILS_AUTO = { mixte: 85, gpt: 95, codex_max: 95 };
+const VERS_GPT = { H: 'Terra', S: 'Sol', O: 'Astra', F: 'Astra' };
+const dossierOcx = (cfg) => cfg.opencodex_dir === undefined ? path.join(os.homedir(), '.opencodex') : cfg.opencodex_dir;
+const msDe = (x) => (typeof x === 'number' ? (x < 1e12 ? x * 1000 : x) : null);
+const isoDe = (x) => (x ? new Date(x).toISOString() : null);
+const fichierFournisseur = (cfg) => path.join(cfg.etat, 'fournisseur.json');
+const fichierAbonnement = (cfg) => path.join(cfg.etat, 'abonnement.jsonl');
+export function lireAbonnement(cfg, maintenant = Date.now()) {
+  const d = dossierOcx(cfg); const q = d ? lireJson(path.join(d, 'provider-account-quota-cache.json'), null) : null; const x = d ? lireJson(path.join(d, 'codex-quota-cache.json'), null) : null;
+  const fen = (v) => (v.displayWindows || []).find((w) => /fable/i.test(w.label || '')) || null;
+  const comptes = Object.entries(q?.rows || {}).filter(([k]) => k.startsWith('anthropic')).map(([k, v]) => { const remise = msDe(v.weeklyResetAt); const f = fen(v); const fr = f ? msDe(f.resetAt) : null; return { compte: k.split('\u0000').pop().slice(0, 6), pct: remise && remise < maintenant ? 0 : (v.weeklyPercent ?? null), remise, maj: msDe(v.updatedAt), fable: f ? (fr && fr < maintenant ? 0 : f.percent ?? null) : null }; }).sort((a, b) => (b.maj || 0) - (a.maj || 0));
+  const actif = comptes[0] || null; const fables = comptes.map((c) => c.fable).filter((p) => p !== null);
+  const cx = x?.quotas?.__main__ || x?.mainPolicyQuota?.quota || null; const cxr = cx ? msDe(cx.weeklyResetAt) : null;
+  return { le: new Date(maintenant).toISOString(), anthropic: actif ? { compte: actif.compte, pct: actif.pct, remise: isoDe(actif.remise) } : null, comptes: comptes.map((c) => ({ compte: c.compte, pct: c.pct, maj: isoDe(c.maj) })), fable_pct: fables.length ? Math.min(...fables) : null, codex: cx ? { pct: cxr && cxr < maintenant ? 0 : (cx.weeklyPercent ?? null), remise: isoDe(cxr) } : null };
+}
+export function modeFournisseur(cfg, { abonnement = null, maintenant = Date.now() } = {}) {
+  const e = cfg.etat ? lireJson(fichierFournisseur(cfg), {}) : {}; const mode = MODES_FOURNISSEUR.includes(e.mode) ? e.mode : (MODES_FOURNISSEUR.includes(cfg.modeles?.fournisseur) ? cfg.modeles.fournisseur : 'claude');
+  if (mode !== 'auto') return { mode, effectif: mode, raison: 'mode choisi' };
+  const s = { ...SEUILS_AUTO, ...(cfg.modeles?.fournisseur_auto || {}) }; const a = abonnement || lireAbonnement(cfg, maintenant); const ids = idsModeles(cfg); const refus = cfg.etat ? refusActifs(cfg) : [];
+  const pct = a.anthropic?.pct ?? null; const cx = a.codex?.pct ?? null; const gptOuMixte = cx !== null && cx >= s.codex_max ? 'mixte' : 'gpt';
+  if ([ids.H, ids.S, ids.O].every((m) => refus.includes(m))) return { mode, effectif: gptOuMixte, raison: 'Anthropic refuse tous ses modèles' };
+  if (pct === null) return { mode, effectif: 'claude', raison: 'abonnement Anthropic inconnu' };
+  if (pct >= s.gpt) return { mode, effectif: gptOuMixte, raison: 'Anthropic à ' + pct + ' % de la semaine' + (gptOuMixte === 'mixte' ? ', Codex à ' + cx + ' %' : '') };
+  return { mode, effectif: pct >= s.mixte ? 'mixte' : 'claude', raison: 'Anthropic à ' + pct + ' % de la semaine' };
+}
+export function sousAgentsDispo(cfg, effectif = null) { const e = effectif || modeFournisseur(cfg).effectif; if (e !== 'gpt') return cfg.modeles.sous_agents || []; const ids = idsModeles(cfg); return cfg.modeles.sous_agents_gpt || [ids.Sol, ids.Astra, ids.Terra, ids.Luna, ids.S]; }
+export function fableDisponible(cfg) { const ids = idsModeles(cfg); if (!ids.F || (cfg.etat && refusActifs(cfg).includes(ids.F))) return false; const a = lireAbonnement(cfg); return a.fable_pct === null || a.fable_pct < (cfg.modeles?.fable_seuil_pct ?? 80); }
+function rolesSelonMode(cfg, effectif, tache, criticite, p, f, entree = 0) {
+  if (effectif === 'gpt' && entree > 272000) effectif = 'claude'; // palier des modèles OpenAI
+  if (effectif !== 'gpt' && tache === 'cadrage' && criticite !== 'leger' && fableDisponible(cfg)) [p, f] = ['F', 'O']; // cadreurs sur Fable 5.1
+  const petite = (tache === 'automatisation' && criticite === 'leger') || tache === 'digest';
+  if (effectif === 'mixte') { if (['revue', 'tests'].includes(tache) && criticite !== 'leger') [p, f] = criticite === 'sensible' ? ['Astra', 'O'] : ['Sol', 'S']; if (petite) [p, f] = ['Luna', 'H']; }
+  if (effectif === 'gpt') { if (petite) [p, f] = ['Luna', 'Terra']; else { p = VERS_GPT[p] || p; f = VERS_GPT[f] || f; if (f === p) f = p === 'Astra' ? 'Sol' : 'Astra'; } }
+  return [p, f];
+}
+// Modèle réellement envoyé à chaque thread/start, thread/resume et turn/start : en mode gpt, les chats existants passent aussi chez OpenAI.
+export function modeleEffectif(cfg, m) {
+  if (!m || !cfg?.modeles) return m; let eff; try { eff = modeFournisseur(cfg).effectif; } catch { return m; } if (eff !== 'gpt') return m;
+  const ids = idsModeles(cfg); const court = String(m).replace(/^anthropic\//, ''); const cible = { [ids.H]: ids.Terra, [ids.S]: ids.Sol, [ids.O]: ids.Astra, [ids.F]: ids.Astra }[court]; return cible ? catalogue(cfg, cible) : m;
+}
+function avecMode(cfg) { if (cfg && !cfg.transformerModele) Object.defineProperty(cfg, 'transformerModele', { value: (m) => modeleEffectif(cfg, m), enumerable: false, configurable: true }); return cfg; }
+export function relevesAbonnement(cfg, n = 200) { const f = fichierAbonnement(cfg); if (!fs.existsSync(f)) return []; return fs.readFileSync(f, 'utf8').split('\n').filter(Boolean).slice(-n).map((l) => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean); }
+function vitesseAbonnement(prec, a, maintenant) {
+  if (a.anthropic?.pct === null || a.anthropic?.pct === undefined) return null; const age = (p) => maintenant - Date.parse(p.le);
+  const ref = [...prec].reverse().find((p) => p.anthropic?.compte === a.anthropic.compte && age(p) >= 50 * 60000 && age(p) <= 6 * 3600000);
+  if (!ref || ref.anthropic.pct === null || a.anthropic.pct < ref.anthropic.pct) return null; return Math.round((a.anthropic.pct - ref.anthropic.pct) / (age(ref) / 3600000) * 10) / 10;
+}
+export function releverAbonnement(cfg, { maintenant = Date.now(), forcer = false } = {}) {
+  const prec = relevesAbonnement(cfg, 60); const der = prec[prec.length - 1];
+  if (!forcer && der && maintenant - Date.parse(der.le) < 55 * 60000) return { action: 'rien', dernier: der };
+  const a = lireAbonnement(cfg, maintenant); if (!a.anthropic && !a.codex) return { action: 'rien', raison: 'quotas d’opencodex introuvables' };
+  const m = modeFournisseur(cfg, { abonnement: a, maintenant }); const r = { ...a, vitesse_pt_h: vitesseAbonnement(prec, a, maintenant), mode: m.mode, effectif: m.effectif };
+  fs.mkdirSync(cfg.etat, { recursive: true }); fs.appendFileSync(fichierAbonnement(cfg), JSON.stringify(r) + '\n'); return { action: 'releve', releve: r };
+}
+export function resumeAbonnement(cfg, maintenant = Date.now()) {
+  try { const a = lireAbonnement(cfg, maintenant); if (!a.anthropic && !a.codex) return null; const m = modeFournisseur(cfg, { abonnement: a, maintenant }); const der = relevesAbonnement(cfg, 1)[0]; return { ...a, vitesse_pt_h: der && der.anthropic?.compte === a.anthropic?.compte ? der.vitesse_pt_h ?? null : null, mode: m.mode, effectif: m.effectif, raison: m.raison }; } catch { return null; }
+}
+export function appliquerRosterSousAgents(cfg, effectif) {
+  const liste = sousAgentsDispo(cfg, effectif).slice(0, 5).map((m) => catalogue(cfg, m)); const e = lireJson(fichierFournisseur(cfg), {});
+  if (e.roster === liste.join(',')) return { action: 'rien', liste };
+  const ocx = cfg.ocx || path.join(os.homedir(), '.local', 'npm', 'bin', 'ocx'); const reel = cfg.hote === 'atelier' && !cfg.appServerFactice && cfg.etat && path.resolve(cfg.etat) === path.resolve(os.homedir(), '.pilote');
+  if (!reel || !fs.existsSync(ocx)) return { action: 'non appliqué', liste, raison: reel ? 'ocx absent' : 'hôte sans opencodex d’atelier' };
+  const r = spawnSync(ocx, ['agent', 'subagents', 'set', liste.join(',')], { encoding: 'utf8', timeout: 30000 });
+  if (r.status === 0) ecrireJson(fichierFournisseur(cfg), { ...lireJson(fichierFournisseur(cfg), {}), roster: liste.join(',') });
+  return { action: r.status === 0 ? 'appliqué' : 'échec', liste, sortie: (r.stderr || r.stdout || '').trim().slice(0, 200) };
+}
+export function choisirFournisseur(cfg, mode) {
+  if (mode === undefined || mode === true) { const m = modeFournisseur(cfg); return { ...m, abonnement: resumeAbonnement(cfg), sous_agents: sousAgentsDispo(cfg, m.effectif) }; }
+  if (!MODES_FOURNISSEUR.includes(mode)) refuser('MODE INCONNU', mode + ' (modes : ' + MODES_FOURNISSEUR.join(', ') + ')');
+  const avant = modeFournisseur(cfg); const e = lireJson(fichierFournisseur(cfg), {}); const le = new Date().toISOString();
+  ecrireJson(fichierFournisseur(cfg), { ...e, mode, depuis: le, historique: [...(e.historique || []).slice(-30), { le, mode, effectif_avant: avant.effectif }] });
+  const apres = modeFournisseur(cfg); const roster = appliquerRosterSousAgents(cfg, apres.effectif);
+  if (apres.effectif !== avant.effectif) ecrireJson(fichierFournisseur(cfg), { ...lireJson(fichierFournisseur(cfg), {}), effectif_note: apres.effectif });
+  let atelier = null; if (cfg.hote === 'local' && (cfg.registre_distant || cfg.atelier_simule)) { try { atelier = appelAtelier(cfg, ['fournisseur', mode]); } catch (x) { atelier = { erreur: x.message }; } }
+  return { mode, effectif: apres.effectif, avant: avant.effectif, raison: apres.raison, sous_agents: sousAgentsDispo(cfg, apres.effectif), roster, atelier, effet: apres.effectif === avant.effectif ? 'aucun changement de modèles' : 'nouveaux chats, relances et sous-agents sur le mode ' + apres.effectif + ' dès maintenant ; une bascule coûte une fois le cache en cours' };
+}
+// Garde de boucle : au 3ᵉ sous-agent de même tâche démarré à neuf sur une issue en 12 h, un cadreur au lieu d’un nouvel essai.
+function dateConclusionCadreur(cfg, nom, id) {
+  const f = path.join(dossierCampagnes(cfg), nom + '.decisions.md'); if (!fs.existsSync(f)) return null;
+  const ds = fs.readFileSync(f, 'utf8').split('\n').filter((x) => x.includes(' · ' + id + ' · ') && x.includes('Conclusion du cadreur')).map((x) => Date.parse(x.slice(2, 26))).filter((x) => !Number.isNaN(x)); return ds.length ? Math.max(...ds) : null;
+}
+export function gardeBoucle(cfg, nom, id, tache, { maintenant = Date.now() } = {}) {
+  const fenetre = (cfg.admission?.boucle_fenetre_h ?? 12) * 3600000; const max = cfg.admission?.boucle_max ?? 2;
+  return modifierCampagne(cfg, nom, (c) => { const i = trouverIssue(c, id); const recents = (i.neufs || []).filter((x) => maintenant - Date.parse(x.le) < fenetre); const concl = dateConclusionCadreur(cfg, nom, id);
+    const memes = recents.filter((x) => x.tache === tache && (!concl || Date.parse(x.le) > concl));
+    if (memes.length >= max) refuser('CADREUR REQUIS', (max + 1) + 'ᵉ sous-agent ' + tache + ' à neuf sur ' + id + ' en ' + Math.round(fenetre / 3600000) + ' h : lance le cadreur de déblocage (pilote.mjs lancer cadrage deblocage-' + id + ' --depuis-role AUTO --projet <projet> --nouveau --fiche-stdin) au lieu d’un nouvel essai ; sa conclusion au journal rouvre ' + max + ' essais.', 5);
+    recents.push({ tache, le: new Date(maintenant).toISOString() }); i.neufs = recents; return { issue: id, tache, a_neuf_12h: memes.length + 1, avant_cadreur: max }; });
+}
 function refusActifs(cfg) { const r = lireJson(path.join(cfg.etat, 'refus.json'), {}); const now = Date.now(); return Object.keys(r).filter((m) => Date.parse(r[m].jusque) > now); }
 export function catalogue(cfg, id) { return (cfg.modeles.catalogue || {})[id] || id; }
 function controlerModele(cfg, id, sousAgent) {
   if ((cfg.modeles.reserve_paul || []).includes(id)) refuser('MODÈLE RÉSERVÉ À PAUL', id + ' n’est jamais attribué automatiquement');
-  if (sousAgent && !(cfg.modeles.sous_agents || []).includes(id)) refuser('MODÈLE INDISPONIBLE', id + ' n’est pas disponible en sous-agent (modeles.sous_agents)');
+  if (sousAgent && !sousAgentsDispo(cfg).includes(id)) refuser('MODÈLE INDISPONIBLE', id + ' n’est pas disponible en sous-agent (modeles.sous_agents, ou sous_agents_gpt en mode gpt)');
   return id;
 }
 export function router(cfg, { tache, criticite, volumetrie = 'compact', sousAgent = false, entree = 0, trivial = false }) {
@@ -107,10 +197,10 @@ export function router(cfg, { tache, criticite, volumetrie = 'compact', sousAgen
   if (!CRITICITES.includes(criticite)) refuser('CRITICITÉ INCONNUE', String(criticite));
   if (!['compact', 'large'].includes(volumetrie)) refuser('VOLUMÉTRIE INCONNUE', String(volumetrie));
   if (tache === 'recette-milestone' && sousAgent) refuser('MODÈLE INDISPONIBLE', 'recette de Milestone : chat 🧪 TEST Sonnet lancé par pilote.mjs, jamais en sous-agent');
-  const ids = idsModeles(cfg), refus = refusActifs(cfg), dispo = cfg.modeles.sous_agents || [];
-  let [p, f] = MATRICE[tache][criticite];
+  const mf = modeFournisseur(cfg); const ids = idsModeles(cfg), refus = refusActifs(cfg), dispo = sousAgentsDispo(cfg, mf.effectif); // v2.17
+  let [p, f] = rolesSelonMode(cfg, mf.effectif, tache, criticite, ...MATRICE[tache][criticite], entree);
   let primaire = ids[p], fallback = ids[f], substitution = null;
-  if (sousAgent && !dispo.includes(primaire)) { const s = ids[SUBSTITUTS[tache] || 'O']; substitution = { de: primaire, vers: s }; primaire = s; }
+  if (sousAgent && !dispo.includes(primaire)) { const s = ids[mf.effectif === 'gpt' ? 'Astra' : (SUBSTITUTS[tache] || 'O')]; substitution = { de: primaire, vers: s }; primaire = s; }
   const remplacants = { [ids.Luna]: [ids.S, ids.O], [ids.Terra]: [ids.Sol, ids.S, ids.O], [ids.F]: [ids.Astra, ids.O], [ids.Sol]: [ids.S, ids.O], [ids.Astra]: [ids.O] }; // v2.13
   if (sousAgent && fallback && !dispo.includes(fallback)) fallback = (remplacants[fallback] || [ids.O, ids.Luna]).find((m) => m && m !== primaire && dispo.includes(m)) || null;
   const garde = (id) => { if (!id) return null; if (entree > 100000 && id === ids.H) return null; if (entree > 272000 && estOpenAI(id)) return null; return id; };
@@ -119,7 +209,7 @@ export function router(cfg, { tache, criticite, volumetrie = 'compact', sousAgen
   if (choisi && refus.includes(choisi)) { const relais = relaisOpenAI(ids, choisi); const alt = [fallback, relais].find((m) => m && !refus.includes(m) && (!sousAgent || dispo.includes(m)) && !(cfg.modeles.reserve_paul || []).includes(m)); choisi = garde(alt); raison = alt && alt === relais && alt !== fallback ? 'refus fournisseur : relais OpenAI' : 'refus fournisseur : alternative'; }
   if (!choisi) refuser('MODÈLE INDISPONIBLE', 'aucun modèle admissible pour ' + tache + ' ' + criticite);
   controlerModele(cfg, choisi, sousAgent);
-  const res = { tache, criticite, volumetrie, sous_agent: sousAgent, modele: choisi, catalogue: catalogue(cfg, choisi), fallback: fallback && controlerModeleSilencieux(cfg, fallback, sousAgent), raison };
+  const res = { tache, criticite, volumetrie, sous_agent: sousAgent, modele: choisi, catalogue: catalogue(cfg, choisi), fallback: fallback && controlerModeleSilencieux(cfg, fallback, sousAgent), raison, fournisseur: mf.effectif };
   if (substitution) res.substitution = substitution;
   if (tache === 'revue' && sousAgent) res.consigne = 'sous-agent démarré à neuf : diff, fiche et critères de l’issue uniquement';
   if (volumetrie === 'large') {
@@ -144,7 +234,8 @@ export function escalade(cfg, { criticite, essai, nature = 'bug', sousAgent = fa
   else if (essai === 1) id = criticite === 'standard' ? ids.S : ids.O; // v2.7 : Opus dès le 2ᵉ essai en standard
   else if (essai === 2) id = nature === 'bug-subtil' ? ids.Astra : ids.O;
   else id = nature === 'architecture' && cfg.modeles.fable_autorise ? cfg.modeles.recours : ids.Astra;
-  const dispo = cfg.modeles.sous_agents || [];
+  const effF = modeFournisseur(cfg).effectif; const dispo = sousAgentsDispo(cfg, effF);
+  if (effF === 'gpt') { const g = { [ids.H]: ids.Terra, [ids.S]: ids.Sol, [ids.O]: ids.Astra, [ids.F]: ids.Astra, [cfg.modeles.recours]: ids.Astra }; id = g[id] || id; } // v2.17
   if (sousAgent && !dispo.includes(id)) id = [cfg.modeles.recours, ids.F].includes(id) && dispo.includes(ids.Astra) ? ids.Astra : ids.O; // v2.13 : Fable absent, Astra
   if (refusActifs(cfg).includes(id)) { const r = relaisOpenAI(ids, id); if (r && (!sousAgent || dispo.includes(r))) id = r; }
   controlerModele(cfg, id, sousAgent);
@@ -249,7 +340,7 @@ export function contexte(cfg, nom) {
   const c = lireCampagne(cfg, nom); const l = issues(c); const par = {};
   const voieC = !!c.voie_recette?.chat; const retC = retenues(cfg, c); const trierRet = (x) => [...x].sort((a, b) => (retC[b.linear_id] || 0) - (retC[a.linear_id] || 0)); const stC = statutsAvecSoeurs(cfg, c); const critC = chaineCritique(cfg, c); // v2.7-2.8
   for (const i of l) (par[i.statut] ||= []).push(i.linear_id + (i.sha_reprise ? '@reprise:' + i.sha_reprise.slice(0, 8) : '') + (i.attempts ? ' essais:' + i.attempts : ''));
-  return { campagne: c.id, projet: c.projet, mode: c.mode, statut: c.statut, signalements: signalementsLivraison(cfg, c), hote_execution: c.hote_execution, ...avancement(c), par_statut: par, a_qualifier: l.filter((i) => i.statut === 'bloquee' && !i.arret && !i.poste_exclu).map((i) => i.linear_id), admission: { dev_max: cfg.admission?.dev_max || 4, ouvertes_max: ouvertesMax(cfg), en_attente_exterieure: l.filter((i) => ACTIFS_ISSUE.includes(i.statut) && attendDehors(i)).map((i) => i.linear_id + ' (' + i.arret.attend + ')'), lourdes_max: cfg.admission?.lourdes_max || 1, ...(cfg.admission?.lourdes_max_hote ? { lourdes_max_hote: cfg.admission.lourdes_max_hote } : {}), regle: limitesTexte(cfg) }, a_relancer: trierRet(l.filter((i) => ACTIFS_ISSUE.includes(i.statut) && !auPoste(i) && !(voieC && i.statut === 'recette'))).map((i) => i.linear_id), voie_recette: voieC ? c.voie_recette.chat : null, chaine_critique: critC, admissibles: l.filter((i) => i.statut === 'en_attente' && !i.poste_exclu).map((i) => [i, admissibilite(cfg, c, i, stC)]).filter(([, a]) => a.ok).map(([i, a]) => i.linear_id + (a.empile ? ' (empilée sur ' + a.empile.sur.join(', ') + ')' : '')), a_rebaser: l.filter((i) => i.statut !== 'close' && i.empile_sur?.length && i.empile_sur.every((d) => ['close', 'fusionnee'].includes(stC[d]))).map((i) => i.linear_id), exclues_poste: l.filter((i) => i.poste_exclu && i.statut !== 'close').map((i) => i.linear_id + ' : ' + i.poste_exclu), poste_a_debloquer: l.filter((i) => aDebloquerPoste(cfg, i)).map((i) => i.linear_id + ' : ' + i.poste_env_echecs + ' échecs d’environnement (' + (i.poste_env_cause || 'voir le retour') + ')'), au_poste: l.filter(auPoste).map((i) => i.linear_id + ' (' + i.poste + ')'), retours_poste: l.filter((i) => i.poste === 'retour').map((i) => ({ issue: i.linear_id, resultat: i.poste_resultat, retour: i.poste_retour })), ligne_etat: ligneEtat(cfg, nom).ligne, a_recetter: voieC ? [] : trierRet(l.filter((i) => i.statut === 'fusionnee')).map((i) => i.linear_id), retient: Object.fromEntries(Object.entries(retC).filter(([, n]) => n > 0)), consigne: limitesTexte(cfg) + ' Sous-agents (v2.13) : passe à spawn_agent le champ catalogue de pilote.mjs modele (ex. ' + catalogue(cfg, idsModeles(cfg).S) + '), jamais le nom court ; disponibles en sous-agent : ' + (cfg.modeles.sous_agents || []).map((m) => catalogue(cfg, m)).join(', ') + '. Si spawn_agent refuse un modèle de cette liste, signale-le à ARCHI au journal (pilote.mjs decision) au lieu de changer de modèle en silence. Aucun agent concurrent : relancer seulement les issues listées dans a_relancer, depuis leur fiche. Les issues de a_relancer sont déjà admises et gardent leur place : relance chacune tout de suite (sous-agent dev, revue ou recette selon son statut), sans attendre de place libre ; des places toutes occupées n’empêchent que les nouvelles admissions. Une passe qui ne relance rien alors que a_relancer n’est pas vide est une erreur. Ensuite, chaque issue de a_recetter reçoit sa recette propre (critères de sa fiche, charge lourde), puis passe à close si elle réussit. Une issue de au_poste attend le poste Windows : ne la relance pas. Chaque retour de retours_poste : lis retour.md et les preuves, clos l’issue si la matrice est complète, sinon note la cause (pilote.mjs decision) et redépose-la (pilote.mjs poste deposer) ; tout changement de statut solde le retour. Une issue de exclues_poste attend Paul (motif indiqué) : ne la redépose pas au poste et ne l’admets pas. Une issue de poste_a_debloquer attend une action de Paul sur le poste : ne la redépose pas (pilote.mjs le refuse). Quand tu arrêtes une issue (bloquee, ou revue/recette qui attend autre chose que ton travail), dis qui la débloque : pilote.mjs statut <campagne> <ID> <statut> --attend paul|agents|poste|env --quoi "<cause courte ; pour paul : l’action exacte et la réponse proposée>", ou pilote.mjs arret <campagne> <ID> --attend … --quoi … sans changer le statut ; qualifie aussi chaque issue de a_qualifier. $dev point en dépend (point.md). Avant de passer une issue en bloquee (hors action irréversible), cherche une solution ou une décision avec un cadreur : node ' + RACINE + '/scripts/pilote.mjs lancer cadrage deblocage-<ID> --depuis-role AUTO --projet <projet> --nouveau --fiche-stdin (fiche de 15 lignes : blocage, essais, options ; le cadreur conclut par pilote.mjs decision <campagne> <ID> "Conclusion du cadreur : … ; réservé à Paul : oui|non") ; mandat de Paul : le cadreur décide par défaut (« à confirmer »), publie au besoin une issue corrective (pilote.mjs campagne ajouter) et écrit sa conclusion au journal ; l’issue reste en_attente (pilote.mjs arret … --attend agents --quoi "cadrage de déblocage") et ne passe bloquee --attend paul que si le cadreur conclut à un motif réservé à Paul, avec sa réponse proposée. v2.9 : --attend paul est refusé sans cette conclusion (CADREUR REQUIS) ; motif réservé à Paul d’emblée (action irréversible ou root, secret à fournir, hors mandat) : --reserve "<motif>". Ne demande jamais une décision à Paul dans ton texte : seule la ligne d’état lui parle. Une issue qui attend Paul, le poste ou l’environnement ne compte plus dans tes places : continue d’admettre tant que dev_max et ouvertes_max le permettent. Si la campagne ne bouge plus pendant 2 h, le réveil lance lui-même les cadreurs. v2.11 : une action réservée à Paul que conclut un cadreur (root dans atelier : root-atelier ; CLI du déployeur sur le serveur : serveur-cli ; livraison sous GO ou mandat anticipé : livraison) se demande par pilote.mjs executant demander <campagne> <type> --issue <ID> (…) ; l’exécutant de l’hôte la traite en 5 min, même poste éteint, et inscrit le résultat au journal (pilote.mjs executant etat <campagne>). Ne la mets pas --attend paul : dépose toujours la demande d’abord (v2.14.1) ; seul un refus « aucun mandat » de l’exécutant justifie --attend paul. a_relancer et a_recetter sont triés : les premières issues débloquent le plus d’issues (retient), traite-les d’abord. Admission empilée (v2.8) : une issue dont les dépendances sont en recette (revue favorable) est admissible (liste admissibles) ; pilote.mjs ouvrir la fait partir de la branche de sa dépendance (champ empilement) ; sa PR vise cette branche et ne fusionne qu’après la clôture de la dépendance. Issues de a_rebaser : dépendance fusionnée, rebase leur branche sur la cible, rétablis la PR vers la cible, puis pilote.mjs desempiler <campagne> <ID>. Traite d’abord chaine_critique. Charges lourdes : pilote.mjs lourde <campagne> --issue <ID> -- <commande> (la file sert d’abord les issues qui en débloquent le plus).' + (voieC ? ' Voie de recette dédiée (v2.7) : quand le code d’une issue est fait et sa revue favorable, passe-la en recette (pilote.mjs statut <campagne> <ID> recette) sans jouer la recette toi-même ; les issues en recette ou fusionnées appartiennent à la voie (chat 🧪 TEST), qui les clôt ou te les renvoie en en_cours avec la cause au journal ; elles ne comptent pas dans tes places.' : '') };
+  return { campagne: c.id, projet: c.projet, mode: c.mode, statut: c.statut, signalements: signalementsLivraison(cfg, c), hote_execution: c.hote_execution, ...avancement(c), par_statut: par, a_qualifier: l.filter((i) => i.statut === 'bloquee' && !i.arret && !i.poste_exclu).map((i) => i.linear_id), admission: { dev_max: cfg.admission?.dev_max || 4, ouvertes_max: ouvertesMax(cfg), en_attente_exterieure: l.filter((i) => ACTIFS_ISSUE.includes(i.statut) && attendDehors(i)).map((i) => i.linear_id + ' (' + i.arret.attend + ')'), lourdes_max: cfg.admission?.lourdes_max || 1, ...(cfg.admission?.lourdes_max_hote ? { lourdes_max_hote: cfg.admission.lourdes_max_hote } : {}), regle: limitesTexte(cfg) }, a_relancer: trierRet(l.filter((i) => ACTIFS_ISSUE.includes(i.statut) && !auPoste(i) && !(voieC && i.statut === 'recette'))).map((i) => i.linear_id), voie_recette: voieC ? c.voie_recette.chat : null, chaine_critique: critC, admissibles: l.filter((i) => i.statut === 'en_attente' && !i.poste_exclu).map((i) => [i, admissibilite(cfg, c, i, stC)]).filter(([, a]) => a.ok).map(([i, a]) => i.linear_id + (a.empile ? ' (empilée sur ' + a.empile.sur.join(', ') + ')' : '')), a_rebaser: l.filter((i) => i.statut !== 'close' && i.empile_sur?.length && i.empile_sur.every((d) => ['close', 'fusionnee'].includes(stC[d]))).map((i) => i.linear_id), exclues_poste: l.filter((i) => i.poste_exclu && i.statut !== 'close').map((i) => i.linear_id + ' : ' + i.poste_exclu), poste_a_debloquer: l.filter((i) => aDebloquerPoste(cfg, i)).map((i) => i.linear_id + ' : ' + i.poste_env_echecs + ' échecs d’environnement (' + (i.poste_env_cause || 'voir le retour') + ')'), au_poste: l.filter(auPoste).map((i) => i.linear_id + ' (' + i.poste + ')'), retours_poste: l.filter((i) => i.poste === 'retour').map((i) => ({ issue: i.linear_id, resultat: i.poste_resultat, retour: i.poste_retour })), ligne_etat: ligneEtat(cfg, nom).ligne, a_recetter: voieC ? [] : trierRet(l.filter((i) => i.statut === 'fusionnee')).map((i) => i.linear_id), retient: Object.fromEntries(Object.entries(retC).filter(([, n]) => n > 0)), consigne: limitesTexte(cfg) + ' Sous-agents (v2.13) : passe à spawn_agent le champ catalogue de pilote.mjs modele (ex. ' + catalogue(cfg, idsModeles(cfg).S) + '), jamais le nom court ; disponibles en sous-agent : ' + sousAgentsDispo(cfg).map((m) => catalogue(cfg, m)).join(', ') + '. Garde de boucle (v2.17) : demande le modèle de chaque sous-agent par pilote.mjs modele <tâche> <criticité> compact ' + c.id + ' --sous-agent --issue <ID> ; au 3ᵉ sous-agent de même tâche démarré à neuf sur une issue en 12 h, il répond CADREUR REQUIS : lance alors le cadreur de déblocage au lieu d’un nouvel essai. Si spawn_agent refuse un modèle de cette liste, signale-le à ARCHI au journal (pilote.mjs decision) au lieu de changer de modèle en silence. Aucun agent concurrent : relancer seulement les issues listées dans a_relancer, depuis leur fiche. Les issues de a_relancer sont déjà admises et gardent leur place : relance chacune tout de suite (sous-agent dev, revue ou recette selon son statut), sans attendre de place libre ; des places toutes occupées n’empêchent que les nouvelles admissions. Une passe qui ne relance rien alors que a_relancer n’est pas vide est une erreur. Ensuite, chaque issue de a_recetter reçoit sa recette propre (critères de sa fiche, charge lourde), puis passe à close si elle réussit. Une issue de au_poste attend le poste Windows : ne la relance pas. Chaque retour de retours_poste : lis retour.md et les preuves, clos l’issue si la matrice est complète, sinon note la cause (pilote.mjs decision) et redépose-la (pilote.mjs poste deposer) ; tout changement de statut solde le retour. Une issue de exclues_poste attend Paul (motif indiqué) : ne la redépose pas au poste et ne l’admets pas. Une issue de poste_a_debloquer attend une action de Paul sur le poste : ne la redépose pas (pilote.mjs le refuse). Quand tu arrêtes une issue (bloquee, ou revue/recette qui attend autre chose que ton travail), dis qui la débloque : pilote.mjs statut <campagne> <ID> <statut> --attend paul|agents|poste|env --quoi "<cause courte ; pour paul : l’action exacte et la réponse proposée>", ou pilote.mjs arret <campagne> <ID> --attend … --quoi … sans changer le statut ; qualifie aussi chaque issue de a_qualifier. $dev point en dépend (point.md). Avant de passer une issue en bloquee (hors action irréversible), cherche une solution ou une décision avec un cadreur : node ' + RACINE + '/scripts/pilote.mjs lancer cadrage deblocage-<ID> --depuis-role AUTO --projet <projet> --nouveau --fiche-stdin (fiche de 15 lignes : blocage, essais, options ; le cadreur conclut par pilote.mjs decision <campagne> <ID> "Conclusion du cadreur : … ; réservé à Paul : oui|non") ; mandat de Paul : le cadreur décide par défaut (« à confirmer »), publie au besoin une issue corrective (pilote.mjs campagne ajouter) et écrit sa conclusion au journal ; l’issue reste en_attente (pilote.mjs arret … --attend agents --quoi "cadrage de déblocage") et ne passe bloquee --attend paul que si le cadreur conclut à un motif réservé à Paul, avec sa réponse proposée. v2.9 : --attend paul est refusé sans cette conclusion (CADREUR REQUIS) ; motif réservé à Paul d’emblée (action irréversible ou root, secret à fournir, hors mandat) : --reserve "<motif>". Ne demande jamais une décision à Paul dans ton texte : seule la ligne d’état lui parle. Une issue qui attend Paul, le poste ou l’environnement ne compte plus dans tes places : continue d’admettre tant que dev_max et ouvertes_max le permettent. Si la campagne ne bouge plus pendant 2 h, le réveil lance lui-même les cadreurs. v2.11 : une action réservée à Paul que conclut un cadreur (root dans atelier : root-atelier ; CLI du déployeur sur le serveur : serveur-cli ; livraison sous GO ou mandat anticipé : livraison) se demande par pilote.mjs executant demander <campagne> <type> --issue <ID> (…) ; l’exécutant de l’hôte la traite en 5 min, même poste éteint, et inscrit le résultat au journal (pilote.mjs executant etat <campagne>). Ne la mets pas --attend paul : dépose toujours la demande d’abord (v2.14.1) ; seul un refus « aucun mandat » de l’exécutant justifie --attend paul. a_relancer et a_recetter sont triés : les premières issues débloquent le plus d’issues (retient), traite-les d’abord. Admission empilée (v2.8) : une issue dont les dépendances sont en recette (revue favorable) est admissible (liste admissibles) ; pilote.mjs ouvrir la fait partir de la branche de sa dépendance (champ empilement) ; sa PR vise cette branche et ne fusionne qu’après la clôture de la dépendance. Issues de a_rebaser : dépendance fusionnée, rebase leur branche sur la cible, rétablis la PR vers la cible, puis pilote.mjs desempiler <campagne> <ID>. Traite d’abord chaine_critique. Charges lourdes : pilote.mjs lourde <campagne> --issue <ID> -- <commande> (la file sert d’abord les issues qui en débloquent le plus).' + (voieC ? ' Voie de recette dédiée (v2.7) : quand le code d’une issue est fait et sa revue favorable, passe-la en recette (pilote.mjs statut <campagne> <ID> recette) sans jouer la recette toi-même ; les issues en recette ou fusionnées appartiennent à la voie (chat 🧪 TEST), qui les clôt ou te les renvoie en en_cours avec la cause au journal ; elles ne comptent pas dans tes places.' : '') };
 }
 export function digest(cfg, nom) {
   const c = lireCampagne(cfg, nom); const l = issues(c); const depuis = Date.now() - 86400000;
@@ -432,7 +523,7 @@ export function marquerLivraison(cfg, nom, champs) {
 export async function posterSup(cfg, nom, texte) {
   if (cfg.registre_distant) return viaAtelier(cfg, ['poster', nom, '--texte-stdin'], texte);
   const c = lireCampagne(cfg, nom); if (!c.chat) return { campagne: nom, poste: false, raison: 'campagne sans chat' };
-  const { connecter } = await import('./appserver.mjs'); const s = await connecter(cfg);
+  const { connecter } = await import('./appserver.mjs'); const s = await connecter(avecMode(cfg));
   try { const lu = await s.call('thread/read', { threadId: c.chat, includeTurns: true }).catch(() => null); const t = (lu?.thread?.turns || []).at(-1);
     if (!lu?.thread || lu.thread.status?.type === 'notLoaded') { const e = cfg.execution || {}; await s.call('thread/resume', { threadId: c.chat, model: c.chat_modele, approvalPolicy: e.approvalPolicy || 'never', sandbox: e.sandbox || 'workspace-write' }).catch(() => null); } // v2.8.2 : chat recréé ou non chargé
     const entree = '📦 Message de pilote.mjs (livraison, information) — note-le au journal, n\'exécute rien sur les serveurs :\n' + texte;
@@ -730,7 +821,7 @@ export function analyserMenage(cfg, { chats = [], maintenant = new Date(), linea
   return { rapport: rapport.slice(0, 40), lignes: lignes.length, totaux, proteges_ids: proteges.join(','), en_attente_decision: attente, fichier: path.join(dossier, date + '.json') };
 }
 async function executerOpsChats(cfg, ops) {
-  const { connecter } = await import('./appserver.mjs'); const s = await connecter(cfg); const res = [];
+  const { connecter } = await import('./appserver.mjs'); const s = await connecter(avecMode(cfg)); const res = [];
   try { for (const o of ops) { try {
     if (o.type === 'renommer') await s.call('thread/name/set', { threadId: o.chat, name: o.titre });
     else if (o.type === 'ranger') await rangerChat(cfg, s, o.chat, o.dossier);
@@ -803,7 +894,7 @@ export async function ouvrirChatTravail(cfg, { role, projet, objet, modele, cwd,
     return { ...JSON.parse(r.stdout), delegue_a: cfg.ssh.atelier };
   }
   const id = catalogue(cfg, modele); const t = titre(role, projet, objet);
-  const { connecter } = await import('./appserver.mjs'); const s = await connecter(cfg);
+  const { connecter } = await import('./appserver.mjs'); const s = await connecter(avecMode(cfg));
   try {
     const e = cfg.execution || {};
     const th = await s.call('thread/start', { model: id, cwd: cwd || (cfg.projets?.[projet] || {}).chemin || cfg.etat, approvalPolicy: e.approvalPolicy || 'never', sandbox: e.sandbox || 'workspace-write' });
@@ -826,7 +917,7 @@ export function accesRestreint(cfg, chat) {
 export async function relancerChat(cfg, chat, { s = null, motif = 'accès restreint' } = {}) {
   const reg = lireJson(fichierChats(cfg), {}); const info = reg[chat] || {};
   if ((info.relances || 0) >= MAX_ESSAIS) refuser('CIRCUIT-BREAKER', chat + ' : ' + MAX_ESSAIS + ' relances pour accès restreint ; Paul doit vérifier le réglage d\'exécution de l\'hôte', 4);
-  const { connecter } = await import('./appserver.mjs'); const propre = !s; s ||= await connecter(cfg);
+  const { connecter } = await import('./appserver.mjs'); const propre = !s; s ||= await connecter(avecMode(cfg));
   try {
     let lu = await s.call('thread/read', { threadId: chat, includeTurns: true });
     if (lu.thread?.status?.type === 'notLoaded') { const e = cfg.execution || {}; await s.call('thread/resume', { threadId: chat, model: info.modele, approvalPolicy: e.approvalPolicy || 'never', sandbox: e.sandbox || 'workspace-write' }); }
@@ -901,7 +992,7 @@ export async function ouvrirChat(cfg, nom) {
   if (c.statut !== 'en_cours') refuser('CAMPAGNE NON LANCÉE', nom + ' doit être en_cours');
   if (c.chat) refuser('CHAT DÉJÀ OUVERT', c.chat);
   const r = router(cfg, { tache: 'pilotage', criticite: 'standard' });
-  const { connecter } = await import('./appserver.mjs'); const s = await connecter(cfg);
+  const { connecter } = await import('./appserver.mjs'); const s = await connecter(avecMode(cfg));
   try {
     const cwd = (cfg.projets[c.projet] || {}).chemin || cfg.etat;
     const t = await s.call('thread/start', { model: r.catalogue, cwd, approvalPolicy: (cfg.execution || {}).approvalPolicy || 'never', sandbox: (cfg.execution || {}).sandbox || 'workspace-write' });
@@ -955,13 +1046,14 @@ export function nettoyerDisque(cfg, { appliquer = false, maintenant = Date.now()
 export function nettoyageDu(cfg, maintenant = Date.now()) { const N = configNettoyage(cfg); if (!N.actif || !cfg.etat) return false; const der = lireJson(path.join(cfg.etat, 'nettoyage.json'), {}); const age = der.le ? (maintenant - Date.parse(der.le)) / 3600000 : Infinity; const libre = libreGio(os.homedir()); return age >= N.intervalle_heures || (libre !== null && libre < N.seuil_libre_gio && age >= 1); }
 export async function reveil(cfg, { maintenant = new Date(), intervalleMin = 10 } = {}) {
   const res = []; const { connecter } = await import('./appserver.mjs'); let s = null;
+  try { const ab = releverAbonnement(cfg, { maintenant: maintenant.getTime() }); if (ab.action === 'releve') res.push({ action: 'relevé de l’abonnement (v2.17)', anthropic: ab.releve.anthropic?.pct ?? null, codex: ab.releve.codex?.pct ?? null, fable: ab.releve.fable_pct }); const mf = modeFournisseur(cfg); const ef = lireJson(fichierFournisseur(cfg), {}); if ((ef.effectif_note || 'claude') !== mf.effectif) { ecrireJson(fichierFournisseur(cfg), { ...ef, effectif_note: mf.effectif, historique: [...(ef.historique || []).slice(-30), { le: maintenant.toISOString(), mode: mf.mode, effectif: mf.effectif, raison: mf.raison }] }); res.push({ action: 'bascule de fournisseur (v2.17)', de: ef.effectif_note || 'claude', vers: mf.effectif, raison: mf.raison, roster: appliquerRosterSousAgents(cfg, mf.effectif) }); } } catch (e) { res.push({ action: 'relevé de l’abonnement', erreur: e.message }); }
   try { if (nettoyageDu(cfg, maintenant.getTime())) { const n = nettoyerDisque(cfg, { appliquer: true, maintenant: maintenant.getTime() }); res.push({ action: 'nettoyage du disque (v2.14)', resume: n.resume, erreurs: n.erreurs.length }); } } catch (e) { res.push({ action: 'nettoyage du disque', erreur: e.message }); }
   try {
-    const campsR = listerCampagnes(cfg).filter((x) => x.statut === 'en_cours' && x.chat); const taillesR = taillesSessions(path.join(os.homedir(), '.codex', 'sessions'), campsR.map((x) => x.chat)); const seuilO = cfg.chats?.seuil_orchestrateur ?? 150000;
+    const campsR = listerCampagnes(cfg).filter((x) => x.statut === 'en_cours' && x.chat); const taillesR = taillesSessions(path.join(os.homedir(), '.codex', 'sessions'), campsR.map((x) => x.chat)); const seuilO = cfg.chats?.seuil_orchestrateur ?? 100000; // v2.17 : 100 k (150 k avant)
     for (let c of campsR) {
       if ((taillesR[c.chat] || 0) > seuilO && !c.recreer_chat) { modifierCampagne(cfg, c.id, (cc) => { cc.recreer_chat = true; }); c = lireCampagne(cfg, c.id); res.push({ campagne: c.id, action: 'recréation demandée au point stable (v2.7)', contexte_tokens: taillesR[c.chat] }); }
       const l = issues(c); const restant = l.filter((i) => !['close', 'bloquee'].includes(i.statut));
-      s ||= await connecter(cfg);
+      s ||= await connecter(avecMode(cfg));
       const lu = await s.call('thread/read', { threadId: c.chat, includeTurns: false }).catch((e) => ({ erreur: e.message }));
       let etatChat = lu?.thread?.status?.type || lu?.erreur || 'inconnu';
       if (etatChat === 'notLoaded') { const rep = await s.call('thread/resume', { threadId: c.chat, model: c.chat_modele, approvalPolicy: (cfg.execution || {}).approvalPolicy || 'never', sandbox: (cfg.execution || {}).sandbox || 'workspace-write' }).catch((e) => ({ erreur: e.message })); etatChat = rep?.erreur ? 'reprise impossible : ' + rep.erreur : 'idle'; if (!rep?.erreur) modifierCampagne(cfg, c.id, (cc) => { delete cc.dernier_reveil; }); }
@@ -981,8 +1073,8 @@ export async function reveil(cfg, { maintenant = new Date(), intervalleMin = 10 
       modifierCampagne(cfg, c.id, (cc) => { cc.dernier_reveil = maintenant.toISOString(); if (digestDu) cc.dernier_digest = jour; cc.empreinte_repos = null; delete cc.repos_le; });
       res.push({ campagne: c.id, action: digestDu ? 'digest' : 'reprise', tour: t.turn?.id, restant: restant.length, ...(dr ? { raison: dr.raison } : {}) });
     }
-    for (const c of listerCampagnes(cfg).filter((x) => x.statut === 'en_cours' && x.voie_recette?.chat)) { try { s ||= await connecter(cfg); res.push(await reveilVoieRecette(cfg, c, s, { maintenant, intervalleMin })); } catch (e) { res.push({ campagne: c.id, voie: 'recette', action: 'erreur', erreur: e.message }); } } // v2.7
-    s ||= await connecter(cfg);
+    for (const c of listerCampagnes(cfg).filter((x) => x.statut === 'en_cours' && x.voie_recette?.chat)) { try { s ||= await connecter(avecMode(cfg)); res.push(await reveilVoieRecette(cfg, c, s, { maintenant, intervalleMin })); } catch (e) { res.push({ campagne: c.id, voie: 'recette', action: 'erreur', erreur: e.message }); } } // v2.7
+    s ||= await connecter(avecMode(cfg));
     res.push(...(await reveilChatsTravail(cfg, s)).filter((x) => x.action !== 'aucune'));
     try { res.push(...(await archiverTermines(cfg, s, maintenant))); } catch (e) { res.push({ action: 'archivage impossible', erreur: e.message }); } // v2.6.2
   } finally { s?.fermer(); }
@@ -1123,7 +1215,7 @@ export function scinderCampagne(cfg, nom, { projets = [], vers = null } = {}) {
 }
 function consigneVoie(cfg, c) {
   const P = RACINE + '/scripts/pilote.mjs';
-  return 'Tu ne développes rien. Pour chaque issue de a_recetter, dans l’ordre (les premières débloquent le plus d’issues), confie sa recette à un sous-agent (modèle : node ' + P + ' modele tests <criticite> compact ' + c.id + ' --sous-agent, champ catalogue) : matrice de couverture dressée à neuf depuis la fiche Linear, une ligne par critère, scénario et décision, chacune jouée réellement (dispositif /srv/recette, données synthétiques) ; charges lourdes uniquement par node ' + P + ' lourde ' + c.id + ' -- <commande> ; ce qu’atelier ne peut pas jouer part au poste Windows par node ' + P + ' poste deposer ' + c.id + ' <ID> --fiche <f>. Réutilise les preuves valides. Au plus 6 sous-agents. Matrice complète : node ' + P + ' statut ' + c.id + ' <ID> close <matrice.json>. Échec dû au code : node ' + P + ' statut ' + c.id + ' <ID> en_cours puis node ' + P + ' decision ' + c.id + ' <ID> "<lignes ko, cause, preuve>" (l’orchestrateur corrige). Ligne injouable : cadreur de déblocage (node ' + P + ' lancer cadrage deblocage-<ID> --depuis-role AUTO --projet <projet> --nouveau --fiche-stdin), jamais de blocage direct. Ne rends pas la main tant qu’une issue de a_recetter n’a pas d’agent. Interdits : gestionnaire de mots de passe, données réelles, base partagée, déploiement, fusion vers une branche qui déploie. Termine chaque message final par la ligne rendue par node ' + P + ' recettes ' + c.id + ' (champ ligne), seule en dernière ligne. Réponds en français, format compact.';
+  return 'Tu ne développes rien. Pour chaque issue de a_recetter, dans l’ordre (les premières débloquent le plus d’issues), confie sa recette à un sous-agent (modèle : node ' + P + ' modele tests <criticite> compact ' + c.id + ' --sous-agent --issue <ID>, champ catalogue ; CADREUR REQUIS au 3ᵉ à neuf en 12 h : cadreur de déblocage) : matrice de couverture dressée à neuf depuis la fiche Linear, une ligne par critère, scénario et décision, chacune jouée réellement (dispositif /srv/recette, données synthétiques) ; charges lourdes uniquement par node ' + P + ' lourde ' + c.id + ' -- <commande> ; ce qu’atelier ne peut pas jouer part au poste Windows par node ' + P + ' poste deposer ' + c.id + ' <ID> --fiche <f>. Réutilise les preuves valides. Au plus 6 sous-agents. Matrice complète : node ' + P + ' statut ' + c.id + ' <ID> close <matrice.json>. Échec dû au code : node ' + P + ' statut ' + c.id + ' <ID> en_cours puis node ' + P + ' decision ' + c.id + ' <ID> "<lignes ko, cause, preuve>" (l’orchestrateur corrige). Ligne injouable : cadreur de déblocage (node ' + P + ' lancer cadrage deblocage-<ID> --depuis-role AUTO --projet <projet> --nouveau --fiche-stdin), jamais de blocage direct. Ne rends pas la main tant qu’une issue de a_recetter n’a pas d’agent. Interdits : gestionnaire de mots de passe, données réelles, base partagée, déploiement, fusion vers une branche qui déploie. Termine chaque message final par la ligne rendue par node ' + P + ' recettes ' + c.id + ' (champ ligne), seule en dernière ligne. Réponds en français, format compact.';
 }
 export function recettesVoie(cfg, nom) {
   const c = lireCampagne(cfg, nom); const l = issues(c); const ret = retenues(cfg, c); const stR = statutsAvecSoeurs(cfg, c);
@@ -1137,7 +1229,7 @@ export async function creerVoieRecette(cfg, nom) {
   const c = lireCampagne(cfg, nom); if (c.statut !== 'en_cours') refuser('CAMPAGNE NON LANCÉE', nom + ' doit être en_cours');
   if (c.voie_recette?.chat) return { campagne: nom, chat: c.voie_recette.chat, action: 'existe' };
   const r = router(cfg, { tache: 'recette-milestone', criticite: 'standard' }); const t = titre('TEST', c.projet, 'recettes ' + nom);
-  const { connecter } = await import('./appserver.mjs'); const s = await connecter(cfg);
+  const { connecter } = await import('./appserver.mjs'); const s = await connecter(avecMode(cfg));
   try {
     const e = cfg.execution || {};
     const th = await s.call('thread/start', { model: r.catalogue, cwd: (cfg.projets?.[c.projet] || {}).chemin || cfg.etat, approvalPolicy: e.approvalPolicy || 'never', sandbox: e.sandbox || 'workspace-write' });
@@ -1539,6 +1631,7 @@ export function rendrePoint(p) {
   const arrets = p.campagnes.flatMap((c) => c.arrets.map((a) => ({ ...a, campagne: c.campagne })));
   L.push('', '**Blocages**', ''); if (!arrets.length) L.push('Aucun.'); else { L.push('| Issue | Campagne | Qui débloque | Cause |', '|---|---|---|---|'); for (const a of arrets) L.push('| ' + a.issue + ' (' + a.statut + ') | ' + a.campagne + ' | ' + a.qui + ' | ' + String(a.quoi).replace(/\|/g, '/') + ' |'); }
   L.push('', '**Ce que tu dois faire**', ''); if (!p.actions_paul.length) L.push('Rien.'); else p.actions_paul.forEach((a, k) => L.push((k + 1) + '. ' + a.action + ' — débloque ' + a.debloque + ' issue(s) (' + a.issues.join(', ') + ')'));
+  const ab = p.abonnement; if (ab) { const d = (iso) => (iso ? new Date(iso).toLocaleString('fr-FR', { timeZone: 'Europe/Paris', weekday: 'short', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '?'); const v = ab.vitesse_pt_h; L.push('', '**Abonnement** : ' + [ab.anthropic ? 'Anthropic ' + ab.anthropic.pct + ' % de la semaine' + (v !== null && v !== undefined ? ' (+' + String(v).replace('.', ',') + ' pt/h)' : '') + ', remise à zéro ' + d(ab.anthropic.remise) : null, ab.fable_pct !== null && ab.fable_pct !== undefined ? 'Fable ' + ab.fable_pct + ' %' : null, ab.codex ? 'Codex ' + ab.codex.pct + ' %, remise à zéro ' + d(ab.codex.remise) : null, 'fournisseur : ' + (ab.mode === 'auto' ? 'auto → ' + ab.effectif : ab.effectif)].filter(Boolean).join(' · ')); } // v2.17
   const r = p.ressources; L.push('', '**Ressources** (' + r.hote + ') : RAM libre ' + r.ram_libre_gio + ' Gio' + (r.disque_libre_gio !== null && r.disque_libre_gio !== undefined ? ' · disque libre ' + r.disque_libre_gio + ' Gio' + (r.disque_seuil_gio && r.disque_libre_gio < r.disque_seuil_gio ? ' ⚠' : '') : '') + (r.volume?.non_alloue_gio !== undefined ? ' (volume : ' + r.volume.non_alloue_gio + ' Gio non alloués' + (r.volume.non_alloue_gio < 15 ? ' ⚠' : '') + (r.volume.sauvegarde && !['success', 'inconnu'].includes(r.volume.sauvegarde.resultat) ? ' ; sauvegarde en échec (' + r.volume.sauvegarde.resultat + ') ⚠' : '') + ')' : '') + ' · charge ' + r.charge_1min + ' pour ' + r.coeurs + ' cœurs' + (r.pression_cpu_60s !== null ? ' · attente CPU ' + r.pression_cpu_60s + ' % sur 60 s' : '') + ' · places : ' + p.campagnes.map((c) => c.campagne + ' ' + c.places.occupees + '/' + c.places.max).join(', '));
   const ar = p.chats_archives_24h || []; if (ar.length) L.push('', '**Chats archivés (24 h)** : ' + ar.length + ' — ' + ar.slice(0, 6).join(' ; ') + (ar.length > 6 ? ' ; …' : ''));
   L.push('', p.ligne_etat);
@@ -1572,7 +1665,8 @@ export function point(cfg, noms = [], { maintenant = Date.now() } = {}) {
   const n = campagnes.length; const qualifier = campagnes.flatMap((c) => c.arrets.filter((a) => a.attend === 'a_qualifier').map((a) => a.issue));
   const toi = actions_paul.slice(0, 2).map((a) => a.action + ' (' + a.issues.join(', ') + ')').join(' ; ') + (actions_paul.length > 2 ? ' ; et ' + (actions_paul.length - 2) + ' autre(s) action(s)' : '');
   const ligne_etat = actions_paul.length ? formatLigne('⏸', 'point de ' + n + ' campagne(s) fait' + (qualifier.length ? ', ' + qualifier.length + ' blocage(s) à qualifier' : ''), toi) : formatLigne('✅', 'point de ' + n + ' campagne(s) fait, rien ne t’attend' + (qualifier.length ? ' ; ' + qualifier.length + ' blocage(s) à qualifier par les orchestrateurs' : ''), 'rien');
-  const p = { genere_le: new Date(maintenant).toISOString(), campagnes, actions_paul, ressources, chats_archives_24h: chatsArchives24h(cfg, maintenant), ligne_etat, consigne: 'Recopie le champ rendu tel quel, sans rien ajouter ni retirer ; point en lecture seule.' };
+  try { releverAbonnement(cfg, { maintenant }); } catch {}
+  const p = { genere_le: new Date(maintenant).toISOString(), campagnes, actions_paul, ressources, abonnement: resumeAbonnement(cfg, maintenant), chats_archives_24h: chatsArchives24h(cfg, maintenant), ligne_etat, consigne: 'Recopie le champ rendu tel quel, sans rien ajouter ni retirer ; point en lecture seule.' };
   return { ...p, rendu: rendrePoint(p) };
 }
 
@@ -1700,7 +1794,7 @@ export function clientAppServerLocal(cfg) {
   p.stdout.on('data', (d) => { buf += d; let i; while ((i = buf.indexOf('\n')) >= 0) { const l = buf.slice(0, i); buf = buf.slice(i + 1); try { const m = JSON.parse(l); if (m.id != null && att.has(m.id)) { att.get(m.id)(m); att.delete(m.id); } } catch {} } });
   const appel = (method, params) => new Promise((res, rej) => { const k = ++n; att.set(k, (m) => (m.error ? rej(new Error(m.error.message || JSON.stringify(m.error))) : res(m.result))); p.stdin.write(JSON.stringify({ jsonrpc: '2.0', id: k, method, params }) + '\n'); setTimeout(() => { if (att.has(k)) { att.delete(k); rej(new Error('délai dépassé : ' + method)); } }, 20000); });
   const pret = appel('initialize', { clientInfo: { name: 'pilote-passerelle', title: 'pilote', version: VERSION } }).then(() => p.stdin.write(JSON.stringify({ jsonrpc: '2.0', method: 'initialized' }) + '\n'));
-  return { call: async (m, x) => { await pret; return appel(m, x); }, fermer: () => { try { p.kill(); } catch {} } };
+  return { call: async (m, x) => { await pret; return appel(m, x && x.model && ['thread/start', 'thread/resume', 'turn/start'].includes(m) ? { ...x, model: modeleEffectif(cfg, x.model) } : x); }, fermer: () => { try { p.kill(); } catch {} } };
 }
 export async function archiverChatsPoste(cfg, { client = null, maintenant = Date.now(), appliquer = true } = {}) {
   const h = cfg.chats?.archive_apres_heures ?? 1, inactif = cfg.chats?.inactif_archive_heures ?? 48; const c = client || clientAppServerLocal(cfg); const res = [];
@@ -1863,7 +1957,9 @@ function executerBrut(argv, cfg = null) {
   const o = options(argv); const [cmd, ...a] = o._; const C = () => cfg || (cfg = lireConfig());
   switch (cmd) {
     case 'etat': if (a[0] === 'chats') return chatsEtat(C(), { chats: o['chats-stdin'] ? JSON.parse(fs.readFileSync(0, 'utf8') || '[]') : o['chats-fichier'] ? lireJson(o['chats-fichier'], []) : [], local: !!o.local }); return etat(C(), a[0]);
-    case 'modele': return router(C(), { tache: a[0], criticite: a[1], volumetrie: a[2] || 'compact', sousAgent: !!o['sous-agent'], entree: Number(o.entree || 0), trivial: !!o.trivial });
+    case 'modele': { const r = router(C(), { tache: a[0], criticite: a[1], volumetrie: a[2] || 'compact', sousAgent: !!o['sous-agent'], entree: Number(o.entree || 0), trivial: !!o.trivial }); const camp = o.campagne && o.campagne !== true ? o.campagne : a[3]; if (o['sous-agent'] && camp && o.issue && o.issue !== true) r.garde_boucle = gardeBoucle(C(), camp, o.issue, a[0]); return r; } // v2.17 : garde de boucle
+    case 'fournisseur': return choisirFournisseur(C(), a[0]);
+    case 'abonnement': return o.relever ? releverAbonnement(C(), { forcer: true }) : { ...(resumeAbonnement(C()) || {}), releves: relevesAbonnement(C(), Number(o.n || 24)) };
     case 'escalade': return escalade(C(), { criticite: a[0], essai: a[1], nature: a[2] || 'bug', sousAgent: !!o['sous-agent'] });
     case 'titre': return a[0] === 'campagne' ? titreCampagne(lireCampagne(C(), a[1])) : titre(a[0], a[1], a[2], a[3]);
     case 'badge': { const v = [o.role ?? a[0], o.issue ?? o.id ?? a[1], o.projet ?? a[2], o.hote ?? a[3], o.modele ?? a[4], o.essai ?? a[5]]; if ([0, 2, 3, 4].some((k) => !v[k] || v[k] === true)) refuser('BADGE INCOMPLET', 'usage : badge <rôle> <ID|-> <projet> <atelier|local> <modèle> [essai], ou --role --issue --projet --hote --modele [--essai]'); return { badge: badge(v[0], v[1] === '-' || v[1] === true ? null : v[1], v[2], v[3], v[4], v[5] === true ? null : v[5]) }; } // v2.8.5 : options nommées, plus de champ undefined
@@ -1933,7 +2029,7 @@ function executerBrut(argv, cfg = null) {
     case 'menage': { const rel = (f) => path.isAbsolute(f) ? f : path.join(C().etat, f); const ch = o['chats-fichier'] ? lireJson(rel(o['chats-fichier']), []) : o.chats ? JSON.parse(o.chats) : null; const lin = o['linear-fichier'] ? lireJson(rel(o['linear-fichier']), {}) : {}; if (o['archive-apres-jours'] !== undefined) { C().chats = { ...(C().chats || {}), archive_apres_jours: Number(o['archive-apres-jours']) }; delete C().chats.archive_apres_heures; } if (o['archive-apres-heures'] !== undefined) C().chats = { ...(C().chats || {}), archive_apres_heures: Number(o['archive-apres-heures']) }; if (a[0] === 'appliquer') return appliquerMenage(C(), a[1] || 'surs', { chats: ch, linear: lin }); return analyserMenage(C(), { chats: ch || [], linear: lin }); }
     case 'chats': return lireRegistreChats(C());
     case 'recreer-chat': return modifierCampagne(C(), a[0], (cc) => { cc.recreer_chat = true; return { campagne: a[0], recreer_chat: true, regle: 'recréé par le réveil au prochain point stable, jamais au milieu d’une issue' }; });
-    case 'chats-app': return (async () => { const { connecter } = await import('./appserver.mjs'); const s = await connecter(C()); const out = []; try { let cursor = null; for (let i = 0; i < 20; i++) { const r = await s.call('thread/list', { limit: 100, ...(cursor ? { cursor } : {}) }); for (const x of r.data) out.push({ id: x.id, titre: x.name || '', hote: C().hote, archive: false, maj: new Date((x.updatedAt || 0) * 1000).toISOString(), dossier: x.section?.name || null }); cursor = r.nextCursor; if (!cursor) break; } } finally { s.fermer(); } return out; })();
+    case 'chats-app': return (async () => { const { connecter } = await import('./appserver.mjs'); const s = await connecter(avecMode(C())); const out = []; try { let cursor = null; for (let i = 0; i < 20; i++) { const r = await s.call('thread/list', { limit: 100, ...(cursor ? { cursor } : {}) }); for (const x of r.data) out.push({ id: x.id, titre: x.name || '', hote: C().hote, archive: false, maj: new Date((x.updatedAt || 0) * 1000).toISOString(), dossier: x.section?.name || null }); cursor = r.nextCursor; if (!cursor) break; } } finally { s.fermer(); } return out; })();
     case 'chat-inscrire': return inscrireChat(C(), JSON.parse(fs.readFileSync(0, 'utf8')));
     case 'menage-donnees': return donneesMenage(C(), o.ids && o.ids !== '-' ? String(o.ids).split(',') : []);
     case 'menage-attente': { const cf = C(); ecrireJson(path.join(cf.etat, 'menage', 'attente.json'), { n: Number(a[0] || 0), le: new Date().toISOString() }); return { attente: Number(a[0] || 0) }; }

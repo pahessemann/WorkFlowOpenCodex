@@ -95,7 +95,7 @@ examine le `WIP` de `branche_reprise` avant de coder.
   campagnes (`statutsAvecSoeurs`). Ouvrir ensuite le chat de la sœur : `pilote.mjs chat <nouvelle>`.
 - Admission : `dev_max` 6 par orchestrateur sur atelier (plafond réel des sous-agents) ; le parallélisme vient des
   campagnes sœurs et de la voie de recette.
-- Orchestrateur recréé au point stable dès 150 k tokens de contexte (`chats.seuil_orchestrateur`) ; sur atelier, Codex
+- Orchestrateur recréé au point stable dès 100 k tokens de contexte (`chats.seuil_orchestrateur`, 150 k avant la v2.17) ; sur atelier, Codex
   compresse le contexte à 200 k tokens (`model_auto_compact_token_limit` dans ``/.codex/config.toml`).
 
 ## Chaîne critique et admission empilée (v2.8)

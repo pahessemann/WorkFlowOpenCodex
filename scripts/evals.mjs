@@ -12,7 +12,7 @@ const base = () => ({ hote: 'local', deploiement_serveurs: true, admission: { de
 let ok = 0; const echecs = [];
 for (const c of cas) {
   const etat = fs.mkdtempSync(path.join(os.tmpdir(), 'eval-'));
-  const cfg = { ...base(), etat };
+  const cfg = { ...base(), etat, opencodex_dir: path.join(etat, 'ocx') }; // v2.17 : quotas d’opencodex isolés
   for (const [k, v] of Object.entries(c.config || {})) { if (v === null) delete cfg[k]; else if (k === 'modeles') Object.assign(cfg.modeles, v); else cfg[k] = v; }
   const f = path.join(etat, 'poste.local.json'); fs.writeFileSync(f, JSON.stringify(cfg));
   const run = (argv) => spawnSync(process.execPath, [pilote, ...argv], { encoding: 'utf8', env: { ...process.env, PILOTE_CONFIG: f } });

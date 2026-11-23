@@ -1,5 +1,9 @@
 # Changelog du socle public
 
+## 2.17 — 23/11/2026
+
+Modes de fournisseur `$dev fournisseur claude|mixte|gpt|auto` (tout Claude, revues et tests chez OpenAI, tout GPT, ou bascule selon l'abonnement), cadreurs sur Fable 5.1, relevé horaire de l'abonnement dans `$dev point`, orchestrateurs plus légers (100 k) et garde de boucle avant cadreur. 100 évaluations, 80 tests.
+
 ## 2.16 — 23/11/2026
 
 La passerelle du poste range automatiquement les chats du workflow terminés ou inactifs du poste, jamais les chats libres. 97 évaluations, 79 tests.

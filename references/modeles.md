@@ -177,3 +177,34 @@ En sous-agent, un fallback absent est relevé par un modèle proche (Luna → So
 volume prend Sonnet, et l'escalade prend Astra quand Fable n'est pas disponible. **Relais OpenAI** : un modèle Anthropic
 refusé (`pilote.mjs refus <modèle> <message>`, 60 min) dont le fallback est refusé aussi passe sur **Sol** (rôles Sonnet et
 Haiku) ou **Astra** (rôles Opus et Fable). L'orchestrateur note le refus dès qu'un fournisseur répond « quota » ou « surcharge ».
+
+## v2.17 — modes de fournisseur, cadreurs sur Fable 5.1, abonnement et garde de boucle
+
+Demandes de Paul du 23/11/2026 (fiche `evolutions/2026-11-23-fournisseurs-et-abonnement.md`). But : ménager l’abonnement, pas le prix catalogue.
+
+**`$dev fournisseur claude|mixte|gpt|auto`** (`.pilote/fournisseur.json`, relayé du poste à atelier). Le routeur applique la table du mode ; chaque
+`thread/start`, `thread/resume` et `turn/start` passe par `modeleEffectif` : en mode `gpt`, les chats existants (orchestrateurs compris) sont relancés chez OpenAI.
+
+| Rôle | claude (défaut) | mixte | gpt |
+|---|---|---|---|
+| Orchestrateur, pilotage | Haiku | Haiku | Terra |
+| Dev standard / sensible | Sonnet / Opus | Sonnet / Opus | Sol / Astra |
+| Revue, tests standard / sensible | Sonnet / Opus | **Sol / Astra** | Sol / Astra |
+| Cadrage (standard, sensible) | **Fable 5.1** | **Fable 5.1** | Astra |
+| Petites tâches (`automatisation` léger, `digest`) | Haiku | Luna | Luna |
+| Sous-agents d’atelier | `modeles.sous_agents` | idem | `modeles.sous_agents_gpt` (défaut : Sol, Astra, Terra, Luna, Sonnet) |
+
+`auto` : claude sous 85 % de la semaine Anthropic (compte actif), mixte de 85 à 95 %, gpt au-delà ou si Anthropic refuse Haiku, Sonnet et Opus ;
+mixte au lieu de gpt si Codex dépasse 95 % (`modeles.fournisseur_auto`). Le réveil note chaque bascule au journal de `fournisseur.json` et réécrit
+la liste des sous-agents d’opencodex. Au-delà de 272 k tokens d’entrée, le mode gpt rend la main aux modèles Anthropic (palier OpenAI).
+
+**Cadreurs sur Fable 5.1** (modes claude et mixte) : Fable vaut Opus pour comprendre un dépôt (SWE Atlas 76,5 % contre 77,4 %) et puise dans sa
+propre fenêtre ; retour à Opus si cette fenêtre dépasse `modeles.fable_seuil_pct` (80 %) ou si Fable est refusé. Les cadreurs sont des chats,
+pas des sous-agents : ils ne prennent pas de place dans la liste des 5. Un cadrage inline en sous-agent reste sur Opus. Fable 5.2 reste réservé à Paul.
+
+**Relevé de l’abonnement** : le réveil et `$dev point` lisent les quotas d’opencodex (`provider-account-quota-cache.json`,
+`codex-quota-cache.json`) au plus une fois par heure et les ajoutent à `.pilote/abonnement.jsonl`, avec la vitesse en points par heure.
+
+**Garde de boucle** : `pilote.mjs modele <tâche> <criticité> compact <campagne> --sous-agent --issue <ID>` compte les sous-agents démarrés à
+neuf par issue et par tâche ; au 3ᵉ en 12 h (`admission.boucle_max`, `admission.boucle_fenetre_h`), refus `CADREUR REQUIS` : l’orchestrateur
+lance le cadreur de déblocage, dont la conclusion au journal rouvre deux essais. **Orchestrateurs** recréés dès 100 k tokens (150 k avant).

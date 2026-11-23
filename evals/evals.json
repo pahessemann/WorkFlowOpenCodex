@@ -1164,7 +1164,7 @@
     },
     {
       "id": "lancer-cadrage-luna",
-      "commande": "$dev cadrage lancé depuis un chat Luna : chat Opus 🟣 CADRE créé dans 03",
+      "commande": "$dev cadrage lancé depuis un chat Luna : chat Fable 5.1 🟣 CADRE créé dans 03 (v2.17)",
       "config": {
         "hote": "atelier",
         "deploiement_serveurs": false,
@@ -1187,7 +1187,7 @@
       ],
       "attendu": {
         "code": 0,
-        "contient": "→ ouvert : 🟣 CADRE · deployeur · test-v2-3 (Opus 5.5, 03 Cadrage & prototypes)"
+        "contient": "→ ouvert : 🟣 CADRE · deployeur · test-v2-3 (Fable 5.1, 03 Cadrage & prototypes)"
       }
     },
     {
@@ -1945,14 +1945,14 @@
       }
     },
     {
-      "id": "lanceur-opus-execute-ici",
-      "commande": "lancer depuis un chat Opus qui n’est pas ARCHI : exécution sur place",
+      "id": "lanceur-fable-execute-ici",
+      "commande": "lancer un cadrage depuis un chat Fable 5.1 qui n’est pas ARCHI : exécution sur place (v2.17)",
       "argv": [
         "lancer",
         "cadrage",
         "transition-paquets",
         "--depuis-modele",
-        "claude-opus-5-5",
+        "claude-fable-5-1",
         "--fiche",
         "x"
       ],
@@ -2386,6 +2386,56 @@
       "attendu": {
         "code": 0,
         "contient": "\"etait_empilee_sur\": null"
+      }
+    },
+    {
+      "id": "fournisseur-gpt-orchestrateur-terra",
+      "commande": "$dev fournisseur gpt : pilotage standard routé sur Terra (v2.17)",
+      "avant": [
+        [
+          "fournisseur",
+          "gpt"
+        ]
+      ],
+      "argv": [
+        "modele",
+        "pilotage",
+        "standard"
+      ],
+      "attendu": {
+        "code": 0,
+        "contient": "\"modele\": \"gpt-6.1-terra\""
+      }
+    },
+    {
+      "id": "fournisseur-mixte-revue-sol",
+      "commande": "$dev fournisseur mixte : revue standard sur Sol, développement sur Sonnet (v2.17)",
+      "avant": [
+        [
+          "fournisseur",
+          "mixte"
+        ]
+      ],
+      "argv": [
+        "modele",
+        "revue",
+        "standard"
+      ],
+      "attendu": {
+        "code": 0,
+        "contient": "\"modele\": \"gpt-6.2-sol\""
+      }
+    },
+    {
+      "id": "fournisseur-mode-inconnu",
+      "commande": "$dev fournisseur openai : mode refusé (v2.17)",
+      "argv": [
+        "fournisseur",
+        "openai"
+      ],
+      "attendu": {
+        "code": 2,
+        "contient": "MODE INCONNU"
       }
     }
   ]

@@ -10,7 +10,7 @@ import * as P from './pilote.mjs';
 const OPUS = 'claude-opus-5-5', SONNET = 'claude-sonnet-5-5', HAIKU = 'claude-haiku-5-5', FABLE51 = 'claude-fable-5-1', FABLE52 = 'claude-fable-5-2';
 export function configTest(extra = {}) {
   const etat = fs.mkdtempSync(path.join(os.tmpdir(), 'pilote-'));
-  return { hote: 'local', deploiement_serveurs: true, etat, admission: { dev_max: 4, lourdes_max: 1, pression_cpu_fichier: path.join(etat, 'pression-cpu-absente') }, // tests indépendants de la charge réelle de l'hôte
+  return { hote: 'local', deploiement_serveurs: true, etat, opencodex_dir: path.join(etat, 'ocx'), admission: { dev_max: 4, lourdes_max: 1, pression_cpu_fichier: path.join(etat, 'pression-cpu-absente') }, // tests indépendants de la charge réelle de l'hôte
     modeles: { cerveau: OPUS, dev: [OPUS, SONNET], controle: [SONNET, 'gpt-6.2-sol'], ouvrier: [HAIKU, 'gpt-6-luna'],
       lecteur: { jusqu_a_100k: HAIKU, au_dela: SONNET, fallback: 'gpt-6.1-terra' }, second_regard: 'gpt-6.2-astra', recours: FABLE51, oeil: FABLE51,
       reserve_paul: [FABLE52], sous_agents: [HAIKU, OPUS, FABLE51, 'gpt-6-luna'], fable_autorise: false },
@@ -1025,3 +1025,32 @@ test('2.11.1 : clôture refusée quand la tête du worktree n’est ni poussée 
   assert.equal(code(() => P.verifierFusion(at, P.lireCampagne(at, 'k'), i())), 'CLÔTURE SANS FUSION', 'un commit en plus non fusionné reste refusé');
 });
 
+test('2.17 : modes de fournisseur, cadreurs sur Fable 5.1, mode auto, chats existants en mode gpt, relevé et garde de boucle', async () => {
+  const c = configTest(); c.modeles.sous_agents = [HAIKU, SONNET, OPUS, 'gpt-6.2-sol', 'gpt-6.2-astra']; const ocx = c.opencodex_dir; fs.mkdirSync(ocx, { recursive: true });
+  const quotas = (pct, fable, codex) => { const now = Date.now(); fs.writeFileSync(path.join(ocx, 'provider-account-quota-cache.json'), JSON.stringify({ rows: { 'anthropic\u0000aaaaaa11': { weeklyPercent: pct, weeklyResetAt: now + 86400000, updatedAt: now, displayWindows: fable === null ? [] : [{ label: 'Fable', scope: 'model', percent: fable, resetAt: now + 86400000 }] } } })); fs.writeFileSync(path.join(ocx, 'codex-quota-cache.json'), JSON.stringify({ quotas: { __main__: { weeklyPercent: codex, weeklyResetAt: Math.round(now / 1000) + 86400 } } })); };
+  const m = (tache, criticite, o = {}) => P.router(c, { tache, criticite, ...o }).modele;
+  quotas(40, 3, 20);
+  assert.equal(m('cadrage', 'standard'), FABLE51, 'cadreur sur Fable 5.1'); assert.equal(m('cadrage', 'leger'), SONNET);
+  assert.equal(m('dev', 'standard'), SONNET); assert.equal(m('revue', 'standard'), SONNET); assert.equal(m('pilotage', 'standard'), HAIKU);
+  quotas(40, 85, 20); assert.equal(m('cadrage', 'sensible'), OPUS, 'fenêtre Fable au-delà de 80 % : retour à Opus');
+  P.choisirFournisseur(c, 'mixte');
+  assert.equal(m('revue', 'standard'), 'gpt-6.2-sol'); assert.equal(m('tests', 'sensible'), 'gpt-6.2-astra'); assert.equal(m('dev', 'standard'), SONNET); assert.equal(m('pilotage', 'standard'), HAIKU); assert.equal(m('automatisation', 'leger'), 'gpt-6-luna');
+  const g = P.choisirFournisseur(c, 'gpt'); assert.equal(g.effectif, 'gpt'); assert.equal(g.roster.action, 'non appliqué');
+  assert.equal(m('pilotage', 'standard'), 'gpt-6.1-terra'); assert.equal(m('dev', 'standard'), 'gpt-6.2-sol'); assert.equal(m('dev', 'sensible'), 'gpt-6.2-astra'); assert.equal(m('cadrage', 'standard'), 'gpt-6.2-astra'); assert.equal(m('automatisation', 'leger'), 'gpt-6-luna');
+  assert.equal(m('dev', 'standard', { sousAgent: true }), 'gpt-6.2-sol'); assert.equal(m('dev', 'standard', { entree: 300000 }), SONNET, 'au-delà de 272 k, retour chez Anthropic');
+  assert.equal(P.escalade(c, { criticite: 'standard', essai: 2 }).modele, 'gpt-6.2-astra');
+  assert.equal(P.modeleEffectif(c, 'anthropic/claude-haiku-5-5'), 'gpt-6.1-terra', 'orchestrateur existant relancé sur Terra'); assert.equal(P.modeleEffectif(c, 'gpt-6-luna'), 'gpt-6-luna');
+  c.appServerFactice = path.join(c.etat, 'app.jsonl'); const { connecter } = await import('./appserver.mjs'); const s = await connecter(Object.defineProperty(c, 'transformerModele', { value: (x) => P.modeleEffectif(c, x), configurable: true }));
+  await s.call('turn/start', { threadId: 't', model: 'anthropic/claude-opus-5-5' }); assert.equal(JSON.parse(fs.readFileSync(c.appServerFactice, 'utf8').trim().split('\n').pop()).params.model, 'gpt-6.2-astra');
+  P.choisirFournisseur(c, 'claude'); assert.equal(P.modeleEffectif(c, 'anthropic/claude-haiku-5-5'), 'anthropic/claude-haiku-5-5'); assert.equal(m('pilotage', 'standard'), HAIKU);
+  P.choisirFournisseur(c, 'auto'); quotas(60, 3, 20); assert.equal(P.modeFournisseur(c).effectif, 'claude'); quotas(88, 3, 20); assert.equal(P.modeFournisseur(c).effectif, 'mixte'); quotas(97, 3, 20); assert.equal(P.modeFournisseur(c).effectif, 'gpt'); quotas(97, 3, 96); assert.equal(P.modeFournisseur(c).effectif, 'mixte', 'Codex épuisé aussi : mixte');
+  assert.equal(code(() => P.choisirFournisseur(c, 'openai')), 'MODE INCONNU');
+  quotas(50, 3, 20); const t0 = Date.now(); assert.equal(P.releverAbonnement(c, { maintenant: t0 - 3600000 }).action, 'releve'); quotas(52, 3, 20);
+  assert.equal(P.releverAbonnement(c, { maintenant: t0 - 1800000 }).action, 'rien', 'au plus un relevé par heure'); const r2 = P.releverAbonnement(c, { maintenant: t0 }); assert.equal(r2.releve.vitesse_pt_h, 2);
+  P.choisirFournisseur(c, 'claude');
+  P.composer(c, { nom: 'boucle', projet: 'p', ids: ['DEV-1'] }); fs.writeFileSync(path.join(c.etat, 'campagnes', 'boucle.contrat.md'), 'x'); P.validerContrat(c, 'boucle');
+  assert.equal(P.gardeBoucle(c, 'boucle', 'DEV-1', 'tests').a_neuf_12h, 1); P.gardeBoucle(c, 'boucle', 'DEV-1', 'dev'); P.gardeBoucle(c, 'boucle', 'DEV-1', 'tests');
+  assert.equal(code(() => P.gardeBoucle(c, 'boucle', 'DEV-1', 'tests')), 'CADREUR REQUIS', '3ᵉ recette à neuf en 12 h'); assert.equal(P.gardeBoucle(c, 'boucle', 'DEV-1', 'dev').a_neuf_12h, 2);
+  P.decision(c, 'boucle', 'DEV-1', 'Conclusion du cadreur : rejouer la recette avec le jeu corrigé ; réservé à Paul : non'); assert.equal(P.gardeBoucle(c, 'boucle', 'DEV-1', 'tests', { maintenant: Date.now() + 1000 }).a_neuf_12h, 1, 'la conclusion du cadreur rouvre les essais');
+  assert.equal(P.gardeBoucle(c, 'boucle', 'DEV-1', 'tests', { maintenant: Date.now() + 13 * 3600000 }).a_neuf_12h, 1, 'fenêtre de 12 h');
+});

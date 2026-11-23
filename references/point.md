@@ -18,7 +18,9 @@ ce que Paul doit faire, et le temps restant. Lecture seule : elle n'écrit rien 
    ou `à qualifier` (avec la dernière ligne du journal de l'issue : le point ne devine jamais).
 3. **Ce que tu dois faire** : toutes campagnes confondues, sans doublon, trié par nombre d'issues débloquées
    (l'issue et toutes celles qui en dépendent).
-4. **Ressources** de l'hôte : RAM libre, charge, attente CPU, places d'admission occupées par campagne.
+4. **Ressources** de l'hôte : RAM libre, charge, attente CPU, places d'admission occupées par campagne. Juste au-dessus (v2.17),
+   **Abonnement** : pourcentage de la semaine Anthropic du compte actif et vitesse en points par heure, fenêtre Fable, Codex,
+   dates de remise à zéro et mode de fournisseur (`auto → mixte` quand le mode auto a basculé).
 5. **État par campagne** (v2.10) : le bloc d'état de chaque campagne (👤 Toi en premier), le même que celui des orchestrateurs.
 6. **Ligne d'état** du point : `⏸ À TOI` s'il reste une action de Paul, sinon `✅ TERMINÉ`.
 

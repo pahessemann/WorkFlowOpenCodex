@@ -3,7 +3,7 @@ name: dev-orchestrator
 description: Orchestrateur de campagnes autonomes et supervisées (Linear Milestones et Issues) : composition à froid, chats identifiables d'un coup d'œil, routage économe des modèles et exécution hybride (PC local / VPS atelier).
 ---
 
-# Orchestrateur Dev — Workflow opérationnel (v2.16)
+# Orchestrateur Dev — Workflow opérationnel (v2.17)
 
 Ce skill régit l'orchestration des travaux via `pilote.mjs`, sur le poste local Windows et sur le VPS `atelier` (Linux).
 
@@ -62,6 +62,8 @@ Paul intervient **une fois, au cadrage**. Ensuite, les agents travaillent seuls 
 | `$dev etat chats` | Tableau : la dernière ligne d'état de chaque chat (§2.3 bis) | inline |
 | `$dev poste [file\|installer\|retirer <ID> --motif <m>]` | Passerelle poste Windows : file des tests en attente, dernier passage du poste ; `installer` pose la tâche planifiée ; `retirer` sort une tâche de la file et réserve l'issue à Paul (`poste.md`) | inline |
 | `$dev modele <tache> <criticite> <volumetrie>` | Interroger le routeur (`modeles.md`) | inline |
+| `$dev fournisseur [claude|mixte|gpt|auto]` | **Mode de fournisseur** (v2.17) : tout Claude (défaut), mixte (revues et tests sur Sol et Astra), tout GPT (Terra, Sol, Astra ; Luna pour les petites tâches) ou auto selon l’abonnement ; s’applique aux nouveaux chats, aux relances et aux sous-agents ; sans argument, montre le mode et l’abonnement (`modeles.md` §v2.17) | inline |
+| `$dev abonnement [--relever]` | Pourcentages de la semaine Anthropic (par compte), fenêtre Fable et Codex, vitesse en points par heure ; relevé horaire par le réveil (`.pilote/abonnement.jsonl`) | inline |
 
 ---
 
@@ -91,7 +93,7 @@ Règles :
 6. **Parallélisme** : le nombre de sous-agents `dev` actifs respecte les limites d'admission (§4). Les sous-agents `lecteur`, `revue` et `tests` légers n'entrent pas dans ce quota ; une suite de tests complète, si.
 7. **Pas de sous-agent pour ce qui tient en une commande** : un lint ou un `git status` s'exécutent directement.
 
-**Modèles disponibles en sous-agent** : la liste est lue dans `poste.local.json` (`modeles.sous_agents`). Le routeur ne propose jamais en sous-agent un modèle absent de cette liste. Aujourd'hui, Sonnet n'en fait pas partie : il ne sert que pour la **recette de Milestone**, dans un chat `🧪 TEST` lancé par `pilote.mjs` et rangé dans `04 Relais & maintenance`.
+**Modèles disponibles en sous-agent** : la liste est lue dans `poste.local.json` (`modeles.sous_agents`, ou `modeles.sous_agents_gpt` en mode `gpt`). Le routeur ne propose jamais en sous-agent un modèle absent de cette liste ; sur atelier, `$dev fournisseur` réécrit la liste d’opencodex (5 modèles au plus). **v2.17** : cadreurs sur Fable 5.1 tant que sa fenêtre reste sous 80 % ; garde de boucle : `pilote.mjs modele … --sous-agent --issue <ID>` refuse le 3ᵉ sous-agent de même tâche démarré à neuf sur une issue en 12 h (`CADREUR REQUIS`).
 
 Si l'outil ne permet pas de lancer des sous-agents avec un modèle choisi, `pilote.mjs` revient au mode « un chat `🔵 DEV` par issue », sans rien changer d'autre.
 

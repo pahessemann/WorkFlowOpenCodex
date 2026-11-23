@@ -3,6 +3,9 @@
 import fs from 'node:fs';
 import { pathToFileURL } from 'node:url';
 
+const MODELES_APPELS = ['thread/start', 'thread/resume', 'turn/start'];
+// v2.17 : le mode de fournisseur (pilote.mjs fournisseur) s’applique à chaque appel qui porte un modèle.
+function avecModele(cfg, call) { const f = typeof cfg.transformerModele === 'function' ? cfg.transformerModele : null; return f ? (m, p = {}, d) => call(m, p && p.model && MODELES_APPELS.includes(m) ? { ...p, model: f(p.model) } : p, d) : call; }
 export async function connecter(cfg) {
   if (cfg.appServerFactice) return connecterFactice(cfg);
   if (!cfg.appServerSocket || !fs.existsSync(cfg.appServerSocket)) throw new Error('socket app-server absent : ' + cfg.appServerSocket);
@@ -16,7 +19,7 @@ export async function connecter(cfg) {
   const call = (method, params = {}, delai = 30000) => new Promise((ok, ko) => { const id = ++seq; const t = setTimeout(() => { attente.delete(id); ko(new Error('délai app-server : ' + method)); }, delai); attente.set(id, { ok, ko, t }); ws.send(JSON.stringify({ id, method, params })); });
   await call('initialize', { clientInfo: { name: 'pilote-dev', version: '2.2' }, capabilities: { experimentalApi: true } });
   ws.send(JSON.stringify({ method: 'initialized' }));
-  return { call, fermer: () => ws.close() };
+  return { call: avecModele(cfg, call), fermer: () => ws.close() };
 }
 
 
@@ -30,6 +33,6 @@ export function connecterFactice(cfg) {
     if (method === 'thread/read') return { thread: { id: params.threadId, name: 'factice', status: { type: 'idle' }, turns: [{ id: 't0', status: 'completed', items: [{ type: 'agentMessage', text: cfg.appServerFacticeMessage || 'ok' }] }] } };
     return {};
   };
-  return { call, fermer: () => {} };
+  return { call: avecModele(cfg, call), fermer: () => {} };
 }
 
