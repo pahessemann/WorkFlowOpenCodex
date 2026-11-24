@@ -1,5 +1,9 @@
 # Changelog du socle public
 
+## Essai — branche workflow-autonome — 24/11/2026
+
+Routage proportionné et suivi des campagnes ; méthodes laissées aux agents. Version locale et GO explicite sur le SHA avant fusion dans la branche principale ; Linear et Obsidian conservés.
+
 ## 2.23 — 24/11/2026
 
 Passerelle : sortie sans tampon, preuves partielles conservées et diagnostic avant redépôt après échec d'environnement. Recette : preuves équivalentes réutilisables après vérification, revue indépendante et suite finale conservées.
