@@ -21,5 +21,7 @@ test('validation locale : SHA exact, travail propre et base inchangée', () => {
 
 test('profil autonome : preuve libre et escalade non imposée', () => {
   const root=fs.mkdtempSync(path.join(os.tmpdir(),'dev-autonome-')); const f=path.join(root,'preuve.md'); fs.writeFileSync(f,'Test ciblé exécuté : sortie 0.'); assert.equal(P.verifierPreuveAutonome('DEV-1',f),1);
-  assert.match(P.consigneAutonome({}, {id:'c'}), /GO explicite/); assert.match(P.consigneAutonome({}, {id:'c'}), /modèle/); assert.equal(P.gardeBoucle({workflow_autonome:true},'c','DEV-1','dev').issue,'DEV-1'); fs.rmSync(root,{recursive:true,force:true});
+  assert.match(P.consigneAutonome({}, {id:'c'}), /GO explicite/); assert.match(P.consigneAutonome({}, {id:'c'}), /modèle/); assert.equal(P.gardeBoucle({workflow_autonome:true},'c','DEV-1','dev').issue,'DEV-1');
+  assert.throws(() => P.refuserSiLivreParPaul({workflow_autonome:true,livraison_par_paul:['p']},{projet:'p'}), e => e.titre === 'LIVRAISON PAR PAUL' && /GO explicite/.test(e.message));
+  fs.rmSync(root,{recursive:true,force:true});
 });

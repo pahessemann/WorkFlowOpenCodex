@@ -252,7 +252,8 @@ export function router(cfg, { tache, criticite, volumetrie = 'compact', sousAgen
 function controlerModeleSilencieux(cfg, id, sa) { try { return controlerModele(cfg, id, sa); } catch { return null; } }
 export function escalade(cfg, { criticite, essai, nature = 'bug', sousAgent = false }) {
   const ids = idsModeles(cfg); essai = Number(essai);
-  if (essai > MAX_ESSAIS) refuser('CIRCUIT-BREAKER', 'plus de ' + MAX_ESSAIS + ' essais : issue ⛔ BLOQUÉ, escalade à Paul (blocages.md)', 4);
+  if (essai > MAX_ESSAIS && cfg.workflow_autonome !== true) refuser('CIRCUIT-BREAKER', 'plus de ' + MAX_ESSAIS + ' essais : issue ⛔ BLOQUÉ, escalade à Paul (blocages.md)', 4);
+  if (cfg.workflow_autonome === true && essai > MAX_ESSAIS) essai = MAX_ESSAIS;
   let id;
   if (criticite === 'leger') id = [null, ids.H, ids.S, ids.O][essai];
   else if (essai === 1) id = criticite === 'standard' ? ids.S : ids.O; // v2.7 : Opus dès le 2ᵉ essai en standard
@@ -563,7 +564,7 @@ export function extrairePlan(texte) {
 // v2.22 : projets que Paul déploie lui-même depuis le déployeur (poste.local.json : livraison_par_paul) ; le travail des agents s’arrête à la fusion.
 export const livreParPaul = (cfg, c) => !!c && (cfg.livraison_par_paul || []).includes(c.projet);
 export const regleLivraisonPaul = (c) => 'Livraison par Paul (v2.22) : le projet ' + c.projet + ' est déployé par Paul lui-même depuis le déployeur. Ne livre rien et ne touche à aucun serveur : ni $dev livrer, ni livraison-go, ni exécutant livraison, ni poste demander vers un serveur pour déployer. Ton travail s’arrête au commit et à la fusion dans la branche principale ; une issue de livraison, de phase 2 ou de vérification sur serveur se clôt sans fusion (motif « livraison par Paul depuis le déployeur »), puis la campagne continue.';
-export function refuserSiLivreParPaul(cfg, c) { if (livreParPaul(cfg, c)) refuser('LIVRAISON PAR PAUL', 'le projet ' + c.projet + ' est déployé par Paul depuis le déployeur : fusionne dans la branche principale, clos l’issue de livraison sans fusion (motif « livraison par Paul depuis le déployeur ») et continue, sans GO, sans exécutant et sans serveur', 6); }
+export function refuserSiLivreParPaul(cfg, c) { if (livreParPaul(cfg, c)) refuser('LIVRAISON PAR PAUL', cfg.workflow_autonome === true ? 'Paul déploie lui-même. Avant toute fusion vers la branche principale : présentation locale et GO explicite de Paul sur le SHA exact.' : 'le projet ' + c.projet + ' est déployé par Paul depuis le déployeur : fusionne dans la branche principale, clos l’issue de livraison sans fusion (motif « livraison par Paul depuis le déployeur ») et continue, sans GO, sans exécutant et sans serveur', 6); }
 export function goLivraison(cfg, nom, plan) { refuserSiLivreParPaul(cfg, lireCampagne(cfg, nom)); // v2.22
   if (plan && !path.isAbsolute(plan)) plan = path.join(cfg.etat, plan);
   if (!fs.existsSync(plan)) refuser('PLAN ABSENT', plan, 6);
@@ -1425,7 +1426,7 @@ export function verifierFusion(cfg, c, i, { sansFusion = null } = {}) {
     if (fic.length && git(projet.chemin, 'diff', '--quiet', tete, 'origin/' + princ, '--', ...fic).code === 0) return { verifie: true, branche: br, cible: princ, par: 'contenu du worktree identique dans ' + princ }; }
   if (cfg.gh !== false && (!tete || tete === refSha)) { const url = git(projet.chemin, 'remote', 'get-url', 'origin').out; const depot = (url.match(/github\.com[:/](.+?)(\.git)?$/) || [])[1];
     if (depot) { const r = spawnSync('gh', ['pr', 'list', '--repo', depot, '--state', 'merged', '--head', br, '--base', princ, '--json', 'number,mergeCommit'], { encoding: 'utf8', windowsHide: true, timeout: 30000 }); try { const l = JSON.parse(r.stdout || '[]'); if (l.length) return { verifie: true, branche: br, cible: princ, par: 'PR #' + l[0].number + ' fusionnée' }; } catch {} } }
-  refuser('CLÔTURE SANS FUSION', id + ' : ' + (tete && tete !== refSha ? 'la tête du worktree (' + tete.slice(0, 8) + ') n’est ni poussée sur ' + br + ' ni fusionnée dans ' + princ : 'la branche ' + br + ' n’est pas fusionnée dans ' + princ + ' (' + (ref ? 'absente de son historique' : 'introuvable') + ', aucune PR fusionnée)') + ' ; ouvrir la PR vers ' + princ + ', la fusionner, puis clore. Issue sans code livré : --sans-fusion "<motif>".');
+  refuser('CLÔTURE SANS FUSION', id + ' : ' + (tete && tete !== refSha ? 'la tête du worktree (' + tete.slice(0, 8) + ') n’est ni poussée sur ' + br + ' ni fusionnée dans ' + princ : 'la branche ' + br + ' n’est pas fusionnée dans ' + princ + ' (' + (ref ? 'absente de son historique' : 'introuvable') + ', aucune PR fusionnée)') + (cfg.workflow_autonome === true ? ' ; présenter la version locale à Paul, attendre son GO sur le SHA exact, puis fusionner et clore.' : ' ; ouvrir la PR vers ' + princ + ', la fusionner, puis clore.') + ' Issue sans code livré : --sans-fusion "<motif>".');
 }
 
 // ---------- charges lourdes : verrou réel (lourdes_max par campagne) ----------
