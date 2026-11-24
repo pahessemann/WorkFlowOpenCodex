@@ -46,3 +46,10 @@ Sur le poste (v2.16), la passerelle applique les mêmes règles aux chats du wor
 chats libres de Paul (`poste.md`).
 
 v2.18 : un chat `💬 PROJET` (discussion, `discuter.md`) est rangé par le réveil après 24 h sans activité (`chats.discussion_archive_heures`), ou 1 h après sa ligne `✅`.
+
+## Procédure de clôture (v2.22.1)
+
+1. À la clôture d’une campagne, son orchestrateur poste le bilan, puis pose le titre ✅ sur son chat (set_thread_title), dans le même tour.
+2. À chaque ménage, l’agent relit la liste ouverte des chats (list_threads), la passe à menage --chats-fichier, et applique les actions sûres.
+3. Un chat terminé (campagne close, cadreur ✅, développeur fini) est rangé ensuite ; un chat encore ouvert est gardé, avec la raison au rapport.
+4. Les chats d’atelier s’archivent par l’application (set_thread_archived), pas par le script du poste.
