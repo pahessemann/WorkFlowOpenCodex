@@ -22,6 +22,7 @@ test('validation locale : SHA exact, travail propre et base inchangée', () => {
 test('profil autonome : preuve libre et escalade non imposée', () => {
   const root=fs.mkdtempSync(path.join(os.tmpdir(),'dev-autonome-')); const f=path.join(root,'preuve.md'); fs.writeFileSync(f,'Test ciblé exécuté : sortie 0.'); assert.equal(P.verifierPreuveAutonome('DEV-1',f),1);
   assert.match(P.consigneAutonome({}, {id:'c'}), /GO explicite/); assert.match(P.consigneAutonome({}, {id:'c'}), /modèle/); assert.equal(P.gardeBoucle({workflow_autonome:true},'c','DEV-1','dev').issue,'DEV-1');
+  assert.match(P.consigneAutonome({}, {id:'c'}), /Ne supprime ni ne modifie les routes et contrats/); assert.match(P.consigneAutonome({}, {id:'c'}), /ajoute une route ou un contrat distinct/); assert.doesNotMatch(P.consigneAutonome({}, {id:'c'}), /règles de son PROJECT/);
   assert.throws(() => P.refuserSiLivreParPaul({workflow_autonome:true,livraison_par_paul:['p']},{projet:'p'}), e => e.titre === 'LIVRAISON PAR PAUL' && /GO explicite/.test(e.message));
   const c={id:'c',projet:'p',items:[{type:'issue_standalone',linear_id:'DEV-1',projet:'p',statut:'en_cours',branche:'codex/issue-DEV-1',sha_reprise:'a'.repeat(40)},{type:'issue_standalone',linear_id:'DEV-2',projet:'p',statut:'en_attente',blocked_by:['DEV-1']}]};
   assert.equal(P.admissibilite({etat:root,workflow_autonome:true},c,c.items[1],{'DEV-1':'en_cours'}).ok,true);

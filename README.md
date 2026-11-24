@@ -1,6 +1,6 @@
 # WorkFlowOpenCodex — branche d'essai `workflow-autonome`
 
-Ce profil conserve les campagnes, leurs issues Linear et les bilans Obsidian. Le pilote sert surtout à router les modèles selon la tâche et à suivre l'objectif ; les agents choisissent leurs méthodes et leurs vérifications, en respectant les règles et contrats de chaque projet.
+Ce profil conserve les campagnes, leurs issues Linear et les bilans Obsidian. Le pilote sert surtout à router les modèles selon la tâche et à suivre l'objectif ; les agents choisissent leurs méthodes et leurs vérifications, sans imposer les procédures propres aux dépôts. Les API existantes ne sont ni supprimées ni modifiées : une évolution incompatible passe par une route ou un contrat distinct.
 
 Avant toute fusion vers la branche principale, l'agent présente une version locale et son SHA, attend le GO explicite de l'utilisateur puis revérifie la version et la base. Le pilote fournit `validation-locale presenter`, `go` et `verifier` ; ces commandes enregistrent une validation, ne fusionnent pas et ne remplacent pas l'accord humain. Une commande Git externe n'est pas interceptée par le pilote.
 

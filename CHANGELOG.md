@@ -1,5 +1,9 @@
 # Changelog du socle public
 
+## Essai autonome — clarification API — 24/11/2026
+
+Les procédures propres aux dépôts ne sont pas imposées par le workflow. Les API existantes restent inchangées ; les besoins incompatibles passent par un ajout distinct.
+
 ## Essai — branche workflow-autonome — 24/11/2026
 
 Routage proportionné et suivi des campagnes ; méthodes laissées aux agents. Version locale et GO explicite sur le SHA avant fusion dans la branche principale ; Linear et Obsidian conservés.
