@@ -20,6 +20,7 @@ Cette recette est une validation développeur avant la pull request prête : ell
 cherche les défauts fonctionnels, visuels, interactifs ou d’expérience
 utilisateur demandés par l’issue. Elle précède la recette de l’utilisateur ou la recette
 d’usage indépendante de l’orchestrateur de campagne ; elle ne remplace ni l’une ni l’autre.
+Ses preuves peuvent être examinées et citées par le recetteur indépendant conformément à `test.md` : SHA, scénario, commande, résultat et environnement doivent correspondre ; tout manque est rejoué.
 
 ## Authentification autorisée
 

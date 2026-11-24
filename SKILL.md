@@ -3,7 +3,7 @@ name: dev-orchestrator
 description: Orchestrateur de campagnes autonomes et supervisées (Linear Milestones et Issues) : composition à froid, chats identifiables d'un coup d'œil, routage économe des modèles et exécution hybride (PC local / VPS atelier).
 ---
 
-# Orchestrateur Dev — Workflow opérationnel (v2.22)
+# Orchestrateur Dev — Workflow opérationnel (v2.23)
 
 Ce skill régit l'orchestration des travaux via `pilote.mjs`, sur le poste local Windows et sur le VPS `atelier` (Linux).
 
@@ -336,6 +336,7 @@ Pour une campagne de déploiement (ex. `deployeur`) : `"mode": "supervise"`, `"h
 5. **Contrôles rapides** par issue : lint, typecheck et tests unitaires ciblés sur les fichiers modifiés.
 6. **Recette développeur** (`recette-developpeur.md`) : si l'issue Linear porte `Statut recette : REQUISE`, l'agent fait la recette lui-même, avec les accès autorisés et les outils exclus indiqués dans l'issue. Une recette qu'atelier ne peut pas faire (Windows : wkhtmltopdf, IIS Express, PowerShell) part au poste par la passerelle : `node <pilote> poste deposer <campagne> <ID> --fiche <f>` ; le retour arrive dans `retours_poste` (`poste.md`).
 7. **Recette groupée** par Milestone : suite complète, non-régression, revue globale *sur le diff* et bilan, **une seule fois** sur le SHA final de `codex/ms-<slug>`.
+   Les preuves déjà produites au même SHA peuvent couvrir une ligne de matrice après vérification indépendante du scénario, de la commande, du résultat et de l'environnement ; les lignes manquantes ou douteuses sont jouées. La revue à neuf et la suite finale restent obligatoires (`test.md`).
 8. **Finalisation et Obsidian** (`finalisation.md`, `ingestion.md`) : à la fusion dans `codex/ms-<slug>`, le bilan de l'issue est seulement **préparé** (`.pilote/bilans/<ID>.md`). Le sous-agent `obsidian` ne le verse dans le vault qu'**après la fusion vers `main`** : pour une issue de Milestone, après la recette verte du Milestone et la fusion de sa PR finale. Un travail qui n'atteint jamais `main` n'entre donc jamais dans le vault. `vault.mjs` resynchronise le vault avant chaque lecture ou écriture. L'issue Linear est fermée en même temps, avec son bilan.
 9. **UI** : pour toute surface raccordée au Design System, le parcours est `ui-cadrage` (thème, paquet et version adoptés), puis `🎨 PROTO` validé (`spec.json` v1 vérifié par `prototype-check.mjs`), puis implémentation (`ui-realisation`), puis contrôle du résultat livré sur le SHA exact (`ui-resultat`).
 

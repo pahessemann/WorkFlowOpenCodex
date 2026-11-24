@@ -370,6 +370,7 @@ test('passerelle poste : dépôt hors quota, relève, preuves, retour, essais se
   assert.match(P.ligneEtat(at, 'k').detail, /^⏳ EN ATTENTE · retour du poste Windows attendu pour DEV-1 · Toi : ouvrir ta session sur le poste/);
   const session = path.join(at.etat, 'session.mjs');
   fs.writeFileSync(session, "import fs from 'node:fs'; import path from 'node:path'; const d = process.env.PASSERELLE_TRAVAIL; const consigne = fs.readFileSync(0, 'utf8'); fs.writeFileSync(path.join(d, 'preuves', 'matrice.json'), JSON.stringify({ reglages: consigne.includes('Microsoft Print to PDF'), sansGestionnaire: consigne.includes('gestionnaire de mots de passe'), ligneDirigee: consigne.includes('✅ TERMINÉ si le résultat est ok') })); fs.writeFileSync(path.join(d, 'retour.md'), 'DEV-1 : P04 ok'); fs.writeFileSync(path.join(d, 'resultat.json'), JSON.stringify({ resultat: 'ok' })); console.log('fini\\n✅ TERMINÉ · P04 rejoué sur Windows · Toi : rien');");
+  fs.appendFileSync(session, "\nfs.writeFileSync(path.join(d, 'dernier-message.md'), '✅ TERMINÉ · P04 rejoué sur Windows · Toi : rien'); process.stdout.write('x'.repeat(2*1024*1024)); process.stderr.write('x'.repeat(2*1024*1024));");
   const po = configTest({ hote: 'local', atelier_simule: fa, passerelle: { actif: true, dossier_travail: path.join(at.etat, 'travail'), commande_test: [process.execPath, session] } });
   const rel = P.posteRelever(po);
   assert.equal(rel.resultat, 'ok'); assert.equal(rel.preuves_deposees, true); assert.match(rel.ligne, /^✅ TERMINÉ · P04/);
@@ -382,9 +383,9 @@ test('passerelle poste : dépôt hors quota, relève, preuves, retour, essais se
   P.statutIssue(at, 'k', 'DEV-1', 'recette'); assert.equal(P.issues(P.lireCampagne(at, 'k'))[0].poste, undefined, 'un changement de statut solde le retour');
   const essais = () => P.issues(P.lireCampagne(at, 'k'))[0].attempts || 0;
   P.posteDeposer(at, 'k', 'DEV-1', { fiche: 'y' }); P.posteRendre(at, P.postePrendre(at).tache.id, { resultat: 'environnement' }); assert.equal(essais(), 0, 'environnement : pas d’essai');
-  P.statutIssue(at, 'k', 'DEV-1', 'recette'); P.posteDeposer(at, 'k', 'DEV-1', { fiche: 'z' }); P.posteRendre(at, P.postePrendre(at).tache.id, { resultat: 'echec' }); assert.equal(essais(), 1, 'échec du code : un essai');
+  P.statutIssue(at, 'k', 'DEV-1', 'recette'); assert.equal(code(() => P.posteDeposer(at, 'k', 'DEV-1', { fiche: 'z' })), 'DIAGNOSTIC REQUIS'); assert.equal(code(() => P.posteDeposer(at, 'k', 'DEV-1', { fiche: 'z', forcer: true, changement: 'trop court' })), 'DIAGNOSTIC REQUIS'); P.posteDeposer(at, 'k', 'DEV-1', { fiche: 'z', changement: 'Le dispositif a été corrigé et vérifié' }); assert.match(fs.readFileSync(path.join(at.etat, 'campagnes', 'k.decisions.md'), 'utf8'), /Redépôt après diagnostic/); P.posteRendre(at, P.postePrendre(at).tache.id, { resultat: 'echec' }); assert.equal(essais(), 1, 'échec du code : un essai');
   P.statutIssue(at, 'k', 'DEV-1', 'recette'); const d4 = P.posteDeposer(at, 'k', 'DEV-1', { fiche: 'w' }); P.postePrendre(at);
-  const r4 = P.postePrendre(at, { maintenant: new Date(Date.now() + 4 * 3600000) }); assert.deepEqual(r4.expirees, [d4.tache]); assert.equal(r4.tache.id, d4.tache, 'tâche dépassée remise en file puis reprise');
+  const r4 = P.postePrendre(at, { maintenant: new Date(Date.now() + 4 * 3600000) }); assert.deepEqual(r4.expirees, [d4.tache]); assert.equal(r4.tache, null, 'aucun rejeu automatique après délai dépassé');
   assert.equal(code(() => P.posteRendre(at, d4.tache, { resultat: 'peut-être' })), 'RÉSULTAT INCONNU');
 });
 
@@ -484,7 +485,7 @@ test('passerelle 2.5.4 : plafond des échecs d’environnement, levée par --for
   const at = configTest({ hote: 'atelier', deploiement_serveurs: false });
   fs.mkdirSync(path.join(at.etat, 'campagnes'), { recursive: true });
   fs.writeFileSync(path.join(at.etat, 'campagnes', 'k.json'), JSON.stringify({ id: 'k', projet: 'p', mode: 'auto', statut: 'en_cours', items: [{ type: 'issue_standalone', linear_id: 'DEV-3', statut: 'recette', blocked_by: [] }] }));
-  const tour = (res) => { P.posteDeposer(at, 'k', 'DEV-3', { fiche: 'f' }); return P.posteRendre(at, P.postePrendre(at).tache.id, { resultat: res, retour: '- Anomalie 1 : 403 sur les paquets, jeton read:packages absent\n- Verdict : bloqué' }); };
+  const tour = (res) => { P.posteDeposer(at, 'k', 'DEV-3', { fiche: 'f', changement: 'Le dispositif a été corrigé et vérifié' }); return P.posteRendre(at, P.postePrendre(at).tache.id, { resultat: res, retour: '- Anomalie 1 : 403 sur les paquets, jeton read:packages absent\n- Verdict : bloqué' }); };
   assert.equal(tour('environnement').echecs_environnement, 1);
   P.statutIssue(at, 'k', 'DEV-3', 'recette'); const r2 = tour('environnement'); assert.equal(r2.a_debloquer_par_paul, true);
   P.statutIssue(at, 'k', 'DEV-3', 'recette');
@@ -494,9 +495,9 @@ test('passerelle 2.5.4 : plafond des échecs d’environnement, levée par --for
   P.qualifierArret(at, 'k', 'DEV-3', { attend: 'agents', quoi: 'cadreur : corriger le dispositif' }); const qa = P.ligneEtat(at, 'k');
   assert.doesNotMatch(qa.bloc, /débloquer le poste/, '2.12.1 : un arrêt agents prime sur le plafond, comme dans $dev point'); assert.doesNotMatch(qa.detail, /débloquer le poste pour DEV-3/);
   P.qualifierArret(at, 'k', 'DEV-3', { lever: true });
-  P.posteDeposer(at, 'k', 'DEV-3', { fiche: 'f', forcer: true }); assert.equal(P.issues(P.lireCampagne(at, 'k'))[0].poste_env_echecs, undefined, '--forcer remet le compteur à zéro');
+  P.posteDeposer(at, 'k', 'DEV-3', { fiche: 'f', forcer: true, changement: 'Le dispositif a été corrigé et vérifié' }); assert.equal(P.issues(P.lireCampagne(at, 'k'))[0].poste_env_echecs, undefined, '--forcer remet le compteur à zéro');
   P.posteRendre(at, P.postePrendre(at).tache.id, { resultat: 'environnement', retour: 'x' }); P.statutIssue(at, 'k', 'DEV-3', 'recette');
-  P.posteDeposer(at, 'k', 'DEV-3', { fiche: 'f' }); P.posteRendre(at, P.postePrendre(at).tache.id, { resultat: 'ok', retour: 'ok' });
+  P.posteDeposer(at, 'k', 'DEV-3', { fiche: 'f', changement: 'Le dispositif a été corrigé et vérifié' }); P.posteRendre(at, P.postePrendre(at).tache.id, { resultat: 'ok', retour: 'ok' });
   assert.equal(P.issues(P.lireCampagne(at, 'k'))[0].poste_env_echecs, undefined, 'un résultat ok remet le compteur à zéro');
 });
 

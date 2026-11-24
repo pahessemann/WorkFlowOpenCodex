@@ -33,8 +33,7 @@ Tâche planifiée cachée et protégée `pilote-poste-passerelle` (installée pa
    `resultat.json` (`ok`, `echec` ou `environnement`) ;
 5. dépose les preuves sur atelier (`.pilote/poste/retours/<tâche>/`) et rend la tâche.
 
-Délai maximal par tâche : `passerelle.delai_max_min` (180). Une tâche dépassée est remise en file,
-puis bloquée au 3ᵉ dépassement.
+Délai maximal par tâche : `passerelle.delai_max_min` (180). Depuis la v2.23, une nouvelle tâche dépassée est bloquée dès le premier dépassement : diagnostiquer et vérifier que la session précédente est arrêtée avant tout redépôt. Les tâches déjà déposées avant la v2.23 conservent leur règle précédente jusqu'à leur retour.
 
 ## Retirer : `node <pilote> poste retirer <tâche|ID> --motif "<raison>" [--campagne <nom>]` (v2.5.1)
 
@@ -59,6 +58,8 @@ Pour une tâche que le poste ne doit pas faire (ex. recette sur tablette physiqu
   nouveau dépôt est refusé (`POSTE À DÉBLOQUER`), l'issue apparaît dans `poste_a_debloquer` de `contexte`,
   et la ligne d'état dit « Toi : débloquer le poste pour <ID> (<cause>) ». Après l'action de Paul :
   `poste deposer … --forcer`, qui remet le compteur à zéro.
+- **Après un nouveau retour environnement (v2.23)** : lire le retour et les preuves partielles, diagnostiquer puis vérifier un changement pertinent avant tout nouveau dépôt. Fournir `--changement "<diagnostic et changement vérifié>"` (20 caractères minimum), consigné au journal ; cette déclaration ne prouve pas automatiquement le changement. `--forcer` ne dispense pas de ce diagnostic et conserve son rôle pour le plafond ou une exclusion. Ne jamais relancer une tâche dont la session précédente pourrait encore agir.
+- **Sortie des recettes longues** : la sortie standard et d'erreur de la session est écartée sans tampon mémoire ; `dernier-message.md`, `retour.md`, `resultat.json` et les preuves restent les supports de résultat. Les preuves partielles sont transférées même après interruption.
 - **Rendu hors file** : un résultat produit à la main sur le poste se rend en une commande, depuis le poste :
   `node <pilote> poste rendre --issue <ID> --campagne <nom> --resultat ok|echec|environnement --retour-stdin --preuves <dossier>`.
   La tâche existante est reprise, sinon une tâche « hors passerelle » est créée (jamais relevée ni remise
@@ -70,8 +71,7 @@ Pour une tâche que le poste ne doit pas faire (ex. recette sur tablette physiqu
   `retours_poste` de `contexte` et dans le message de reprise.
 - `echec` (le code de la branche est en cause) compte un essai ; `environnement` (poste, outil,
   délai) ne compte pas, comme `PRÉFLIGHT TECHNIQUE BLOQUÉ`, et le digest le signale.
-- L'orchestrateur lit `retour.md` et les preuves, clôt l'issue si la matrice est complète, sinon
-  note la cause et redépose. Tout changement de statut de l'issue solde le retour.
+- L'orchestrateur lit `retour.md` et les preuves, clôt l'issue si la matrice est complète ; après un retour environnement, il ne redépose qu'après diagnostic et changement vérifié ci-dessus. Tout changement de statut de l'issue solde le retour.
 
 ## Suivi
 

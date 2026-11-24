@@ -18,3 +18,4 @@ du workflow, par une évolution (`$dev evolution`, `references/archi.md`).
 | P11 | Les limites d'admission sont lues dans la configuration de l'hôte et rappelées en clair à chaque reprise ; une règle commune modifiée est inscrite au journal de chaque campagne en cours. |
 | P12 | Les tests qui exigent Windows passent par la passerelle poste ; une issue au poste sort du quota ; un échec d'environnement ne compte pas comme essai. |
 | P13 | Chaque réponse finale d'un chat se termine par une ligne d'état lisible au premier regard. |
+| P14 | Les preuves de recette équivalentes sont vérifiées et réutilisées ; les nouvelles tâches en échec d'environnement ne sont redéposées qu'après diagnostic et changement vérifié. |
