@@ -1357,7 +1357,7 @@ export function admissibilite(cfg, c, i, stS = statutsAvecSoeurs(cfg, c)) {
   const ouvertes = (i.blocked_by || []).filter((d) => !['fusionnee', 'close'].includes(stS[d]));
   if (!ouvertes.length) return { ok: true, empile: null };
   const max = cfg.admission?.empilement_max ?? 3;
-  const by = Object.fromEntries(issuesAvecSoeurs(cfg, c).map((x) => [x.linear_id, x])); const pret = (d) => stS[d] === 'recette' || (!!by[d]?.revue_favorable && ACTIFS_ISSUE.includes(stS[d])); // v2.21
+  const by = Object.fromEntries(issuesAvecSoeurs(cfg, c).map((x) => [x.linear_id, x])); const pret = (d) => stS[d] === 'recette' || (!!by[d]?.revue_favorable && ACTIFS_ISSUE.includes(stS[d])) || (cfg.workflow_autonome === true && ACTIFS_ISSUE.includes(stS[d]) && !!(by[d]?.sha_reprise || by[d]?.sha_valide) && !!(by[d]?.branche_reprise || by[d]?.branche)); // l'agent juge si le SHA et sa branche conviennent
   const pasPretes = ouvertes.filter((d) => !pret(d));
   if (max <= 0 || pasPretes.length) return { ok: false, raison: 'dépendances sans revue favorable (ni verdict favorable inscrit, ni en recette, ni fusionnées, ni closes) : ' + (pasPretes.length ? pasPretes : ouvertes).join(', ') };
   const projet = i.projet || c.projet;

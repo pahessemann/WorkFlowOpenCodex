@@ -23,5 +23,8 @@ test('profil autonome : preuve libre et escalade non imposée', () => {
   const root=fs.mkdtempSync(path.join(os.tmpdir(),'dev-autonome-')); const f=path.join(root,'preuve.md'); fs.writeFileSync(f,'Test ciblé exécuté : sortie 0.'); assert.equal(P.verifierPreuveAutonome('DEV-1',f),1);
   assert.match(P.consigneAutonome({}, {id:'c'}), /GO explicite/); assert.match(P.consigneAutonome({}, {id:'c'}), /modèle/); assert.equal(P.gardeBoucle({workflow_autonome:true},'c','DEV-1','dev').issue,'DEV-1');
   assert.throws(() => P.refuserSiLivreParPaul({workflow_autonome:true,livraison_par_paul:['p']},{projet:'p'}), e => e.titre === 'LIVRAISON PAR PAUL' && /GO explicite/.test(e.message));
+  const c={id:'c',projet:'p',items:[{type:'issue_standalone',linear_id:'DEV-1',projet:'p',statut:'en_cours',branche:'codex/issue-DEV-1',sha_reprise:'a'.repeat(40)},{type:'issue_standalone',linear_id:'DEV-2',projet:'p',statut:'en_attente',blocked_by:['DEV-1']}]};
+  assert.equal(P.admissibilite({etat:root,workflow_autonome:true},c,c.items[1],{'DEV-1':'en_cours'}).ok,true);
+  assert.equal(P.admissibilite({etat:root},c,c.items[1],{'DEV-1':'en_cours'}).ok,false);
   fs.rmSync(root,{recursive:true,force:true});
 });
