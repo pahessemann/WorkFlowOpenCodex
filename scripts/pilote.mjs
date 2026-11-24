@@ -126,7 +126,7 @@ export async function relancerOrchestrateur(cfg, nom, texte) {
 export async function reprendreCampagne(cfg, nom, motif = 'reprise décidée par Paul') {
   if (cfg.hote === 'local' && (cfg.registre_distant || cfg.atelier_simule)) return appelAtelier(cfg, ['reprendre', nom, '--motif', motif]);
   const r = lancer(cfg, nom); modifierCampagne(cfg, nom, (c) => { delete c.pause_motif; }); decision(cfg, nom, 'GLOBAL', 'Reprise : ' + motif + '.');
-  let relance; try { relance = await relancerOrchestrateur(cfg, nom, 'Reprise (' + motif + ') : la campagne est en cours. Reprends chaque issue depuis l’état noté au journal, lance les revues et admissions en attente ; une commande hors atelier passe par poste demander, un blocage par un cadreur. Termine par ton bloc et ta ligne d’état.'); } catch (e) { relance = { action: 'au prochain réveil', erreur: e.message }; }
+  let relance; try { const texte = cfg.workflow_autonome === true ? 'Reprise (' + motif + ') : la campagne est en cours. ' + consigneAutonome(cfg, lireCampagne(cfg, nom)) : 'Reprise (' + motif + ') : la campagne est en cours. Reprends chaque issue depuis l’état noté au journal, lance les revues et admissions en attente ; une commande hors atelier passe par poste demander, un blocage par un cadreur. Termine par ton bloc et ta ligne d’état.'; relance = await relancerOrchestrateur(cfg, nom, texte); } catch (e) { relance = { action: 'au prochain réveil', erreur: e.message }; }
   return { ...r, relance };
 }
 export function mettreEnPause(cfg, nom, { economie = false } = {}) {

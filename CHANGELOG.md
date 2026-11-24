@@ -1,5 +1,9 @@
 # Changelog du socle public
 
+## Essai autonome — reprises cohérentes — 24/11/2026
+
+Le réveil et la reprise après pause utilisent la même consigne autonome : méthodes libres, API existantes préservées et validation locale de Paul avant fusion.
+
 ## Essai autonome — clarification API — 24/11/2026
 
 Les procédures propres aux dépôts ne sont pas imposées par le workflow. Les API existantes restent inchangées ; les besoins incompatibles passent par un ajout distinct.
