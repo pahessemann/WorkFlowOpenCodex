@@ -15,7 +15,7 @@ export const ETATS_ISSUE = ['en_attente', 'preflight', 'en_cours', 'revue', 'rec
 export const ETATS_CAMPAGNE = ['brouillon', 'en_cours', 'en_pause', 'close'];
 export const CRITICITES = ['leger', 'standard', 'sensible'];
 export const MAX_ESSAIS = 3;
-export const VERSION = '3.0-test';
+export const VERSION = '3.1.0-test';
 const PASTILLES = { AUTO: '🟢', SUP: '🟠', MS: '🔷', DEV: '🔵', CADRE: '🟣', PROTO: '🎨', TEST: '🧪', RELAIS: '⚙️', BILAN: '📘', AIDE: '❓', ARCHI: '🏛', PROJET: '💬' };
 const DOSSIERS = { AUTO: '01 Campagnes', SUP: '01 Campagnes', MS: '01 Campagnes', DEV: '02 Développement', CADRE: '03 Cadrage & prototypes', PROTO: '03 Cadrage & prototypes', TEST: '04 Relais & maintenance', RELAIS: '04 Relais & maintenance', BILAN: '04 Relais & maintenance', AIDE: '00 Accueil', ARCHI: '00 Accueil', PROJET: '00 Accueil' };
 export const TITRE_ARCHI = '🏛 ARCHI · workflow';
@@ -121,12 +121,12 @@ export async function relancerOrchestrateur(cfg, nom, texte) {
   const { connecter } = await import('./appserver.mjs'); const s = await connecter(avecMode(cfg)); const e = cfg.execution || {};
   try { const lu = await s.call('thread/read', { threadId: c.chat }).catch(() => null); const st = lu?.thread?.status?.type; if (st === 'active') return { action: 'déjà au travail' };
     if (!lu?.thread || st === 'notLoaded') await s.call('thread/resume', { threadId: c.chat, model: c.chat_modele, approvalPolicy: e.approvalPolicy || 'never', sandbox: e.sandbox || 'workspace-write' }).catch(() => null);
-    await s.call('turn/start', { threadId: c.chat, model: c.chat_modele, effort: 'medium', ...parametresTour(cfg), input: [{ type: 'text', text: texte }] }); return { action: 'relancé' }; } finally { s.fermer(); }
+    await s.call('turn/start', { threadId: c.chat, model: c.chat_modele, effort: c.chat_effort || 'medium', ...parametresTour(cfg), input: [{ type: 'text', text: texte }] }); return { action: 'relancé' }; } finally { s.fermer(); }
 }
 export async function reprendreCampagne(cfg, nom, motif = 'reprise décidée par Paul') {
   if (cfg.hote === 'local' && (cfg.registre_distant || cfg.atelier_simule)) return appelAtelier(cfg, ['reprendre', nom, '--motif', motif]);
   const r = lancer(cfg, nom); modifierCampagne(cfg, nom, (c) => { delete c.pause_motif; }); decision(cfg, nom, 'GLOBAL', 'Reprise : ' + motif + '.');
-  let relance; try { const texte = cfg.workflow_autonome === true ? 'Reprise (' + motif + ') : la campagne est en cours. ' + consigneAutonome(cfg, lireCampagne(cfg, nom)) : 'Reprise (' + motif + ') : la campagne est en cours. Reprends chaque issue depuis l’état noté au journal, lance les revues et admissions en attente ; une commande hors atelier passe par poste demander, un blocage par un cadreur. Termine par ton bloc et ta ligne d’état.'; relance = await relancerOrchestrateur(cfg, nom, texte); } catch (e) { relance = { action: 'au prochain réveil', erreur: e.message }; }
+  let relance; try { const cr = lireCampagne(cfg, nom); const texte = pilotageParChat(cr) ? 'Reprise (' + motif + ') : la campagne est en cours. ' + consigneCampagneAutonome(cfg, cr) : cfg.workflow_autonome === true ? 'Reprise (' + motif + ') : la campagne est en cours. ' + consigneAutonome(cfg, cr) : 'Reprise (' + motif + ') : la campagne est en cours. Reprends chaque issue depuis l’état noté au journal, lance les revues et admissions en attente ; une commande hors atelier passe par poste demander, un blocage par un cadreur. Termine par ton bloc et ta ligne d’état.'; relance = await relancerOrchestrateur(cfg, nom, texte); } catch (e) { relance = { action: 'au prochain réveil', erreur: e.message }; }
   return { ...r, relance };
 }
 export function mettreEnPause(cfg, nom, { economie = false } = {}) {
@@ -378,7 +378,7 @@ export function revueIssue(cfg, nom, id, verdict, { sha = null } = {}) { const r
 export function decision(cfg, nom, id, texte) { if (!id || id === true || !net(texte)) refuser('DÉCISION VIDE', 'usage : decision <campagne> <ID|GLOBAL> <texte> (reçu : ' + (id === undefined || id === true ? 'aucun identifiant' : id + ' sans texte') + ')'); nom = redirigerCampagne(cfg, nom, id); // v2.8.5 : plus de ligne « undefined » au journal
  lireCampagne(cfg, nom); const f = path.join(dossierCampagnes(cfg), nom + '.decisions.md'); fs.appendFileSync(f, '- ' + new Date().toISOString() + ' · ' + id + ' · ' + texte.replace(/\s+/g, ' ') + '\n'); const rv = id !== 'GLOBAL' ? verdictRevue(texte) : null; if (rv) { try { return { journal: f, revue: marquerRevue(cfg, nom, id, rv.verdict, rv.sha) }; } catch {} } return { journal: f }; } // v2.21 : une décision FAVORABLE ou DÉFAVORABLE inscrit le verdict
 export function consigneAutonome(cfg, c) {
-  return 'Mode autonome : poursuis l’objectif et les issues de la campagne en utilisant Linear ; les documents du dépôt sont un contexte technique, sans imposer leurs procédures propres. Choisis les méthodes, tests, revues et délégations proportionnés ; le routeur pilote.mjs modele choisit le modèle selon la tâche et la criticité. Ne supprime ni ne modifie les routes et contrats d’API existants (paramètres, réponses, droits, erreurs, effets) : ajoute une route ou un contrat distinct si nécessaire. Protège les données et les secrets. Garde une branche de campagne ; avant toute fusion vers main, master ou branche principale, présente à Paul une version locale au SHA exact, attends son GO explicite, puis vérifie que ce SHA et la base n’ont pas changé. Commandes : pilote.mjs validation-locale presenter|go|verifier. Enregistre go seulement après la validation de Paul. Après fusion, mets à jour Linear et Obsidian. Ne déploie pas à la place de Paul pour les projets concernés. Reprends les tâches en cours sans les interrompre ; pas de procédure ou sous-agent imposé. Termine avec la ligne d’état.';
+  return 'Mode autonome : poursuis l’objectif et les issues de la campagne en utilisant Linear ; les documents du dépôt sont un contexte technique, sans imposer leurs procédures propres. La section Mode autonome du SKILL prévaut sur ses anciennes procédures lorsqu’elles imposent une méthode. Les AGENTS peuvent être chargés automatiquement : respecte les instructions de priorité supérieure et les protections applicables ; signale une contradiction qui empêche d’avancer. Choisis les méthodes, tests, revues et délégations proportionnés ; le routeur pilote.mjs modele choisit le modèle selon la tâche et la criticité. Ne supprime ni ne modifie les routes et contrats d’API existants (paramètres, réponses, droits, erreurs, effets) : ajoute une route ou un contrat distinct si nécessaire. Protège les données et les secrets. Garde une branche de campagne ; avant toute fusion vers main, master ou branche principale, présente à Paul une version locale au SHA exact, attends son GO explicite, puis vérifie que ce SHA et la base n’ont pas changé. Commandes : pilote.mjs validation-locale presenter|go|verifier. Enregistre go seulement après la validation de Paul. Après fusion, mets à jour Linear et Obsidian. Ne déploie pas à la place de Paul pour les projets concernés. Reprends les tâches en cours sans les interrompre ; pas de procédure ou sous-agent imposé. Termine avec la ligne d’état.';
 }
 export function contexte(cfg, nom) {
   const c = lireCampagne(cfg, nom); const l = issues(c); const par = {};
@@ -1067,6 +1067,19 @@ export async function recreerChatCampagne(cfg, c, s) {
   return { campagne: c.id, action: 'chat-recree', ancien, nouveau: n.chat, fiche };
 }
 // ---------- chats d'orchestration (app-server de l'hôte) ----------
+// v3.1 : en mode autonome, une campagne est un seul chat (Opus, effort élevé) qui gère tout ; un chat 🔵 DEV ne traite qu'une issue.
+// Le workflow ne sert qu'à l'affichage : le réveil n'admet rien, ne lance aucun cadreur et ne relance ce chat que s'il reste du travail.
+export const pilotageParChat = (c) => c?.chat_autonome === true;
+export function consigneCampagneAutonome(cfg, c) {
+  const P = path.join(RACINE, 'scripts', 'pilote.mjs').replace(/\\/g, '/');
+  return 'Tu es la campagne ' + c.id + ' (projet ' + c.projet + ') : un seul chat qui gère toute la campagne, de A à Z, en autonomie complète. '
+    + 'Le workflow $dev ne sert qu’à l’affichage, pour que Paul comprenne ce que tu fais : le titre de ce chat, ta ligne d’état finale, et l’état de chaque issue au registre (node ' + P + ' statut ' + c.id + ' <ID> en_cours|revue|recette|fusionnee|close|bloquee), pour que $dev point reste juste. Tu n’appliques pas ses procédures : ni admissions, ni limites, ni cadreurs, ni matrices imposées. '
+    + 'Contenu : les issues Linear de la campagne (liste : node ' + P + ' contexte ' + c.id + ')' + (c.contrat ? ', avec le contrat ' + c.contrat + ' comme référence de contenu (périmètre, règles métier), sans en reprendre les procédures' : '') + '. Linear est la source des besoins ; tu peux y corriger un critère manifestement faux ou incomplet, avec un commentaire qui explique pourquoi. '
+    + 'Organisation libre : tu travailles toi-même, avec des sous-agents, ou en ouvrant un chat développeur par issue (un développeur = une seule issue) : node ' + P + ' chat-travail DEV <projet> <ID> <objet> --issue <ID> --campagne ' + c.id + ' --modele <modèle> --consigne-fichier <fiche>. Tu coordonnes : jamais deux agents sur la même issue ou la même branche. '
+    + 'Garde-fous de Paul : avant toute fusion vers une branche principale, présente-lui une version essayable localement avec son SHA exact, attends son GO explicite, puis vérifie que le SHA et la base n’ont pas changé (node ' + P + ' validation-locale presenter|go|verifier ' + c.id + '). Paul déploie lui-même les projets prévus depuis le déployeur : aucun déploiement serveur, aucune action en production ; une action qui modifie un environnement partagé est préparée par toi et exécutée par Paul depuis le poste. Aucune suppression définitive (archivage ou corbeille) ; aucun gestionnaire de mots de passe ; secrets, cookies et données RH jamais dans le code, les logs, les preuves ni Linear ; ne supprime ni ne modifie les routes et contrats d’API existants (ajoute une route ou un contrat distinct si besoin). Si un accès ou un secret manque, demande-le à Paul et continue le reste. Après chaque fusion, mets à jour Linear et verse le bilan durable dans Obsidian. '
+    + reglePoste(cfg) + ' '
+    + 'Quand il ne reste que des attentes (GO de Paul, dépendance extérieure), termine ton tour en ⏸ À TOI ou ⏳ EN ATTENTE : le réveil te relancera s’il reste du travail. Réponds en français, format compact, et termine chaque message final par une ligne d’état seule : « <icône> <ÉTAT> · <ce que tu fais ou attends> · Toi : <rien | action exacte pour Paul> ».';
+}
 function consigneOrchestrateur(cfg, c, modele) {
   if (cfg.workflow_autonome === true) return 'Campagne ' + c.id + ' ; modèle ' + modele + '. Lis ' + RACINE + '/SKILL.md et le contrat ; utilise les documents du dépôt comme contexte technique, sans leur donner valeur de procédure ; puis pilote.mjs contexte ' + c.id + '. ' + consigneAutonome(cfg, c) + '\n' + regleAcces(cfg, c.chat || '<id de ce chat>');
   const a = avancement(c); const t = titreCampagne(c);
@@ -1079,18 +1092,21 @@ export async function ouvrirChat(cfg, nom) {
   const c = lireCampagne(cfg, nom);
   if (c.statut !== 'en_cours') refuser('CAMPAGNE NON LANCÉE', nom + ' doit être en_cours');
   if (c.chat) refuser('CHAT DÉJÀ OUVERT', c.chat);
-  const r = router(cfg, { tache: 'pilotage', criticite: 'standard' });
+  const autonome = cfg.workflow_autonome === true; // v3.1 : un seul chat Opus qui gère toute la campagne
+  const r = autonome ? (() => { const m = cfg.modeles?.campagne || 'claude-opus-5-5'; return { modele: m, catalogue: catalogue(cfg, m) }; })() : router(cfg, { tache: 'pilotage', criticite: 'standard' });
+  const effort = autonome ? (cfg.campagne_effort || 'high') : 'medium';
   const { connecter } = await import('./appserver.mjs'); const s = await connecter(avecMode(cfg));
   try {
     const cwd = (cfg.projets[c.projet] || {}).chemin || cfg.etat;
     const t = await s.call('thread/start', { model: r.catalogue, cwd, approvalPolicy: (cfg.execution || {}).approvalPolicy || 'never', sandbox: (cfg.execution || {}).sandbox || 'workspace-write' });
     const thread = t.thread.id; const titreChat = titreCampagne(c).titre;
     await s.call('thread/name/set', { threadId: thread, name: titreChat });
-    const tour = await s.call('turn/start', { threadId: thread, model: r.catalogue, effort: 'medium', ...parametresTour(cfg), input: [{ type: 'text', text: consigneOrchestrateur(cfg, { ...c, chat: thread }, r.modele) }] });
-    modifierCampagne(cfg, nom, (cc) => { cc.chat = thread; cc.chat_modele = r.catalogue; cc.dernier_reveil = new Date().toISOString(); });
-    inscrireChat(cfg, { chat_id: thread, role: c.mode === 'supervise' ? 'SUP' : 'AUTO', titre: titreChat, objet: nom, projet: c.projet, dossier: '01 Campagnes', campagne: nom, lien: { type: 'campagne', id: nom }, modele: r.catalogue, effort: 'medium', hote: cfg.hote, orchestrateur: true, statut: 'actif', action: 'chat de campagne créé par pilote.mjs' });
+    const texte = autonome ? ['▣ ' + titreChat, 'Chat       : ' + thread, 'Hôte       : ☁ ' + (c.hote_execution || cfg.hote), 'Modèle     : ' + r.modele + ' (campagne autonome)'].join('\n') + '\n\n' + consigneCampagneAutonome(cfg, c) + '\n' + regleAcces(cfg, thread) : consigneOrchestrateur(cfg, { ...c, chat: thread }, r.modele);
+    const tour = await s.call('turn/start', { threadId: thread, model: r.catalogue, effort, ...parametresTour(cfg), input: [{ type: 'text', text: texte }] });
+    modifierCampagne(cfg, nom, (cc) => { cc.chat = thread; cc.chat_modele = r.catalogue; cc.chat_effort = effort; if (autonome) cc.chat_autonome = true; else delete cc.chat_autonome; cc.dernier_reveil = new Date().toISOString(); });
+    inscrireChat(cfg, { chat_id: thread, role: c.mode === 'supervise' ? 'SUP' : 'AUTO', titre: titreChat, objet: nom, projet: c.projet, dossier: '01 Campagnes', campagne: nom, lien: { type: 'campagne', id: nom }, modele: r.catalogue, effort, hote: cfg.hote, orchestrateur: true, statut: 'actif', action: autonome ? 'chat de campagne autonome créé par pilote.mjs (v3.1)' : 'chat de campagne créé par pilote.mjs' });
     await rangerChat(cfg, s, thread, '01 Campagnes');
-    return { campagne: nom, chat: thread, titre: titreChat, tour: tour.turn?.id, modele: r.catalogue };
+    return { campagne: nom, chat: thread, titre: titreChat, tour: tour.turn?.id, modele: r.catalogue, effort, autonome };
   } finally { s.fermer(); }
 }
 // ---------- v2.14 : nettoyage du disque d'atelier (tmp, corbeille, worktrees d'issues closes) ----------
@@ -1132,14 +1148,34 @@ export function nettoyerDisque(cfg, { appliquer = false, maintenant = Date.now()
   return res;
 }
 export function nettoyageDu(cfg, maintenant = Date.now()) { const N = configNettoyage(cfg); if (!N.actif || !cfg.etat) return false; const der = lireJson(path.join(cfg.etat, 'nettoyage.json'), {}); const age = der.le ? (maintenant - Date.parse(der.le)) / 3600000 : Infinity; const libre = libreGio(os.homedir()); return age >= N.intervalle_heures || (libre !== null && libre < N.seuil_libre_gio && age >= 1); }
+// v3.0.1 : le réveil admet lui-même les issues éligibles, au lieu de demander à l’orchestrateur de le faire.
+// Chaque admission tourne dans un processus séparé, borné dans le temps : une commande qui se bloque n’arrête plus le réveil.
+export function admettreEligibles(cfg, nom, { delaiMs = cfg.ouvrir_delai_ms || 60000, commande = null, max = 2 } = {}) {
+  let ctx; try { ctx = contexte(cfg, nom); } catch { return []; }
+  const ids = (ctx.admissibles || []).map((x) => String(x).split(" ")[0]).filter(Boolean).slice(0, max);
+  // v3.0.1 : une issue dont un arrêt est posé (cadreur, attente de Paul ou autre dépôt) n’est jamais admise automatiquement.
+  const cc = lireCampagne(cfg, nom); const libres = ids.filter((id) => { const x = issues(cc).find((y) => y.linear_id === id); return !(x && x.arret); });
+  const out = [];
+  for (const id of libres) {
+    const argv = commande ? [...commande, nom, id] : [process.execPath, path.join(RACINE, "scripts", "pilote.mjs"), "ouvrir", nom, id];
+    const r = spawnSync(argv[0], argv.slice(1), { encoding: "utf8", timeout: delaiMs, killSignal: "SIGKILL" });
+    if (r.error && r.error.code === "ETIMEDOUT") out.push({ issue: id, resultat: "délai dépassé" });
+    else if (r.status === 0) out.push({ issue: id, resultat: "admise" });
+    else out.push({ issue: id, resultat: "refusée", message: String((r.stderr || r.stdout || "")).trim().slice(0, 200) });
+  }
+  return out;
+}
 export async function reveil(cfg, { maintenant = new Date(), intervalleMin = 10 } = {}) {
   const res = []; const { connecter } = await import('./appserver.mjs'); let s = null;
   try { const ab = releverAbonnement(cfg, { maintenant: maintenant.getTime() }); if (ab.action === 'releve') { const ca = compteAPrivilegier(lireAbonnement(cfg, maintenant.getTime()), maintenant.getTime()); if (ca) res.push({ action: 'compte Anthropic qui expire le plus tôt (v2.19.4)', ...ca, bascule: basculerCompteAnthropic(cfg, ca.id) }); const fen = fenetreAConsommer(cfg, lireAbonnement(cfg, maintenant.getTime()), maintenant.getTime()); if (fen) { for (const cp of listerCampagnes(cfg).filter((x) => x.statut === 'en_pause' && x.pause_motif === 'economie')) { try { res.push({ action: 'reprise : fenêtre à consommer (v2.20)', campagne: cp.id, compte: fen.compte, reste: fen.reste, heures: fen.heures, ...(await reprendreCampagne(cfg, cp.id, 'fenêtre à consommer : compte ' + fen.compte + ', ' + fen.reste + ' % libres, remise à zéro dans ' + fen.heures + ' h')) }); } catch (e) { res.push({ action: 'reprise : fenêtre à consommer', campagne: cp.id, erreur: e.message }); } } } } if (ab.action === 'releve') res.push({ action: 'relevé de l’abonnement (v2.17)', anthropic: ab.releve.anthropic?.pct ?? null, codex: ab.releve.codex?.pct ?? null, fable: ab.releve.fable_pct }); const mf = modeFournisseur(cfg); const ef = lireJson(fichierFournisseur(cfg), {}); if ((ef.effectif_note || 'claude') !== mf.effectif) { ecrireJson(fichierFournisseur(cfg), { ...ef, effectif_note: mf.effectif, historique: [...(ef.historique || []).slice(-30), { le: maintenant.toISOString(), mode: mf.mode, effectif: mf.effectif, raison: mf.raison }] }); res.push({ action: 'bascule de fournisseur (v2.17)', de: ef.effectif_note || 'claude', vers: mf.effectif, raison: mf.raison, roster: appliquerRosterSousAgents(cfg, mf.effectif) }); } } catch (e) { res.push({ action: 'relevé de l’abonnement', erreur: e.message }); }
   try { if (nettoyageDu(cfg, maintenant.getTime())) { const n = nettoyerDisque(cfg, { appliquer: true, maintenant: maintenant.getTime() }); res.push({ action: 'nettoyage du disque (v2.14)', resume: n.resume, erreurs: n.erreurs.length }); } } catch (e) { res.push({ action: 'nettoyage du disque', erreur: e.message }); }
   try {
     const campsR = listerCampagnes(cfg).filter((x) => x.statut === 'en_cours' && x.chat); const taillesR = taillesSessions(path.join(os.homedir(), '.codex', 'sessions'), campsR.map((x) => x.chat)); const seuilO = cfg.chats?.seuil_orchestrateur ?? 100000; // v2.17 : 100 k (150 k avant)
+    const regR = lireJson(fichierChats(cfg), {}); // v3.1 : un chat de campagne autonome qui attend Paul n'est pas relancé
     for (let c of campsR) {
-      if ((taillesR[c.chat] || 0) > seuilO && !c.recreer_chat) { modifierCampagne(cfg, c.id, (cc) => { cc.recreer_chat = true; }); c = lireCampagne(cfg, c.id); res.push({ campagne: c.id, action: 'recréation demandée au point stable (v2.7)', contexte_tokens: taillesR[c.chat] }); }
+      const parChat = pilotageParChat(c);
+      if (!cfg.reveil_sans_admission && !parChat) { const adm = admettreEligibles(cfg, c.id, { delaiMs: cfg.ouvrir_delai_ms }); if (adm.length) { res.push({ campagne: c.id, action: 'admission par le réveil (v3.0.1)', admissions: adm }); c = lireCampagne(cfg, c.id); } }
+      if (!parChat && (taillesR[c.chat] || 0) > seuilO && !c.recreer_chat) { modifierCampagne(cfg, c.id, (cc) => { cc.recreer_chat = true; }); c = lireCampagne(cfg, c.id); res.push({ campagne: c.id, action: 'recréation demandée au point stable (v2.7)', contexte_tokens: taillesR[c.chat] }); }
       const l = issues(c); const restant = l.filter((i) => !['close', 'bloquee'].includes(i.statut));
       s ||= await connecter(avecMode(cfg));
       const lu = await s.call('thread/read', { threadId: c.chat, includeTurns: false }).catch((e) => ({ erreur: e.message }));
@@ -1154,7 +1190,11 @@ export async function reveil(cfg, { maintenant = new Date(), intervalleMin = 10 
       const recent = c.dernier_reveil && (maintenant - Date.parse(c.dernier_reveil)) < intervalleMin * 60000;
       let dr = null; // v2.6.5 : relance sur changement, sinon une fois par heure
       if (etatChat === 'idle' && restant.length && !digestDu) { dr = decisionReprise(cfg, c, { maintenant, intervalleMin }); if (dr.memoriser) modifierCampagne(cfg, c.id, (cc) => { cc.empreinte_repos = dr.empreinte; cc.repos_le = maintenant.toISOString(); }); }
-      if (etatChat === 'idle' && restant.length) { try { const ca = await cadreursAuto(cfg, lireCampagne(cfg, c.id), { maintenant }); if (ca) res.push(ca); } catch (e) { res.push({ campagne: c.id, action: 'cadreurs', erreur: e.message }); } } // v2.9
+      if (!parChat && etatChat === 'idle' && restant.length) { try { const ca = await cadreursAuto(cfg, lireCampagne(cfg, c.id), { maintenant }); if (ca) res.push(ca); } catch (e) { res.push({ campagne: c.id, action: 'cadreurs', erreur: e.message }); } } // v2.9
+      if (parChat) { const attendPaul = regR[c.chat]?.statut === 'attente_go'; if (etatChat !== 'idle' || !restant.length || attendPaul || !(digestDu || dr?.relancer)) { res.push({ campagne: c.id, chat: etatChat, action: 'aucune', restant: restant.length, ...(attendPaul ? { raison: 'attend Paul (v3.1)' } : dr ? { raison: dr.raison } : {}) }); continue; }
+        const tA = await s.call('turn/start', { threadId: c.chat, model: c.chat_modele, effort: c.chat_effort || 'high', ...parametresTour(cfg), input: [{ type: 'text', text: 'Reprise automatique de la campagne ' + c.id + ' par le réveil : poursuis ta mission. ' + consigneCampagneAutonome(cfg, c) }] });
+        modifierCampagne(cfg, c.id, (cc) => { cc.dernier_reveil = maintenant.toISOString(); if (digestDu) cc.dernier_digest = jour; cc.empreinte_repos = null; delete cc.repos_le; });
+        res.push({ campagne: c.id, action: 'reprise (campagne autonome, v3.1)', tour: tA.turn?.id, restant: restant.length, ...(dr ? { raison: dr.raison } : {}) }); continue; }
       if (etatChat !== 'idle' || (!restant.length && !digestDu) || (!digestDu && !dr?.relancer)) { res.push({ campagne: c.id, chat: etatChat, action: 'aucune', restant: restant.length, ...(dr ? { raison: dr.raison } : {}) }); continue; }
       const texte = cfg.workflow_autonome === true ? ('Reprise de la campagne ' + c.id + '. ' + consigneAutonome(cfg, c)) : digestDu ? 'Digest quotidien : produis le digest des dernières 24 h (node ' + RACINE + '/scripts/pilote.mjs digest ' + c.id + ', 15 lignes maximum, rubrique « À confirmer » comprise), puis reprends la campagne. ' + limitesTexte(cfg) + ' Termine ton tour par la sortie de node ' + RACINE + '/scripts/pilote.mjs ligne-etat ' + c.id + ' --texte, recopiée à l’identique en texte normal (ni bloc de code, ni balise <pre>) (v2.10).' : 'Reprise automatique : node ' + RACINE + '/scripts/pilote.mjs contexte ' + c.id + ', puis admets les issues éligibles et poursuis. Rappel : charges lourdes uniquement via pilote.mjs lourde ' + c.id + ' -- <commande>. Aucun agent concurrent : relance seulement les issues listées dans a_relancer. Les issues de a_relancer sont déjà admises et gardent leur place : relance chacune tout de suite (sous-agent dev, revue ou recette selon son statut), sans attendre de place libre ; des places toutes occupées n’empêchent que les nouvelles admissions. Une passe qui ne relance rien alors que a_relancer n’est pas vide est une erreur. Les issues de a_recetter reçoivent chacune leur recette propre, puis passent à close. Un choix dans le mandat n\'est pas un motif d\'arrêt : prends l\'option la plus prudente conforme aux règles, note-la avec pilote.mjs decision et continue ; ne termine jamais un tour sur une question tant que du travail reste admissible. ' + limitesTexte(cfg) + ' Une recette qu’atelier ne peut pas faire part au poste Windows : node ' + RACINE + '/scripts/pilote.mjs poste deposer ' + c.id + ' <ID> --fiche <f> (l’issue sort du quota) ; les retours arrivent dans retours_poste. Avant de passer une issue en bloquee (hors action irréversible), cherche une solution ou une décision avec un cadreur : node ' + RACINE + '/scripts/pilote.mjs lancer cadrage deblocage-<ID> --depuis-role AUTO --projet <projet> --nouveau --fiche-stdin (fiche de 15 lignes : blocage, essais, options ; le cadreur conclut par pilote.mjs decision <campagne> <ID> "Conclusion du cadreur : … ; réservé à Paul : oui|non") ; mandat de Paul : le cadreur décide par défaut (« à confirmer »), publie au besoin une issue corrective (pilote.mjs campagne ajouter) et écrit sa conclusion au journal ; l’issue reste en_attente (pilote.mjs arret … --attend agents --quoi "cadrage de déblocage") et ne passe bloquee --attend paul que si le cadreur conclut à un motif réservé à Paul, avec sa réponse proposée. v2.9 : --attend paul est refusé sans cette conclusion (CADREUR REQUIS) ; motif réservé à Paul d’emblée (action irréversible ou root, secret à fournir, hors mandat) : --reserve "<motif>". Ne demande jamais une décision à Paul dans ton texte : seule la ligne d’état lui parle. Une issue qui attend Paul, le poste ou l’environnement ne compte plus dans tes places : continue d’admettre tant que dev_max et ouvertes_max le permettent. Si la campagne ne bouge plus pendant 2 h, le réveil lance lui-même les cadreurs. v2.11 : une action réservée à Paul que conclut un cadreur (root dans atelier : root-atelier ; CLI du déployeur sur le serveur : serveur-cli ; livraison sous GO ou mandat anticipé : livraison) se demande par pilote.mjs executant demander <campagne> <type> --issue <ID> (…) ; l’exécutant de l’hôte la traite en 5 min, même poste éteint, et inscrit le résultat au journal (pilote.mjs executant etat <campagne>). Ne la mets pas --attend paul : dépose toujours la demande d’abord (v2.14.1) ; seul un refus « aucun mandat » de l’exécutant justifie --attend paul. Termine ton tour par la ligne rendue par node ' + RACINE + '/scripts/pilote.mjs ligne-etat ' + c.id + ' (champ ligne), seule en dernière ligne.';
       const t = await s.call('turn/start', { threadId: c.chat, model: c.chat_modele, effort: 'medium', ...parametresTour(cfg), input: [{ type: 'text', text: texte + (digestDu ? '' : ' Termine ton tour par la sortie de node ' + RACINE + '/scripts/pilote.mjs ligne-etat ' + c.id + ' --texte, recopiée à l’identique en texte normal (ni bloc de code, ni balise <pre>), avec au plus 5 lignes « Depuis le dernier tour » au-dessus (v2.10).') }] });
@@ -1300,6 +1340,35 @@ export function scinderCampagne(cfg, nom, { projets = [], vers = null } = {}) {
   const txt = 'Scission (pilote.mjs campagne scinder, v2.7) : les issues des projets ' + projets.join(', ') + ' passent de ' + nom + ' à ' + vers + ' (' + r.deplacees.length + ' identifiants). Campagnes sœurs : dépendances suivies entre elles ; un statut ou une décision visant une issue transférée est redirigé automatiquement.';
   decision(cfg, nom, 'GLOBAL', txt); decision(cfg, vers, 'GLOBAL', txt);
   return { ...r, ensuite: 'ouvrir le chat de ' + vers + ' : node <pilote> chat ' + vers + ' ; voie de recette : node <pilote> campagne voie-recette <campagne>' };
+}
+// v3.0.2 : campagne deplacer <campagne> <ID…> --vers <cible> : déplace seulement ces issues (pas tout un projet).
+// La cible est créée en brouillon si elle n’existe pas ; les issues y reprennent leur contrat et ne sont pas lancées.
+export function deplacerIssues(cfg, nom, ids, { vers = null, mode = null } = {}) {
+  if (!ids.length || !vers) refuser("ARGUMENT ABSENT", "usage : pilote.mjs campagne deplacer <campagne> <ID…> --vers <cible>");
+  if (!/^[a-z0-9][a-z0-9-]{1,60}$/.test(vers)) refuser("NOM INVALIDE", "kebab-case attendu");
+  if (vers === nom) refuser("CAMPAGNE IDENTIQUE", "la cible doit être différente de la source");
+  const le = new Date().toISOString();
+  const r = verrou(cfg, () => {
+    const c = lireCampagne(cfg, nom); if (c.statut === "close") refuser("CAMPAGNE CLOSE", nom);
+    const deplacer = []; const reste = [];
+    for (const it of c.items) {
+      if (it.type === "milestone") { const sous = (it.issues || []).filter((i) => ids.includes(i.linear_id)); for (const i of sous) deplacer.push({ ...i, type: "issue_standalone", projet: i.projet || it.projet || c.projet, milestone_source: it.slug }); const restes = (it.issues || []).filter((i) => !ids.includes(i.linear_id)); if (!sous.length) reste.push(it); else if (restes.length) reste.push({ ...it, issues: restes }); }
+      else if (ids.includes(it.linear_id)) deplacer.push({ ...it, projet: it.projet || c.projet }); else reste.push(it);
+    }
+    const manquantes = ids.filter((x) => !deplacer.some((i) => i.linear_id === x));
+    if (manquantes.length) refuser("ISSUE ABSENTE", manquantes.join(", ") + " hors de " + nom);
+    c.items = reste; c.transferts = { ...(c.transferts || {}), ...Object.fromEntries(ids.map((x) => [x, vers])) }; c.maj = le;
+    let n = lireJson(fichierCampagne(cfg, vers), null);
+    if (n && n.statut === "close") refuser("CAMPAGNE CLOSE", vers);
+    if (!n) n = { id: vers, projet: deplacer[0].projet || c.projet, mode: mode || c.mode, statut: "brouillon", mandat: c.mandat, hote_execution: c.hote_execution, hote_livraison: c.hote_livraison, contrat_valide: c.contrat_valide, contrat: c.contrat, items: [], lancee_le: null, maj: le, deplacee_de: [nom], soeurs: [] };
+    n.items = [...(n.items || []), ...deplacer]; n.maj = le; n.soeurs = [...new Set([...(n.soeurs || []), nom])];
+    c.soeurs = [...new Set([...(c.soeurs || []), vers])];
+    ecrireJson(fichierCampagne(cfg, vers), n); ecrireJson(fichierCampagne(cfg, nom), c);
+    return { campagne: nom, vers, deplacees: ids, restantes: issues(c).length, cible_statut: n.statut, cible_issues: issues(n).length };
+  });
+  const txt = "Déplacement (campagne deplacer, v3.0.2-test) : " + ids.join(", ") + " passent de " + nom + " à " + vers + ". Trace dans transferts, à ne pas compter deux fois.";
+  decision(cfg, nom, "GLOBAL", txt); decision(cfg, vers, "GLOBAL", txt);
+  return { ...r, ensuite: "lancer la cible : node <pilote> campagne lancer " + vers + " auto" };
 }
 function consigneVoie(cfg, c) {
   if (cfg.workflow_autonome === true) return 'Mode autonome : aide la campagne ' + c.id + ' à vérifier les issues avec les contrôles adaptés ; réutilise les preuves pertinentes, sans matrice ni revue imposée. Ne fusionne pas vers la branche principale avant les tests locaux et le GO de Paul au SHA exact. ' + consigneAutonome(cfg, c);
@@ -2168,6 +2237,7 @@ function executerBrut(argv, cfg = null) {
       if (sous === 'voie-recette') return creerVoieRecette(C(), nom);
       if (sous === 'ajouter') return ajouterIssues(C(), nom, r, { projet: o.projet && o.projet !== true ? o.projet : null, criticite: o.criticite && o.criticite !== true ? o.criticite : 'standard', bloqueePar: o['bloquee-par'] && o['bloquee-par'] !== true ? String(o['bloquee-par']).split(',').map((x) => x.trim()).filter(Boolean) : [], milestone: o.milestone && o.milestone !== true ? o.milestone : null, motif: o.motif });
       if (sous === 'lancer') return lancer(C(), nom, r[0] === 'supervise' ? 'supervise' : r[0] === 'auto' ? 'auto' : undefined);
+      if (sous === 'deplacer') return deplacerIssues(C(), nom, r, { vers: o.vers && o.vers !== true ? o.vers : null, mode: o.mode && o.mode !== true ? o.mode : null }); // v3.0.2
       if (sous === 'cloturer') return changerStatutCampagne(C(), nom, 'close');
       refuser('COMMANDE INCONNUE', 'campagne ' + sous);
     }

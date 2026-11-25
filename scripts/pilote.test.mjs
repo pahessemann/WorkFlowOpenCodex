@@ -250,7 +250,7 @@ test('$dev livrer : poste seulement, GO et plan figés, répétition à blanc, a
 
 
 test('reprise automatique : les limites d’admission figurent en clair dans le message (v2.4.3)', async () => {
-  const c = configTest({ hote: 'atelier', admission: { dev_max: 6, lourdes_max: 4, lourdes_max_hote: 8 }, execution: { sandbox: 'danger-full-access', approvalPolicy: 'never' } }); c.appServerFactice = path.join(c.etat, 'as.jsonl');
+  const c = configTest({ hote: 'atelier', admission: { dev_max: 6, lourdes_max: 4, lourdes_max_hote: 8 }, execution: { sandbox: 'danger-full-access', approvalPolicy: 'never' }, reveil_sans_admission: true }); c.appServerFactice = path.join(c.etat, 'as.jsonl');
   fs.mkdirSync(path.join(c.etat, 'campagnes'), { recursive: true });
   fs.writeFileSync(path.join(c.etat, 'campagnes', 'x.json'), JSON.stringify({ id: 'x', projet: 'p', mode: 'auto', statut: 'en_cours', chat: 'C1', chat_modele: 'm', items: [{ type: 'issue_standalone', linear_id: 'DEV-1', statut: 'en_attente', blocked_by: [] }] }));
   const rv = await P.reveil(c); assert.ok(['reprise', 'digest'].includes(rv[0].action), JSON.stringify(rv));
@@ -1217,4 +1217,63 @@ test('reprise autonome : réveil et reprise explicite utilisent la consigne actu
     assert.match(texte, /GO explicite/);
     assert.doesNotMatch(texte, /règles de son PROJECT|lance les revues et admissions en attente/);
   }
+});
+
+test('3.0.1 : le réveil admet les issues éligibles dans un processus borné ; un blocage est coupé, sans bloquer le réveil', () => {
+  const at = campagneChaine();
+  const r = P.admettreEligibles(at, 'k', { delaiMs: 400, max: 2, commande: [process.execPath, '-e', 'setTimeout(() => {}, 10000)'] });
+  assert.equal(r.length, 2, JSON.stringify(r));
+  assert.ok(r.every((x) => x.resultat === 'délai dépassé'), JSON.stringify(r));
+  assert.deepEqual(P.admettreEligibles(configTest({ hote: 'atelier' }), 'absente', { delaiMs: 400 }), []);
+});
+
+test('3.0.1 : une issue arrêtée n’est jamais admise par le réveil', () => {
+  const at = campagneChaine();
+  P.executer(['arret', 'k', 'B', '--attend', 'agents', '--quoi', 'attend la fusion de A'], at);
+  const r = P.admettreEligibles(at, 'k', { delaiMs: 400, commande: [process.execPath, '-e', 'setTimeout(() => {}, 10000)'] });
+  assert.ok(r.every((x) => x.issue !== 'B'), JSON.stringify(r));
+});
+
+test('3.0.2 : campagne deplacer déplace seulement les issues demandées, la cible reste en brouillon, rien n’est compté deux fois', () => {
+  const at = configTest({ hote: 'atelier', deploiement_serveurs: false, gh: false });
+  fs.mkdirSync(path.join(at.etat, 'campagnes'), { recursive: true });
+  const it = (id, statut) => ({ type: 'issue_standalone', linear_id: id, statut, blocked_by: [], projet: 'p' });
+  fs.writeFileSync(path.join(at.etat, 'campagnes', 'src.json'), JSON.stringify({ id: 'src', projet: 'p', mode: 'auto', statut: 'brouillon', contrat_valide: true, items: [it('DEV-1', 'en_attente'), it('DEV-2', 'en_attente'), it('DEV-3', 'en_attente')] }));
+  const r = P.deplacerIssues(at, 'src', ['DEV-1', 'DEV-3'], { vers: 'cible' });
+  assert.deepEqual(r.deplacees, ['DEV-1', 'DEV-3']);
+  const s = P.lireCampagne(at, 'src'); assert.deepEqual(P.issues(s).map((x) => x.linear_id), ['DEV-2']);
+  assert.equal(s.transferts['DEV-1'], 'cible');
+  const c = P.lireCampagne(at, 'cible'); assert.equal(c.statut, 'brouillon'); assert.deepEqual(P.issues(c).map((x) => x.linear_id), ['DEV-1', 'DEV-3']);
+  assert.equal(code(() => P.deplacerIssues(at, 'src', ['DEV-9'], { vers: 'cible' })), 'ISSUE ABSENTE');
+});
+
+test('3.0.2 : une issue rangée dans une milestone peut être déplacée ; la milestone source garde les autres', () => {
+  const at = configTest({ hote: 'atelier', deploiement_serveurs: false, gh: false });
+  fs.mkdirSync(path.join(at.etat, 'campagnes'), { recursive: true });
+  const m = { type: 'milestone', slug: 'scission-x', projet: 'p', issues: [{ type: 'issue_standalone', linear_id: 'DEV-5', statut: 'en_attente', blocked_by: [] }, { type: 'issue_standalone', linear_id: 'DEV-6', statut: 'en_attente', blocked_by: [] }] };
+  fs.writeFileSync(path.join(at.etat, 'campagnes', 'ms.json'), JSON.stringify({ id: 'ms', projet: 'p', mode: 'auto', statut: 'brouillon', contrat_valide: true, items: [m] }));
+  P.deplacerIssues(at, 'ms', ['DEV-5'], { vers: 'ms2' });
+  const s = P.lireCampagne(at, 'ms'); assert.deepEqual(P.issues(s).map((x) => x.linear_id), ['DEV-6']);
+  assert.equal(s.transferts['DEV-5'], 'ms2');
+  assert.deepEqual(P.issues(P.lireCampagne(at, 'ms2')).map((x) => x.linear_id), ['DEV-5']);
+});
+
+test('3.1 : une campagne autonome est un seul chat Opus qui gère tout ; le réveil ne fait que le relancer, sauf s’il attend Paul', async () => {
+  const c = configTest({ hote: 'atelier', workflow_autonome: true, projets: { p: {} }, execution: { sandbox: 'danger-full-access', approvalPolicy: 'never' } }); c.appServerFactice = path.join(c.etat, 'as.jsonl');
+  fs.mkdirSync(path.join(c.etat, 'campagnes'), { recursive: true });
+  fs.writeFileSync(path.join(c.etat, 'campagnes', 'auto.json'), JSON.stringify({ id: 'auto', projet: 'p', mode: 'auto', statut: 'en_cours', contrat: '/x/contrat.md', items: [{ type: 'issue_standalone', linear_id: 'DEV-1', statut: 'en_attente', blocked_by: [] }] }));
+  const o = await P.ouvrirChat(c, 'auto');
+  assert.equal(o.modele, 'claude-opus-5-5'); assert.equal(o.effort, 'high'); assert.equal(o.autonome, true); assert.equal(P.lireCampagne(c, 'auto').chat_autonome, true);
+  const tours = () => fs.readFileSync(c.appServerFactice, 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)).filter((x) => x.method === 'turn/start');
+  const t1 = tours().at(-1); assert.equal(t1.params.effort, 'high');
+  for (const attendu of [/un seul chat qui gère toute la campagne/, /une seule issue/, /GO explicite/, /SHA exact/, /Obsidian/, /Linear/, /contrat \/x\/contrat\.md/]) assert.match(t1.params.input[0].text, attendu);
+  assert.doesNotMatch(t1.params.input[0].text, /Admets les issues éligibles/);
+  P.modifierCampagne(c, 'auto', (x) => { delete x.dernier_reveil; }); // délai de relance écoulé
+  const rv = await P.reveil(c);
+  assert.ok(!rv.some((x) => /admission/.test(x.action || '')), JSON.stringify(rv));
+  assert.equal(rv.find((x) => x.campagne === 'auto').action, 'reprise (campagne autonome, v3.1)', JSON.stringify(rv));
+  const t2 = tours().at(-1); assert.equal(t2.params.effort, 'high'); assert.match(t2.params.input[0].text, /Reprise automatique de la campagne auto/);
+  P.inscrireChat(c, { chat_id: o.chat, statut: 'attente_go', action: 'test' }); P.modifierCampagne(c, 'auto', (x) => { delete x.dernier_reveil; });
+  const n = tours().length; const rv2 = await P.reveil(c); const r2 = rv2.find((x) => x.campagne === 'auto');
+  assert.equal(r2.action, 'aucune', JSON.stringify(rv2)); assert.match(r2.raison, /attend Paul/); assert.equal(tours().length, n, 'aucun nouveau tour');
 });

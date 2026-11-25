@@ -7,6 +7,8 @@ description: Orchestrateur de campagnes autonomes et supervisées (Linear Milest
 
 Ce skill régit l'orchestration des travaux via `pilote.mjs`, sur le poste local Windows et sur le VPS `atelier` (Linux).
 
+**Priorité du mode autonome (`workflow_autonome: true`).** La section « Mode autonome » en fin de document précise le fonctionnement effectif des campagnes autonomes et prévaut sur les procédures historiques de ce document et de ses références lorsqu'elles imposent une méthode. Le reste du document décrit le fonctionnement historique ou des outils disponibles, pas une méthode obligatoire pour ces campagnes.
+
 **Chemin de `pilote.mjs`** : `<pilote>`, partout dans ce skill, désigne la valeur `"pilote"` de `poste.local.json` (chemin absolu, propre à chaque hôte : `C:\Users\<utilisateur>\.agents\skills\dev\scripts\pilote.mjs` sur le poste, `/home/utilisateur/.agents/skills/dev/scripts/pilote.mjs` sur atelier). On ne cherche **jamais** `pilote.mjs` dans le dépôt du projet ni dans le dossier courant. Le skill se charge uniquement depuis `~/.agents/skills/dev/`.
 
 ## Principe directeur : Paul cadre, les agents exécutent

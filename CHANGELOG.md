@@ -1,5 +1,17 @@
 # Changelog du socle public
 
+## 3.1.0-test — une campagne, un chat autonome — 25/11/2026
+
+En mode autonome, une campagne est un seul chat (modèle le plus capable, effort élevé) qui gère toute la campagne ; un chat développeur ne traite qu'une issue. Le workflow ne sert qu'à l'affichage : le réveil n'admet plus d'issues et ne lance plus de cadreurs pour ces campagnes, et il ne relance pas un chat qui attend l'humain. Version locale et GO explicite sur le SHA avant fusion conservés.
+
+## 3.0.2-test — déplacer des issues entre campagnes — 25/11/2026
+
+`campagne deplacer` déplace des issues précises, y compris celles d'une milestone, vers une autre campagne, avec la trace des transferts.
+
+## 3.0.1-test — réveil borné — 25/11/2026
+
+Le réveil admet les issues éligibles dans un processus borné dans le temps ; une issue arrêtée n'est jamais admise automatiquement.
+
 ## Essai autonome — reprises cohérentes — 24/11/2026
 
 Le réveil et la reprise après pause utilisent la même consigne autonome : méthodes libres, API existantes préservées et validation locale de Paul avant fusion.
