@@ -1,6 +1,6 @@
 ---
 name: dev-orchestrator
-description: Orchestrateur de campagnes autonomes et supervisées (Linear Milestones et Issues) : composition à froid, chats identifiables d'un coup d'œil, routage économe des modèles et exécution hybride (PC local / VPS atelier).
+description: Orchestrateur de campagnes de développement et d'issues Linear avec routage des modèles, exécution locale et accès SSH au serveur configuré par l'acheteur pour piloter les tâches, transférer des fichiers et exécuter les commandes autorisées.
 ---
 
 # Orchestrateur Dev — Workflow opérationnel (v2.23)
@@ -9,19 +9,27 @@ Ce skill régit l'orchestration des travaux via `pilote.mjs`, sur le poste local
 
 **Chemin de `pilote.mjs`** : `<pilote>`, partout dans ce skill, désigne la valeur `"pilote"` de `poste.local.json` (chemin absolu, propre à chaque hôte : `C:\Users\<utilisateur>\.agents\skills\dev\scripts\pilote.mjs` sur le poste, `/home/utilisateur/.agents/skills/dev/scripts/pilote.mjs` sur atelier). On ne cherche **jamais** `pilote.mjs` dans le dépôt du projet ni dans le dossier courant. Le skill se charge uniquement depuis `~/.agents/skills/dev/`.
 
-## Principe directeur : Paul cadre, les agents exécutent
+## Accès nécessaires et destinations réseau
 
-Paul intervient **une fois, au cadrage**. Ensuite, les agents travaillent seuls jusqu'à la livraison. Toute la v2.2 en découle :
+Le skill utilise les permissions **terminal**, **file_read**, **file_write**, **env_vars** et **network**. Selon la commande et la configuration, il lit et modifie les dépôts et worktrees, l'état et les journaux de campagne, les preuves et livrables, le vault Obsidian et les fichiers de configuration. Il peut lire `.env.local` pour réserver des comptes de recette et recopier les seules entrées du compte attribué dans le worktree ; ces fichiers peuvent contenir des secrets. Les variables d'environnement sont héritées par les processus lancés ; `PILOTE_CONFIG`, `CODEX_THREAD_ID` et `PROTOTYPES_ROOT` sont utilisées par le code, et `PASSERELLE_TRAVAIL` est transmis à un sous-processus.
+
+Le skill lance notamment `node`, `git`, `gh`, `ssh`, `scp`, Codex, PowerShell et, selon le travail demandé, d'autres commandes ; il peut créer des tâches planifiées, modifier temporairement certains réglages et nettoyer ou supprimer des fichiers selon la configuration. Les autorisations effectives dépendent des droits de l'utilisateur et du mandat. Le détail figure dans `AGENSI-FICHE.md`.
+
+Hôtes : `github.com` et `api.github.com` pour les dépôts et l'API GitHub via Git/`gh` ; `npm.pkg.github.com` si un prototype configuré utilise ce registre ; serveur SSH et cibles de livraison définis par l'acheteur pour les commandes et transferts. Linear, les fournisseurs de modèles, les registres de paquets et les éventuels autres dépôts sont accessibles via les outils et connecteurs configurés : leurs hôtes dépendent de cette configuration. Le serveur d'application peut aussi utiliser une socket Unix locale ; l'éditeur de prototype écoute sur `127.0.0.1`.
+
+## Principe directeur : l’utilisateur cadre, les agents exécutent
+
+l’utilisateur intervient **une fois, au cadrage**. Ensuite, les agents travaillent seuls jusqu'à la livraison. Toute la v2.2 en découle :
 
 1. **Le cadrage est le seul vrai point de contact.** Il produit un **contrat de campagne** (§3 bis), validé par un GO unique. Ce GO vaut autorisation pour tout ce que le contrat couvre.
 2. **Un agent ne demande pas, il décide.** Face à un choix non tranché, il applique les règles de décision du contrat. À défaut, il retient l'option la plus simple et la plus réversible, puis la note dans le journal de décisions. Il continue sans attendre.
-3. **Paul n'est interrompu que pour 3 motifs** : une action irréversible (déploiement serveur, suppression de données, migration de production, **fusion vers une branche qui déploie**, c'est-à-dire `main_deploie: true`), une action hors mandat, un circuit-breaker déclenché. Tout le reste passe dans le digest.
+3. **l’utilisateur n'est interrompu que pour 3 motifs** : une action irréversible (déploiement serveur, suppression de données, migration de production, **fusion vers une branche qui déploie**, c'est-à-dire `main_deploie: true`), une action hors mandat, un circuit-breaker déclenché. Tout le reste passe dans le digest.
 4. **Un blocage ne bloque pas la campagne.** L'issue concernée est mise de côté (`⛔`) et les issues indépendantes continuent.
-5. **Paul lit, il ne surveille pas.** Un digest par campagne et par jour remplace les notifications au fil de l'eau.
+5. **l’utilisateur lit, il ne surveille pas.** Un digest par campagne et par jour remplace les notifications au fil de l'eau.
 
 ## Règles fondamentales
 
-* **Autorité unique** : Paul est la seule autorité humaine. Ne jamais solliciter, mentionner ou attendre un tiers dans Linear ou dans les chats.
+* **Autorité unique** : l’utilisateur est la seule autorité humaine. Ne jamais solliciter, mentionner ou attendre un tiers dans Linear ou dans les chats.
 * **Socle autonome** : ce workflow ne dépend d'aucun autre dépôt ni d'aucun autre workflow à l'exécution. Les règles propres à un projet vivent uniquement dans son `PROJECT.md`.
 * **Chargement paresseux** : ne lire que `poste.local.json`, le `PROJECT.md` du dépôt cible, la carte de dépôt `.pilote/carte/<projet>.md` et le contrat de la commande invoquée. Ne jamais précharger tous les `references/*.md` ni les historiques de chats.
 * **Reprise par fiche, pas par historique** : un chat repris démarre de sa fiche de reprise (10 lignes maximum), jamais de la relecture d'un ancien fil.
@@ -40,12 +48,12 @@ Paul intervient **une fois, au cadrage**. Ensuite, les agents travaillent seuls 
 | `$dev campagne lancer <nom> [auto\|supervise]` | Resynchroniser Linear, vérifier les dépendances, démarrer (`campagne.md`) | `AUTO` / `SUP` |
 | `$dev milestone <projet> <ms-id>` | Exécuter un Milestone isolé (`execution.md`) | `MS` |
 | `$dev issue <ID>` | Traiter une issue (`issue.md`) | `DEV` |
-| `$dev iteration <ID>` | Session interactive : Paul affine une fonction existante, demande après demande (`iteration.md`) | `DEV` |
+| `$dev iteration <ID>` | Session interactive : l’utilisateur affine une fonction existante, demande après demande (`iteration.md`) | `DEV` |
 | `$dev finaliser <ID>` | **Portée : une issue.** Préparer sa recette, fusionner si autorisé, la fermer dans Linear, préparer son bilan (`finalisation.md`) | inline |
-| `$dev cadrage <sujet>` | **Cadrage complet avec Paul** : Linear, Obsidian, tableaux de référence, contrat de campagne (`cadrage.md`) | `CADRE` |
+| `$dev cadrage <sujet>` | **Cadrage complet avec l’utilisateur** : Linear, Obsidian, tableaux de référence, contrat de campagne (`cadrage.md`) | `CADRE` |
 | `$dev cadrage-court <ID\|sujet>` | Créer ou modifier **une seule** issue Linear (itération, demande de composant), sans cadrage complet (`cadrage-court.md`) | inline |
 | `$dev projet <nom>` | Créer ou raccorder un dépôt, vérifier son `PROJECT.md` jusqu'à `PRET_POUR_DEVELOPPEMENT` (`projet.md`) | inline |
-| `$dev point [campagne…]` | **Le point des campagnes** en un rendu fixe : avancement, blocages et qui débloque, ce que Paul doit faire, temps restant en heures de travail des agents ; lecture seule, lancé depuis AIDE ou tout chat du workflow (`point.md`) | inline |
+| `$dev point [campagne…]` | **Le point des campagnes** en un rendu fixe : avancement, blocages et qui débloque, ce que l’utilisateur doit faire, temps restant en heures de travail des agents ; lecture seule, lancé depuis AIDE ou tout chat du workflow (`point.md`) | inline |
 | `$dev digest [nom]` | Résumé des dernières 24 h : avancement, décisions prises seul, blocages | inline |
 | `$dev prototype <sujet>` | Composer une page avec les vrais composants dans l'éditeur, exporter un `spec.json` v1 vérifié (`prototype.md`) | `PROTO` |
 | `$dev test <projet>` | Recette ou tests ciblés (`test.md`) | inline ou `TEST` |
@@ -53,16 +61,16 @@ Paul intervient **une fois, au cadrage**. Ensuite, les agents travaillent seuls 
 | `$dev livrer <campagne> [--a-blanc]` | **Poste uniquement**, après un GO enregistré : plan figé (empreinte), répétition à blanc, arrêt à la première erreur, journal et messages dans le chat SUP (`livraison.md`) | `SUP` |
 | `$dev menage` | Analyse des chats des deux hôtes, en lecture seule : à clôturer, archiver, renommer, ranger, rattacher, doublons, dormants, trop lourds (`menage.md`) | inline |
 | `$dev menage appliquer surs|<numéros>|tout` | Applique les actions validées ; jamais de suppression, AIDE et campagnes en cours protégés (`menage.md`) | inline |
-| `pilote.mjs poste demander --shell ssh:<alias>|powershell --objet "<quoi>" --attendre 300 --script-stdin` | **Mains du poste** (v2.19) : tout chat d’atelier fait jouer une commande sur le poste ou sur un serveur que seul le poste joint, sans passer par Paul ; `--agent --fiche-stdin` pour une session de développement sur le poste ; écoute permanente du poste quand il est connecté (`poste.md`) | inline |
-| `$dev discuter [projet] [sujet]` (alias `discute`) | **Discuter d’un projet**, ou des projets en cours sans projet (v2.18.1) sans rien déclencher (v2.18) : un **nouveau** chat `💬 PROJET` à chaque appel, sur atelier, Sonnet 5.5, lecture seule ; contexte du projet chargé à l’ouverture ; une action demandée par Paul part au lanceur (`--depuis-role PROJET`) ; rangé après 24 h sans activité (`discuter.md`) | `PROJET` |
+| `pilote.mjs poste demander --shell ssh:<alias>|powershell --objet "<quoi>" --attendre 300 --script-stdin` | **Mains du poste** (v2.19) : tout chat d’atelier fait jouer une commande sur le poste ou sur un serveur que seul le poste joint, sans passer par l’utilisateur ; `--agent --fiche-stdin` pour une session de développement sur le poste ; écoute permanente du poste quand il est connecté (`poste.md`) | inline |
+| `$dev discuter [projet] [sujet]` (alias `discute`) | **Discuter d’un projet**, ou des projets en cours sans projet (v2.18.1) sans rien déclencher (v2.18) : un **nouveau** chat `💬 PROJET` à chaque appel, sur atelier, Sonnet 5.5, lecture seule ; contexte du projet chargé à l’ouverture ; une action demandée par l’utilisateur part au lanceur (`--depuis-role PROJET`) ; rangé après 24 h sans activité (`discuter.md`) | `PROJET` |
 | `$dev aide [--recreer]` | Ouvrir le chat d'aiguillage, ou le recréer s'il manque ou n'est plus à jour (`aide.md`) | `AIDE` |
 | `$dev archi` | Ouvrir le chat de l'architecte du workflow `🏛 ARCHI · workflow` (`archi.md`) | `ARCHI` |
-| `$dev evolution <sujet>` | Démarrer une évolution du workflow dans `🏛 ARCHI` : analyse, fiche d'évolution, GO de Paul, implémentation sur les deux hôtes (`archi.md`) | `ARCHI` |
+| `$dev evolution <sujet>` | Démarrer une évolution du workflow dans `🏛 ARCHI` : analyse, fiche d'évolution, GO de l’utilisateur, implémentation sur les deux hôtes (`archi.md`) | `ARCHI` |
 | `$dev cloture <campagne>` | **Portée : une campagne entière.** Bilan de campagne dans Obsidian, archivage des chats et registres, fermeture (`cloture.md`) | `BILAN` |
 | `$dev pause <nom> [--economie]` / `$dev reprendre <nom>` | Suspendre ou relancer une campagne ; `--economie` : reprise automatique dès qu’un compte offre une fenêtre à consommer ; la reprise relance l’orchestrateur aussitôt (v2.20) | inline |
 | `$dev etat [nom]` | Diagnostic machine, RAM, files d'attente, périmètre, passerelle poste | inline |
 | `$dev etat chats` | Tableau : la dernière ligne d'état de chaque chat (§2.3 bis) | inline |
-| `$dev poste [file\|installer\|retirer <ID> --motif <m>]` | Passerelle poste Windows : file des tests en attente, dernier passage du poste ; `installer` pose la tâche planifiée ; `retirer` sort une tâche de la file et réserve l'issue à Paul (`poste.md`) | inline |
+| `$dev poste [file\|installer\|retirer <ID> --motif <m>]` | Passerelle poste Windows : file des tests en attente, dernier passage du poste ; `installer` pose la tâche planifiée ; `retirer` sort une tâche de la file et réserve l'issue à l’utilisateur (`poste.md`) | inline |
 | `$dev modele <tache> <criticite> <volumetrie>` | Interroger le routeur (`modeles.md`) | inline |
 | `$dev fournisseur [claude|mixte|gpt|auto]` | **Mode de fournisseur** (v2.17) : tout Claude (défaut), mixte (revues et tests sur Sol et Astra), tout GPT (Terra, Sol, Astra ; Luna pour les petites tâches) ou auto selon l’abonnement ; s’applique aux nouveaux chats, aux relances et aux sous-agents ; sans argument, montre le mode et l’abonnement (`modeles.md` §v2.17) | inline |
 | `$dev abonnement compte <id>` | Basculer à la main le compte Anthropic actif d’opencodex (v2.20 ; le relevé horaire le fait seul, `modeles.md` §v2.20) | inline |
@@ -72,19 +80,19 @@ Paul intervient **une fois, au cadrage**. Ensuite, les agents travaillent seuls 
 
 ## 1 bis. Chats et sous-agents : qui fait quoi
 
-**Les sous-agents font le travail, les chats servent à Paul.**
+**Les sous-agents font le travail, les chats servent à l’utilisateur.**
 
 | | Chat | Sous-agent |
 | :--- | :--- | :--- |
-| Rôle | Point de lecture et de décision pour Paul | Unité d'exécution |
+| Rôle | Point de lecture et de décision pour l’utilisateur | Unité d'exécution |
 | Durée de vie | Celle de la campagne ou du cadrage | Une tâche, puis il rend son rapport |
 | Contexte | Contrat, état, digest | Vierge : fiche + fichiers ciblés uniquement |
-| Visible par Paul | Oui, nommé selon le §2 | Non : visible via son badge dans le chat parent |
+| Visible par l’utilisateur | Oui, nommé selon le §2 | Non : visible via son badge dans le chat parent |
 
 Règles :
 
 1. **Un chat par campagne** (`🟢 AUTO` / `🟠 SUP`) : c'est l'orchestrateur. Il délègue **chaque issue à un sous-agent `dev`** dans son propre worktree et sa propre branche. Il n'y a plus de chat `🔵 DEV` par défaut.
-2. **Un chat `🔵 DEV` n'est ouvert que dans 2 cas** : une issue passe `⛔ BLOQUÉ` (Paul doit pouvoir la reprendre) ou Paul lance lui-même `$dev issue <ID>`. Le chat démarre alors de la fiche de reprise de l'issue.
+2. **Un chat `🔵 DEV` n'est ouvert que dans 2 cas** : une issue passe `⛔ BLOQUÉ` (l’utilisateur doit pouvoir la reprendre) ou l’utilisateur lance lui-même `$dev issue <ID>`. Le chat démarre alors de la fiche de reprise de l'issue.
 3. **Sous-agents spécialisés**, appelés par l'agent `dev` ou par l'orchestrateur, chacun avec le modèle donné par le routeur :
    - `lecteur` (Haiku / Sonnet) : pré-lecture `large`, carte de dépôt ;
    - `revue` (Opus, **démarré à neuf** : son seul contexte est le diff, la fiche et les critères de l'issue) : relit le diff ;
@@ -106,7 +114,7 @@ Trois repères fixes, générés par `pilote.mjs titre` et jamais saisis à la m
 
 **Création des chats de travail.** Tout chat de travail (`🔵 DEV`, `🔷 MS`, `🧪 TEST`, `🟣 CADRE`, `🎨 PROTO`, campagnes) est créé **uniquement** par `pilote.mjs` via l'app-server de l'hôte d'exécution, avec le réglage d'accès de `poste.local.json` (`execution` ; sur atelier : accès complet, approbations jamais), appliqué aussi à chaque reprise : `node <pilote> chat-travail <RÔLE> <projet> <objet> --modele <id du routeur> [--issue <ID>] [--campagne <nom>] [--cwd <dossier>] --consigne-fichier <f>` ; campagnes : `node <pilote> chat <campagne>`. Depuis le poste, la création est déléguée à `pilote.mjs` d'atelier par SSH. Jamais par l'outil de création de chat de l'application. L'agent range ensuite le chat dans le dossier rendu (`dossier`).
 
-**Chats de travail sur le poste.** Aucun chat de travail interactif n'est créé sur le poste (`chat_local.actif: false`, option b retenue par Paul le 20/11/2026) : `chat-travail --hote local` et `--livraison` sont toujours refusés (`CHAT LOCAL INDISPONIBLE`). Une livraison passe uniquement par `$dev livrer <campagne>`, autorisé par `chat_local.option: "b"` (exécuteur déterministe lancé directement, au premier plan, depuis PowerShell ou un terminal du poste ; plus de session `codex exec` depuis la v2.8.2, `livraison.md`) ; sans cette option, refus `LIVRAISON LOCALE INDISPONIBLE`. Une campagne à livraison locale le signale dans son contexte et son digest : la livraison est préparée sur atelier puis exécutée par Paul depuis le poste après le GO. Seuls `❓ AIDE` et `🏛 ARCHI` vivent sur le poste, créés à la main à partir d'un bloc à coller s'ils manquent.
+**Chats de travail sur le poste.** Aucun chat de travail interactif n'est créé sur le poste (`chat_local.actif: false`, option b retenue par l’utilisateur le 20/11/2026) : `chat-travail --hote local` et `--livraison` sont toujours refusés (`CHAT LOCAL INDISPONIBLE`). Une livraison passe uniquement par `$dev livrer <campagne>`, autorisé par `chat_local.option: "b"` (exécuteur déterministe lancé directement, au premier plan, depuis PowerShell ou un terminal du poste ; plus de session `codex exec` depuis la v2.8.2, `livraison.md`) ; sans cette option, refus `LIVRAISON LOCALE INDISPONIBLE`. Une campagne à livraison locale le signale dans son contexte et son digest : la livraison est préparée sur atelier puis exécutée par l’utilisateur depuis le poste après le GO. Seuls `❓ AIDE` et `🏛 ARCHI` vivent sur le poste, créés à la main à partir d'un bloc à coller s'ils manquent.
 
 **Accès restreint.** Un chat de travail qui constate un accès plus restreint que celui de l'hôte ne demande **jamais** d'élévation : il exécute `node <pilote> acces-restreint <chat>`, termine son tour par « ⛔ ACCÈS RESTREINT — relance demandée à pilote.mjs », et le réveil (`pilote.mjs reveil`, vérification toutes les 10 min sur atelier ; un orchestrateur au repos n'est relancé que si l'état de sa campagne a changé, sinon une fois par heure, v2.6.5 ; toutes les 20 min tant qu'une admission est possible, v2.8.3) ou `node <pilote> relancer-chat <chat>` le relance avec le bon réglage (3 relances au plus, puis circuit-breaker).
 
@@ -133,13 +141,13 @@ Exceptions : le chat d'aiguillage s'appelle toujours `❓ AIDE · workflow` et c
 
 **Suffixes d'état**, à droite et un seul à la fois :
 
-- `⏸ GO` : le chat attend Paul, **uniquement pour l'un des 3 motifs d'interruption** ;
+- `⏸ GO` : le chat attend l’utilisateur, **uniquement pour l'un des 3 motifs d'interruption** ;
 - `⛔ BLOQUÉ` : circuit-breaker déclenché ou timeout ;
 - `✅` : clos avec preuve.
 
 Ces suffixes, avec les statuts d'issue (`en_attente`, `preflight`, `en_cours`, `revue`, `recette`, `fusionnee`, `close`, `bloquee`, `en_pause`), forment une **liste fermée** définie dans `references/etats.md`. `pilote.mjs` refuse tout autre statut, ce qui les rend lisibles par un outil de supervision.
 
-Le pourcentage des campagnes est tenu à jour par `pilote.mjs`. Règle de lecture : **la pastille dit qui parle, le suffixe dit si Paul doit agir.**
+Le pourcentage des campagnes est tenu à jour par `pilote.mjs`. Règle de lecture : **la pastille dit qui parle, le suffixe dit si l’utilisateur doit agir.**
 
 ### 2.2 Carte d'identité : premier message de chaque chat
 
@@ -175,22 +183,22 @@ Tout message final d'un chat du workflow (campagnes, DEV, CADRE, PROTO, TEST, RE
 | ⛔ | `BLOQUÉ` | circuit-breaker ou environnement |
 | ✅ | `TERMINÉ` | objet clos |
 
-Exemple : `⏳ EN ATTENTE · retour du poste Windows attendu pour DEV-1038 · Toi : rien`.
+Exemple : `⏳ EN ATTENTE · retour du poste Windows attendu pour DEV-900001 · Toi : rien`.
 
 **Campagnes : bloc d'état et ligne courte (v2.10).** Un orchestrateur termine chaque message final par la sortie de `node <pilote> ligne-etat <campagne> --texte`, recopiée à l'identique, en texte normal (ni bloc de code, ni balise `<pre>`, qui collent les lignes entre elles) et sans rien après : d'abord un bloc d'une ligne par rubrique non vide, dans cet ordre fixe, puis la ligne d'état courte.
 
     **ma-campagne** · 11/25 closes · ▶ EN COURS
     - 👤 **À toi (1)** :
-      1. DEV-1123 · installer PowerShell 7 sur le poste → débloque 2 issue(s)
-    - 🤖 Agents (6) : DEV-1041 dev · DEV-1045 dev · DEV-1059 démarrage · DEV-1121 revue · …
-    - 🪟 Poste Windows (3) : DEV-1117 · DEV-1122 · DEV-1385 · retour à lire : DEV-1123
-    - ⏳ Attente (1) : DEV-1059 environnement
-    - 🕓 À venir (7) : admissibles DEV-1385 · en attente DEV-1126 (close sans fusion après DEV-1385) · 5 attendent leurs dépendances
-    - ⛔ Bloquée (1) : DEV-1122 (cadreur)
+      1. DEV-900009 · installer PowerShell 7 sur le poste → débloque 2 issue(s)
+    - 🤖 Agents (6) : DEV-900002 dev · DEV-900003 dev · DEV-900005 démarrage · DEV-900007 revue · …
+    - 🪟 Poste Windows (3) : DEV-900006 · DEV-900008 · DEV-900014 · retour à lire : DEV-900009
+    - ⏳ Attente (1) : DEV-900005 environnement
+    - 🕓 À venir (7) : admissibles DEV-900014 · en attente DEV-900010 (close sans fusion après DEV-900014) · 5 attendent leurs dépendances
+    - ⛔ Bloquée (1) : DEV-900008 (cadreur)
 
-    ▶ EN COURS · 6 agent(s) au travail · 3 au poste · 1 admissible(s) · 2 en attente · 5 à venir · 1 bloquée(s) · Toi : DEV-1123 · installer PowerShell 7 sur le poste
+    ▶ EN COURS · 6 agent(s) au travail · 3 au poste · 1 admissible(s) · 2 en attente · 5 à venir · 1 bloquée(s) · Toi : DEV-900009 · installer PowerShell 7 sur le poste
 
-« 👤 À toi » vient en premier quand il n'est pas vide, une action par ligne numérotée (v2.21.2) ; la ligne courte reprend la première action en clair (+N s'il y en a d'autres), et une issue bloquée qui attend Paul n'est listée que là (v2.21.1). Une issue en attente avec un arrêt (cause au journal) s'affiche « en attente », jamais « admissible ». Détail de « 👤 Toi » : actions numérotées (identifiant, action coupée vers 110 caractères, ce qu'elle débloque), tirées de l'état seulement (arrêts `--attend paul`, retraits du poste, poste à débloquer, GO de livraison), avec ce que chacune débloque. Une action de Paul absente du bloc n'existe pas. Au-dessus du bloc, 5 lignes au plus sous « Depuis le dernier tour ». Les statuts sont écrits en mots simples (démarrage, dev, revue, recette, à recetter). `ligne-etat` sans `--texte` rend aussi `bloc`, `ligne` et `detail` (l'ancienne ligne longue) ; `$dev point` affiche le bloc de chaque campagne. Le réveil lit la ligne de chaque chat d'atelier : statut du registre (▶ ⏳ → `actif`, ⏸ → `attente_go`, ⛔ → `bloque`, ✅ → `clos`) et suffixe du titre des chats de travail. Une ligne absente est signalée par `$dev menage` (`sans_ligne`). `$dev etat chats` affiche la dernière ligne de chaque chat.
+« 👤 À toi » vient en premier quand il n'est pas vide, une action par ligne numérotée (v2.21.2) ; la ligne courte reprend la première action en clair (+N s'il y en a d'autres), et une issue bloquée qui attend l’utilisateur n'est listée que là (v2.21.1). Une issue en attente avec un arrêt (cause au journal) s'affiche « en attente », jamais « admissible ». Détail de « 👤 Toi » : actions numérotées (identifiant, action coupée vers 110 caractères, ce qu'elle débloque), tirées de l'état seulement (arrêts `--attend paul`, retraits du poste, poste à débloquer, GO de livraison), avec ce que chacune débloque. Une action de l’utilisateur absente du bloc n'existe pas. Au-dessus du bloc, 5 lignes au plus sous « Depuis le dernier tour ». Les statuts sont écrits en mots simples (démarrage, dev, revue, recette, à recetter). `ligne-etat` sans `--texte` rend aussi `bloc`, `ligne` et `detail` (l'ancienne ligne longue) ; `$dev point` affiche le bloc de chaque campagne. Le réveil lit la ligne de chaque chat d'atelier : statut du registre (▶ ⏳ → `actif`, ⏸ → `attente_go`, ⛔ → `bloque`, ✅ → `clos`) et suffixe du titre des chats de travail. Une ligne absente est signalée par `$dev menage` (`sans_ligne`). `$dev etat chats` affiche la dernière ligne de chaque chat.
 
 ### 2.4 Hygiène des chats
 
@@ -221,7 +229,7 @@ Un chat n’exécute une commande `$dev` que si son modèle est celui du routeur
 
 ## 3. Campagnes : composition, stockage, modes
 
-### 3 bis. Contrat de campagne : le cadrage de Paul
+### 3 bis. Contrat de campagne : le cadrage de l’utilisateur
 
 **Linear reste la source de vérité.** Le cadrage conserve son fonctionnement avec Linear (création et mise à jour des Milestones, issues, relations et champs, selon `references/cadrage.md`). Les critères d'acceptation sont écrits **dans la description de chaque issue Linear**. Le contrat de campagne n'ajoute que ce que Linear ne porte pas : règles de décision, lignes rouges, questions tranchées. Un résumé du contrat est placé dans la description du projet ou du Milestone Linear, avec un lien vers le fichier.
 
@@ -238,10 +246,10 @@ Déroulé de la session de cadrage :
 
 1. L'agent reprend la discussion et le vault Obsidian, réinjecte les acquis dans Obsidian, puis complète les **trois matrices canoniques** du projet : **Données**, **Technique** et **Environnements** (chemins dans le vault : `references/cadrage.md` §4). Les contrats producteur–consommateur, la couverture des données legacy par l'API centrale et les invariants de sécurité par surface en sont des sections, pas des tableaux séparés.
 2. Il propose les Milestones et les issues, puis lit l'existant Linear et repère les trous : critères absents, ambiguïtés, dépendances implicites.
-3. Il **regroupe toutes ses questions en un seul lot**, avec une réponse proposée pour chacune. Paul valide, corrige ou complète.
+3. Il **regroupe toutes ses questions en un seul lot**, avec une réponse proposée pour chacune. l’utilisateur valide, corrige ou complète.
 4. Il écrit le résultat dans Linear (Milestones, issues, critères, relations), puis fige le contrat.
 
-**Définition de « prêt »** : une issue n'entre dans une campagne que si elle a des critères d'acceptation. Sinon, le cadrage les rédige et Paul les valide dans le même lot.
+**Définition de « prêt »** : une issue n'entre dans une campagne que si elle a des critères d'acceptation. Sinon, le cadrage les rédige et l’utilisateur les valide dans le même lot.
 
 ### Cycle de vie
 
@@ -302,7 +310,7 @@ Pour une campagne de déploiement (ex. `deployeur`) : `"mode": "supervise"`, `"h
 ### Profils
 
 * **`AUTO`** (par défaut) : exécution continue sur la base du contrat, nuit et week-end compris : issues, fusions dans les branches de Milestone, recettes, PR finales. La campagne ne s'arrête que pour les 3 motifs d'interruption.
-* **`SUP`** : identique à `AUTO`, avec **un seul point d'arrêt supplémentaire, juste avant la livraison**. Pas d'arrêt avant chaque fusion d'issue. L'agent prépare tout jusqu'au bout (PR finale, recette verte, paquet de livraison, procédure de retour arrière), passe le titre en `⏸ GO` et attend Paul. Réservé aux projets qui déploient sur des serveurs (ex. `deployeur`).
+* **`SUP`** : identique à `AUTO`, avec **un seul point d'arrêt supplémentaire, juste avant la livraison**. Pas d'arrêt avant chaque fusion d'issue. L'agent prépare tout jusqu'au bout (PR finale, recette verte, paquet de livraison, procédure de retour arrière), passe le titre en `⏸ GO` et attend l’utilisateur. Réservé aux projets qui déploient sur des serveurs (ex. `deployeur`).
 * **Fusion de la PR finale vers `main`** : automatique en `AUTO` si la recette du Milestone est verte, la revue favorable **et `main_deploie: false`** pour ce projet. Si `main` déploie, la fusion est une action irréversible : arrêt `⏸ GO`. Si la recette ou la revue échoue, le Milestone est mis de côté et signalé dans le digest.
 
 ---
@@ -329,7 +337,7 @@ Pour une campagne de déploiement (ex. `deployeur`) : `"mode": "supervise"`, `"h
 3. **Comptes de recette** (`comptes-recette.md`) :
    - **Source** : une réserve numérotée (`<COMPTE>_1`, `<COMPTE>_2`, …) dans le `.env.local` du checkout principal de chaque projet, **sur chaque hôte** qui exécute des recettes. Le registre des réservations est dans `.pilote/comptes.json` ; il ne contient que des numéros, jamais d'identifiants.
    - **Attribution** : chaque issue qui en a besoin reçoit un compte **exclusif**, copié dans le `.env.local` de son worktree, puis rendu à la clôture avec un passage de relais tracé. Deux agents n'utilisent jamais le même compte en même temps.
-   - **Réserve fournie par Paul** : pour un projet sans réserve sur aucun hôte (ex. une nouvelle application), Paul fournit les comptes sandbox, placés directement dans le `.env.local` du checkout principal de l'hôte d'exécution.
+   - **Réserve fournie par l’utilisateur** : pour un projet sans réserve sur aucun hôte (ex. une nouvelle application), l’utilisateur fournit les comptes sandbox, placés directement dans le `.env.local` du checkout principal de l'hôte d'exécution.
    - **Reprise d'une issue interrompue** : si `sha_reprise` est renseigné, le sous-agent repart du SHA validé et examine le `WIP` de `branche_reprise` avant de coder.
    - **Réserve vide ou absente sur l'hôte** : l'issue n'est pas admise. Le cadrage le détecte en amont et le signale dans le lot de questions, pour éviter un blocage au préflight.
 4. **Plan, puis exécution** : pour les issues `standard` et `sensible`, Opus rédige une **fiche d'exécution** de 1 500 tokens maximum (fichiers, étapes, critères d'acceptation, commandes de test), puis l'applique dans la même session. La revue est faite par un sous-agent Opus démarré à neuf (diff, fiche et critères uniquement), les tests par un sous-agent Haiku. Pas de fiche pour les issues `leger` : Haiku les traite de bout en bout.
@@ -347,7 +355,7 @@ Pour une campagne de déploiement (ex. `deployeur`) : `"mode": "supervise"`, `"h
 Ne jamais choisir un modèle à la main. À chaque démarrage d'issue, changement de phase ou sous-agent :
 `node <pilote> modele <tache> <criticite> <volumetrie> [campagne]`
 
-Le socle est **100 % Anthropic** : **Opus 5.5** (cadrage et développement), **Sonnet 5.5** (recette de Milestone dans un chat `🧪 TEST`, implémentation visuelle hors sous-agent ; il n'est pas disponible en sous-agent), **Haiku 5.5** (logistique, tâches légères et pré-lecture), **Fable 5.1** (modèle nominal des choix visuels, et recours à l'essai 3). Fable 5.2 est réservé à l'usage manuel de Paul et n'est jamais attribué automatiquement. Les modèles OpenAI ne servent que de fallback en cas de 429 et de second regard à l'escalade. **Proportionnalité** : le modèle suit la taille de la tâche, pas l'importance du projet. Modifier un `.env` ou une config reste sur Haiku, même dans une campagne sensible. Aucun suivi des coûts. Le détail (rôles, matrice, pré-lecture) est dans `references/modeles.md`.
+Le socle est **100 % Anthropic** : **Opus 5.5** (cadrage et développement), **Sonnet 5.5** (recette de Milestone dans un chat `🧪 TEST`, implémentation visuelle hors sous-agent ; il n'est pas disponible en sous-agent), **Haiku 5.5** (logistique, tâches légères et pré-lecture), **Fable 5.1** (modèle nominal des choix visuels, et recours à l'essai 3). Fable 5.2 est réservé à l'usage manuel de l’utilisateur et n'est jamais attribué automatiquement. Les modèles OpenAI ne servent que de fallback en cas de 429 et de second regard à l'escalade. **Proportionnalité** : le modèle suit la taille de la tâche, pas l'importance du projet. Modifier un `.env` ou une config reste sur Haiku, même dans une campagne sensible. Aucun suivi des coûts. Le détail (rôles, matrice, pré-lecture) est dans `references/modeles.md`.
 
 **Échelle d'escalade**, alignée sur le circuit-breaker :
 
@@ -356,7 +364,7 @@ Le socle est **100 % Anthropic** : **Opus 5.5** (cadrage et développement), **S
 | 1 | Modèle nominal |
 | 2 | `leger` : Sonnet. `standard` / `sensible` (déjà sur Opus) : Opus avec une nouvelle approche et un contexte enrichi, ou Astra en second regard sur un bug subtil |
 | 3 | `leger` : Opus. `standard` / `sensible` : Fable (architecture, si autorisé) ou Astra (bug / tests) |
-| Après 3 échecs | `⛔ BLOQUÉ`, escalade à Paul (`blocages.md`) |
+| Après 3 échecs | `⛔ BLOQUÉ`, escalade à l’utilisateur (`blocages.md`) |
 
 Le détail fait foi dans `references/modeles.md` §5.
 
@@ -370,17 +378,17 @@ Dès que le correctif est validé, **redescendre au niveau nominal**.
 
 ## 7. Garde-fous
 
-* **Livraison par Paul (v2.22)** : les projets listés dans `livraison_par_paul` (`poste.local.json` de chaque hôte) sont déployés par Paul lui-même depuis le déployeur. Pour eux, le travail des agents s'arrête au commit et à la fusion dans la branche principale : `livrer`, `livraison-go` et `executant demander … livraison` répondent `LIVRAISON PAR PAUL`, la consigne de `contexte` le rappelle en tête, et une issue de livraison, de phase 2 ou de vérification sur serveur se clôt sans fusion (motif « livraison par Paul depuis le déployeur »).
+* **Livraison par l’utilisateur (v2.22)** : les projets listés dans `livraison_par_paul` (`poste.local.json` de chaque hôte) sont déployés par l’utilisateur lui-même depuis le déployeur. Pour eux, le travail des agents s'arrête au commit et à la fusion dans la branche principale : `livrer`, `livraison-go` et `executant demander … livraison` répondent `LIVRAISON PAR PAUL`, la consigne de `contexte` le rappelle en tête, et une issue de livraison, de phase 2 ou de vérification sur serveur se clôt sans fusion (motif « livraison par l’utilisateur depuis le déployeur »).
 * **Droits d'écriture dans Linear** : seuls `$dev cadrage` et `$dev cadrage-court` écrivent le **contenu** d'une issue (titre, description, critères d'acceptation, découpage). Les autres étapes n'écrivent que l'état, des commentaires et le bilan. Un agent ne réécrit jamais les critères de l'issue qu'il traite : s'il les juge faux, il le signale dans le digest, rubrique « À confirmer ».
-* **Journal de décisions** (`.pilote/campagnes/<nom>.decisions.md`) : chaque choix fait sans Paul y est consigné en une ligne (issue, décision, règle appliquée, comment revenir en arrière). Paul le parcourt dans le digest et peut annuler une décision a posteriori. Quand une règle commune change après un GO de Paul (limite d'admission, par exemple), `🏛 ARCHI` inscrit une ligne `GLOBAL · Paul (…) : …` dans le journal de chaque campagne en cours (`node <pilote> decision-globale <texte>`, sur l'hôte d'exécution).
-* **Qui débloque (v2.6)** : quand un orchestrateur arrête une issue (`bloquee`, ou `revue`/`recette` qui attend autre chose que son travail), il le dit : `pilote.mjs statut … --attend paul|agents|poste|env --quoi "<cause ; pour Paul : action exacte et réponse proposée>"`, ou `pilote.mjs arret …` sans changer le statut. `$dev point` s'en sert ; une issue arrêtée sans ce champ y apparaît « à qualifier » (`point.md`).
-* **Cadreur avant blocage (v2.6.3)** : une campagne ne bloque une issue qu'après un cadreur de déblocage (`pilote.mjs lancer cadrage deblocage-<ID> --depuis-role AUTO …`), qui décide par défaut sous mandat de Paul ou publie un correctif ; seule une conclusion « réservé à Paul » (irréversible, hors mandat) bloque l'issue, avec la réponse proposée (`blocages.md`). **Depuis la v2.9, c'est vérifié par le script** : `--attend paul` est refusé (`CADREUR REQUIS`) tant qu'aucune ligne « Conclusion du cadreur : … » n'est au journal pour l'issue ; un motif réservé d'emblée (action irréversible ou root, secret à fournir, hors mandat) passe par `--reserve "<motif>"`. Quand une campagne ne bouge plus depuis `reveil.cadreur_apres_min` (120 min), le réveil lance lui-même un cadreur par issue arrêtée, 3 au plus en même temps (`reveil.cadreurs_max`), par ordre d'issues retenues. La ligne d'état liste dans « Toi : » chaque issue qui attend vraiment Paul (« décider pour DEV-x (…) ») ; un orchestrateur ne pose jamais de question à Paul dans son texte.
-* **Exécutant de l'hôte (v2.11)** : un programme déterministe tourne toutes les 5 min sur l'hôte d'atelier, même poste éteint, et exécute sous mandat de Paul les actions qui lui sont réservées : `root-atelier` (installer un fichier dans une liste fermée de cibles, empreinte citée par le cadreur), `serveur-cli` (commandes du déployeur sur le serveur, jeton administrateur temporaire) et `livraison` (sous GO ou mandat anticipé, conditions revérifiées, répétition à blanc d'abord). La campagne les demande par `pilote.mjs executant demander <campagne> <type> --issue <ID> …` au lieu de `--attend paul` ; les mandats vivent sur l'hôte, hors de portée des agents (`references/executant.md`). Le réveil relance toutes les 20 min un orchestrateur au repos dont des issues admises ne bougent plus ; le bloc d'état signale le poste éteint.
+* **Journal de décisions** (`.pilote/campagnes/<nom>.decisions.md`) : chaque choix fait sans l’utilisateur y est consigné en une ligne (issue, décision, règle appliquée, comment revenir en arrière). l’utilisateur le parcourt dans le digest et peut annuler une décision a posteriori. Quand une règle commune change après un GO de l’utilisateur (limite d'admission, par exemple), `🏛 ARCHI` inscrit une ligne `GLOBAL · l’utilisateur (…) : …` dans le journal de chaque campagne en cours (`node <pilote> decision-globale <texte>`, sur l'hôte d'exécution).
+* **Qui débloque (v2.6)** : quand un orchestrateur arrête une issue (`bloquee`, ou `revue`/`recette` qui attend autre chose que son travail), il le dit : `pilote.mjs statut … --attend paul|agents|poste|env --quoi "<cause ; pour l’utilisateur : action exacte et réponse proposée>"`, ou `pilote.mjs arret …` sans changer le statut. `$dev point` s'en sert ; une issue arrêtée sans ce champ y apparaît « à qualifier » (`point.md`).
+* **Cadreur avant blocage (v2.6.3)** : une campagne ne bloque une issue qu'après un cadreur de déblocage (`pilote.mjs lancer cadrage deblocage-<ID> --depuis-role AUTO …`), qui décide par défaut sous mandat de l’utilisateur ou publie un correctif ; seule une conclusion « réservé à l’utilisateur » (irréversible, hors mandat) bloque l'issue, avec la réponse proposée (`blocages.md`). **Depuis la v2.9, c'est vérifié par le script** : `--attend paul` est refusé (`CADREUR REQUIS`) tant qu'aucune ligne « Conclusion du cadreur : … » n'est au journal pour l'issue ; un motif réservé d'emblée (action irréversible ou root, secret à fournir, hors mandat) passe par `--reserve "<motif>"`. Quand une campagne ne bouge plus depuis `reveil.cadreur_apres_min` (120 min), le réveil lance lui-même un cadreur par issue arrêtée, 3 au plus en même temps (`reveil.cadreurs_max`), par ordre d'issues retenues. La ligne d'état liste dans « Toi : » chaque issue qui attend vraiment l’utilisateur (« décider pour DEV-x (…) ») ; un orchestrateur ne pose jamais de question à l’utilisateur dans son texte.
+* **Exécutant de l'hôte (v2.11)** : un programme déterministe tourne toutes les 5 min sur l'hôte d'atelier, même poste éteint, et exécute sous mandat de l’utilisateur les actions qui lui sont réservées : `root-atelier` (installer un fichier dans une liste fermée de cibles, empreinte citée par le cadreur), `serveur-cli` (commandes du déployeur sur le serveur, jeton administrateur temporaire) et `livraison` (sous GO ou mandat anticipé, conditions revérifiées, répétition à blanc d'abord). La campagne les demande par `pilote.mjs executant demander <campagne> <type> --issue <ID> …` au lieu de `--attend paul` ; les mandats vivent sur l'hôte, hors de portée des agents (`references/executant.md`). Le réveil relance toutes les 20 min un orchestrateur au repos dont des issues admises ne bougent plus ; le bloc d'état signale le poste éteint.
 * **Questions non bloquantes** : une question qui ne relève pas des 3 motifs n'arrête jamais une issue. L'agent prend l'option par défaut, la journalise et la place dans le digest, rubrique « À confirmer ».
 * **Digest quotidien** : un message par campagne et par jour dans son chat, généré par Haiku, 15 lignes maximum (avancement, issues closes, décisions prises seul, `⛔`). Pas d'autre notification hors des 3 motifs.
 
 * **Circuit-breaker** : `attempts` limité à 3 par issue, toutes erreurs confondues. Au 3ᵉ échec : arrêt, état exact documenté, titre en `⛔ BLOQUÉ`.
-* **Timeout environnement** : réseau, SSH, Docker ou permissions bloqués plus de 5 minutes → l'issue est mise de côté (`⛔`) et signalée dans le digest ; les issues indépendantes continuent. Paul n'est notifié immédiatement que si **toute** la campagne est à l'arrêt.
+* **Timeout environnement** : réseau, SSH, Docker ou permissions bloqués plus de 5 minutes → l'issue est mise de côté (`⛔`) et signalée dans le digest ; les issues indépendantes continuent. l’utilisateur n'est notifié immédiatement que si **toute** la campagne est à l'arrêt.
 * **Preuves** : commande exécutée + code de sortie ou extrait de log pertinent. Une absence d'erreur n'est pas une preuve.
 * **Secrets** : uniquement dans les environnements autorisés. Jamais dans les messages, registres, preuves ou Linear.
 

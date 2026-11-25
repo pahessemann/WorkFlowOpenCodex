@@ -658,7 +658,7 @@
     },
     {
       "id": "dev1335-carte",
-      "commande": "démarrage DEV-1335 à blanc : carte absente générée sur place",
+      "commande": "démarrage DEV-900011 à blanc : carte absente générée sur place",
       "config": {
         "projets": {
           "mon-app": {
@@ -680,13 +680,13 @@
           "composer",
           "demo",
           "mon-app",
-          "DEV-1335"
+          "DEV-900011"
         ]
       ],
       "argv": [
         "ouvrir",
         "demo",
-        "DEV-1335",
+        "DEV-900011",
         "--a-blanc",
         "--fiche",
         "Imaginer une direction artistique pour mon application : planche statique et note. Aucun code. Recette développeur : SANS OBJET. Utiliser Fable 5.2 pour imaginer et produire les visuels."
@@ -698,7 +698,7 @@
     },
     {
       "id": "dev1335-fable52",
-      "commande": "démarrage DEV-1335 : mention de Fable 5.2 ignorée et signalée",
+      "commande": "démarrage DEV-900011 : mention de Fable 5.2 ignorée et signalée",
       "config": {
         "projets": {
           "mon-app": {
@@ -720,25 +720,25 @@
           "composer",
           "demo",
           "mon-app",
-          "DEV-1335"
+          "DEV-900011"
         ]
       ],
       "argv": [
         "ouvrir",
         "demo",
-        "DEV-1335",
+        "DEV-900011",
         "--a-blanc",
         "--fiche",
         "Imaginer une direction artistique pour mon application : planche statique et note. Aucun code. Recette développeur : SANS OBJET. Utiliser Fable 5.2 pour imaginer et produire les visuels."
       ],
       "attendu": {
         "code": 0,
-        "contient": "réservé à Paul : à lancer à la main si Paul le souhaite"
+        "contient": "réservé à l’utilisateur : à lancer à la main si l’utilisateur le souhaite"
       }
     },
     {
       "id": "dev1335-livrable",
-      "commande": "démarrage DEV-1335 : livrable sans code, démarrage allégé",
+      "commande": "démarrage DEV-900011 : livrable sans code, démarrage allégé",
       "config": {
         "projets": {
           "mon-app": {
@@ -760,13 +760,13 @@
           "composer",
           "demo",
           "mon-app",
-          "DEV-1335"
+          "DEV-900011"
         ]
       ],
       "argv": [
         "ouvrir",
         "demo",
-        "DEV-1335",
+        "DEV-900011",
         "--a-blanc",
         "--fiche",
         "Imaginer une direction artistique pour mon application : planche statique et note. Aucun code. Recette développeur : SANS OBJET. Utiliser Fable 5.2 pour imaginer et produire les visuels."
@@ -778,7 +778,7 @@
     },
     {
       "id": "dev1335-choix-visuel",
-      "commande": "démarrage DEV-1335 : routage choix-visuel sur Fable 5.1",
+      "commande": "démarrage DEV-900011 : routage choix-visuel sur Fable 5.1",
       "config": {
         "projets": {
           "mon-app": {
@@ -800,13 +800,13 @@
           "composer",
           "demo",
           "mon-app",
-          "DEV-1335"
+          "DEV-900011"
         ]
       ],
       "argv": [
         "ouvrir",
         "demo",
-        "DEV-1335",
+        "DEV-900011",
         "--a-blanc",
         "--fiche",
         "Imaginer une direction artistique pour mon application : planche statique et note. Aucun code. Recette développeur : SANS OBJET. Utiliser Fable 5.2 pour imaginer et produire les visuels."
@@ -832,18 +832,18 @@
           "composer",
           "demo",
           "mon-app",
-          "DEV-1335"
+          "DEV-900011"
         ]
       ],
       "argv": [
         "ouvrir",
         "demo",
-        "DEV-1335",
+        "DEV-900011",
         "--a-blanc"
       ],
       "attendu": {
         "code": 2,
-        "contient": "Paul doit cloner le dépôt"
+        "contient": "l’utilisateur doit cloner le dépôt"
       }
     },
     {
@@ -866,7 +866,7 @@
           "contenu": "# PROJECT\n"
         },
         {
-          "fichier": "fiches/DEV-1335.md",
+          "fichier": "fiches/DEV-900011.md",
           "contenu": "# Direction artistique mon application\nPlanche statique et note. Aucun code. Recette développeur : SANS OBJET. Utiliser Fable 5.2 pour imaginer et produire les visuels.\n"
         },
         [
@@ -874,18 +874,18 @@
           "composer",
           "demo",
           "mon-app",
-          "DEV-1335"
+          "DEV-900011"
         ]
       ],
       "argv": [
         "ouvrir",
         "demo",
-        "DEV-1335",
+        "DEV-900011",
         "--a-blanc"
       ],
       "attendu": {
         "code": 0,
-        "contient": "réservé à Paul : à lancer à la main si Paul le souhaite"
+        "contient": "réservé à l’utilisateur : à lancer à la main si l’utilisateur le souhaite"
       }
     },
     {
@@ -916,7 +916,7 @@
           "composer",
           "demo",
           "mon-app",
-          "DEV-1335"
+          "DEV-900011"
         ]
       ],
       "argv": [
@@ -1183,7 +1183,7 @@
         "--depuis-modele",
         "gpt-6-luna",
         "--fiche",
-        "Paul : $dev cadrage test-v2-3 (démonstration v2.3)"
+        "l’utilisateur : $dev cadrage test-v2-3 (démonstration v2.3)"
       ],
       "attendu": {
         "code": 0,
@@ -1212,7 +1212,7 @@
           "--depuis-modele",
           "gpt-6-luna",
           "--fiche",
-          "Paul : $dev cadrage test-v2-3 (démonstration v2.3)"
+          "l’utilisateur : $dev cadrage test-v2-3 (démonstration v2.3)"
         ]
       ],
       "argv": [
@@ -1224,7 +1224,7 @@
         "--depuis-modele",
         "gpt-6-luna",
         "--fiche",
-        "Paul : $dev cadrage test-v2-3 (démonstration v2.3)"
+        "l’utilisateur : $dev cadrage test-v2-3 (démonstration v2.3)"
       ],
       "attendu": {
         "code": 0,
@@ -1250,7 +1250,7 @@
         "--depuis-modele",
         "gpt-6-luna",
         "--fiche",
-        "Paul : $dev cadrage-court DEV-1"
+        "l’utilisateur : $dev cadrage-court DEV-1"
       ],
       "attendu": {
         "code": 0,
@@ -1390,7 +1390,7 @@
         "--depuis-modele",
         "gpt-6-luna",
         "--fiche",
-        "Paul : $dev evolution routage visuel"
+        "l’utilisateur : $dev evolution routage visuel"
       ],
       "attendu": {
         "code": 0,
@@ -1414,11 +1414,11 @@
         "--depuis-modele",
         "gpt-6-luna",
         "--fiche",
-        "Paul : nouveau routage visuel"
+        "l’utilisateur : nouveau routage visuel"
       ],
       "attendu": {
         "code": 0,
-        "contient": "Paul : nouveau routage visuel\\n\\n$dev evolution routage visuel"
+        "contient": "l’utilisateur : nouveau routage visuel\\n\\n$dev evolution routage visuel"
       }
     },
     {
@@ -1720,7 +1720,7 @@
       ],
       "argv": [
         "decision-globale",
-        "Paul : dev_max relevé à 6"
+        "l’utilisateur : dev_max relevé à 6"
       ],
       "attendu": {
         "code": 0,
@@ -1860,7 +1860,7 @@
       "avant": [
         {
           "fichier": "chats.json",
-          "contenu": "{\"C9\":{\"role\":\"CADRE\",\"titre\":\"🟣 CADRE · mon-api · refonte\",\"statut\":\"actif\",\"derniere_ligne\":\"⏳ EN ATTENTE · réponses de Paul au lot de questions · Toi : répondre au lot\"}}"
+          "contenu": "{\"C9\":{\"role\":\"CADRE\",\"titre\":\"🟣 CADRE · mon-api · refonte\",\"statut\":\"actif\",\"derniere_ligne\":\"⏳ EN ATTENTE · réponses de l’utilisateur au lot de questions · Toi : répondre au lot\"}}"
         }
       ],
       "argv": [
@@ -1869,7 +1869,7 @@
       ],
       "attendu": {
         "code": 0,
-        "contient": "🟣 CADRE · mon-api · refonte — ⏳ EN ATTENTE · réponses de Paul"
+        "contient": "🟣 CADRE · mon-api · refonte — ⏳ EN ATTENTE · réponses de l’utilisateur"
       }
     },
     {
@@ -1937,7 +1937,7 @@
         "--depuis-role",
         "ARCHI",
         "--fiche",
-        "Paul : cadrer la transition"
+        "l’utilisateur : cadrer la transition"
       ],
       "attendu": {
         "code": 0,
@@ -2035,7 +2035,7 @@
     },
     {
       "id": "point-action-paul",
-      "commande": "$dev point liste ce que Paul doit faire",
+      "commande": "$dev point liste ce que l’utilisateur doit faire",
       "argv": [
         "point",
         "--texte"
@@ -2073,7 +2073,7 @@
           "--quoi",
           "fournir le compte (proposé : compte _2)",
           "--reserve",
-          "secret à fournir par Paul"
+          "secret à fournir par l’utilisateur"
         ]
       ],
       "attendu": {
@@ -2171,7 +2171,7 @@
         "demo",
         "DEV-3",
         "--motif",
-        "décision de Paul du 20/11"
+        "décision de l’utilisateur du 20/11"
       ],
       "avant": [
         [
@@ -2462,7 +2462,7 @@
           "deployeur",
           "registre",
           "--fiche",
-          "Paul : $dev discuter deployeur registre"
+          "l’utilisateur : $dev discuter deployeur registre"
         ]
       ],
       "argv": [
@@ -2471,7 +2471,7 @@
         "deployeur",
         "registre",
         "--fiche",
-        "Paul : $dev discuter deployeur registre"
+        "l’utilisateur : $dev discuter deployeur registre"
       ],
       "attendu": {
         "code": 0,
@@ -2532,7 +2532,7 @@
     },
     {
       "id": "poste-demander-en-file",
-      "commande": "poste demander une commande serveur : en file pour l’écoute du poste, jamais confiée à Paul (v2.19)",
+      "commande": "poste demander une commande serveur : en file pour l’écoute du poste, jamais confiée à l’utilisateur (v2.19)",
       "argv": [
         "poste",
         "demander",

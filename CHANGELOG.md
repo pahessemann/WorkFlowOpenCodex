@@ -118,15 +118,15 @@ Correctif : la règle de clôture après fusion vérifie la tête réelle du tra
 
 ## 2.10 — 21/11/2026
 
-État de campagne lisible d’un coup d’œil : le script rend un bloc d’une ligne par rubrique (ce que Paul doit faire en premier, puis agents, poste Windows, attentes, issues à venir, bloquées) et une ligne d’état courte ; les orchestrateurs les recopient à l’identique, et `$dev point` affiche le même bloc. 97 évaluations, 70 tests.
+État de campagne lisible d’un coup d’œil : le script rend un bloc d’une ligne par rubrique (ce que l’utilisateur doit faire en premier, puis agents, poste Windows, attentes, issues à venir, bloquées) et une ligne d’état courte ; les orchestrateurs les recopient à l’identique, et `$dev point` affiche le même bloc. 97 évaluations, 70 tests.
 
 ## 2.9.1 — 21/11/2026
 
-Correctif : quand le reste d’une campagne attend ses dépendances, la ligne d’état affiche l’action attendue de Paul (⏸) au lieu d’un message générique. 97 évaluations, 69 tests.
+Correctif : quand le reste d’une campagne attend ses dépendances, la ligne d’état affiche l’action attendue de l’utilisateur (⏸) au lieu d’un message générique. 97 évaluations, 69 tests.
 
 ## 2.9 — 21/11/2026
 
-Plus d’attente sans travail. Une issue qui attend Paul, le poste ou l’environnement libère sa place d’admission (le total ouvert reste borné). Une issue ne peut attendre Paul qu’après la conclusion d’un cadreur de déblocage, sauf motif réservé déclaré (`--reserve`). Le réveil lance lui-même les cadreurs quand une campagne n’a pas bougé depuis deux heures. La ligne d’état nomme ce que Paul doit décider. 97 évaluations, 69 tests.
+Plus d’attente sans travail. Une issue qui attend l’utilisateur, le poste ou l’environnement libère sa place d’admission (le total ouvert reste borné). Une issue ne peut attendre l’utilisateur qu’après la conclusion d’un cadreur de déblocage, sauf motif réservé déclaré (`--reserve`). Le réveil lance lui-même les cadreurs quand une campagne n’a pas bougé depuis deux heures. La ligne d’état nomme ce que l’utilisateur doit décider. 97 évaluations, 69 tests.
 
 ## 2.8.5 — 21/11/2026
 

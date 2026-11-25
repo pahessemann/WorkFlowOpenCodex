@@ -59,7 +59,7 @@ uniquement les contrôles affectés, selon le verrou de revue de
 
 ## Phase 4 — Clôture validée
 
-Après recette de Paul ou de l’orchestrateur de campagne (recette de Milestone), appliquer `$dev finaliser <ID>` à
+Après recette de l’utilisateur ou de l’orchestrateur de campagne (recette de Milestone), appliquer `$dev finaliser <ID>` à
 cette seule issue. Après son merge, ou sa validation explicite sans diff,
 publier le bilan et notifier le cadreur. L’orchestrateur ingère les résultats
 globaux et termine le milestone si toutes ses issues et ses critères sont

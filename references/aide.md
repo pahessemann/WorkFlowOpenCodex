@@ -48,7 +48,7 @@ avis de mise à jour).
 
 Si l'agent ne peut pas créer, ranger, archiver ou ouvrir un chat par programme, il affiche la
 marche à suivre à la main : dossier, titre exact, modèle et premier message à coller. Il
-enregistre ensuite l'identifiant que Paul lui donne (`aide enregistrer`), pour que le
+enregistre ensuite l'identifiant que l’utilisateur lui donne (`aide enregistrer`), pour que le
 registre reste à jour.
 
 ## Protections

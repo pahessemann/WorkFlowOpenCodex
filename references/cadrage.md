@@ -28,7 +28,7 @@ commencer l’analyse de cadrage. Elle ne vaut pas validation anticipée des
 
 ## Interaction par défaut (v2.2 : un seul lot de questions)
 
-Paul reste maître du besoin, du périmètre et du découpage, mais n’intervient
+l’utilisateur reste maître du besoin, du périmètre et du découpage, mais n’intervient
 qu’**une fois**. Effectuer sans interruption lectures, inventaires, analyses,
 rapprochements et brouillons (resynthèse, matrices, milestones, issues), puis
 présenter **un seul lot** regroupant :
@@ -41,7 +41,7 @@ présenter **un seul lot** regroupant :
 5. le paquet de publication Obsidian et Linear.
 
 Pour chaque question : la recommandation, ses raisons, l’alternative qui change
-réellement le résultat et la décision attendue. Paul valide, corrige ou complète
+réellement le résultat et la décision attendue. l’utilisateur valide, corrige ou complète
 en une fois ; son **GO unique** fige le contrat et autorise les écritures
 Obsidian et Linear décrites. Ne pas demander de GO pour une lecture ou une
 préparation sans effet externe ; ne jamais transformer l’échange en validation
@@ -272,7 +272,7 @@ Pour une recette `REQUISE`, lire et appliquer uniquement
 [`recette-developpeur.md`](recette-developpeur.md), puis inscrire dans l’issue
 les parcours bornés, l’environnement, chaque profil ou rôle sans secret, les
 actions, le résultat, les régressions concernées et la preuve attendue. Cette
-recette développeur reste distincte de la recette de Paul ou de l’orchestrateur de campagne (recette de Milestone).
+recette développeur reste distincte de la recette de l’utilisateur ou de l’orchestrateur de campagne (recette de Milestone).
 
 Lorsqu’un contrat producteur–consommateur est applicable, ajouter à l’issue la
 section conditionnelle suivante, sans recopier les matrices complètes :
@@ -389,7 +389,7 @@ d’exécution (`comptes-recette.md`). Sinon, le signaler dans le lot de questio
 sans réserve, l’issue ne sera pas admise.
 
 **Définition de « prêt »** : une issue n’entre dans une campagne que si elle a des
-critères d’acceptation ; sinon le cadrage les rédige et Paul les valide dans le
+critères d’acceptation ; sinon le cadrage les rédige et l’utilisateur les valide dans le
 même lot.
 
 **Pas de modèle dans une issue.** Une issue ne nomme jamais de modèle. Elle indique la tâche (dev, choix-visuel, prototype…) et la criticité ; le routeur (`node <pilote> modele`) choisit le modèle. Une mention trouvée dans une fiche est ignorée par `pilote.mjs ouvrir` et signalée dans le digest, sans jamais arrêter le travail.
@@ -400,7 +400,7 @@ même lot.
 
 ## Issue publiée pour une campagne en cours (v2.6.2)
 
-Si le cadrage publie une issue destinée à une campagne déjà lancée (mandat de Paul, correctif), le cadreur
+Si le cadrage publie une issue destinée à une campagne déjà lancée (mandat de l’utilisateur, correctif), le cadreur
 l'y inscrit lui-même : `node <pilote> campagne ajouter <campagne> <ID> --motif "<mandat ou décision>"
 [--bloquee-par ID,ID]`, sur l'hôte d'exécution. L'orchestrateur l'admet au réveil suivant.
 

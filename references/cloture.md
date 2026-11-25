@@ -9,5 +9,5 @@ mises de côté.
 3. `pilote.mjs campagne cloturer <nom>` : statut `close`, registre archivé dans
    `.pilote/archives/`.
 4. Titre du chat de campagne suffixé `✅` ; le réveil d'atelier l'archive dès que ce chat `📘 BILAN` est terminé (v2.6.2).
-5. Chat `📘 BILAN` dans `04 Relais & maintenance` seulement si Paul le demande.
+5. Chat `📘 BILAN` dans `04 Relais & maintenance` seulement si l’utilisateur le demande.
 

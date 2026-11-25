@@ -24,7 +24,7 @@ En tête du rapport viennent les rappels : `⏸ GO` en attente depuis plus de 24
 - `surs` : seulement les actions sûres. `<numéros>` : les lignes choisies, sûres ou non. `tout` : tout, sauf les chats dormants.
 - Sur atelier, `pilote.mjs` applique lui-même : renommer, ranger, archiver et poster, par l'app-server. Pour les chats du poste, il rend `operations_outil`, que l'agent applique avec les outils de l'application (`set_thread_title`, `move_thread_to_sidebar_section`, `set_thread_archived`).
 - **Garde-fous** : archiver ne supprime jamais rien. Les chats `❓ AIDE`, `🏛 ARCHI` et les chats de campagne en cours ne sont jamais archivés. Chaque action est inscrite au registre avec sa date (`historique`).
-- **`🏛 ARCHI`** : jamais archivé, clos ni recréé par le ménage, même avec `appliquer tout`. Il peut être rattaché au registre et signalé `trop_lourd` (action à décider, sans opération automatique) : ARCHI écrit alors sa fiche de reprise et Paul le recrée à la main (`archi.md`).
+- **`🏛 ARCHI`** : jamais archivé, clos ni recréé par le ménage, même avec `appliquer tout`. Il peut être rattaché au registre et signalé `trop_lourd` (action à décider, sans opération automatique) : ARCHI écrit alors sa fiche de reprise et l’utilisateur le recrée à la main (`archi.md`).
 
 ## Passage hebdomadaire
 
@@ -36,14 +36,14 @@ Le réveil range dans `99 Archives`, après `chats.archive_apres_heures` (1 h), 
 
 - ligne `✅ TERMINÉ` ou statut `clos`, sauf chat d'une issue encore ouverte ;
 - **issue close** : chat lié à une issue close, quelle que soit sa dernière ligne (l'issue est aussi lue dans le sujet d'un cadreur, ex.
-  `deblocage-DEV-1050`, `fusion-DEV-1385`, `livraison-DEV-1360`) ;
-- **inactif** : aucune activité depuis `chats.inactif_archive_heures` (48 h), sauf GO de Paul attendu (`⏸`) et chat `DEV` d'une issue ouverte ;
+  `deblocage-DEV-900004`, `fusion-DEV-900014`, `livraison-DEV-900013`) ;
+- **inactif** : aucune activité depuis `chats.inactif_archive_heures` (48 h), sauf GO de l’utilisateur attendu (`⏸`) et chat `DEV` d'une issue ouverte ;
 - **campagne close** : chat de campagne quand son 📘 BILAN est terminé, ou 24 h après la clôture si le bilan a été versé sans chat.
 
 Jamais : `❓ AIDE`, `🏛 ARCHI`, une campagne en cours, un chat en plein tour. L'archivage est réversible (désarchiver dans l'application).
 
 Sur le poste (v2.16), la passerelle applique les mêmes règles aux chats du workflow du poste (✅ depuis 1 h, inactif 48 h), jamais aux
-chats libres de Paul (`poste.md`).
+chats libres de l’utilisateur (`poste.md`).
 
 v2.18 : un chat `💬 PROJET` (discussion, `discuter.md`) est rangé par le réveil après 24 h sans activité (`chats.discussion_archive_heures`), ou 1 h après sa ligne `✅`.
 

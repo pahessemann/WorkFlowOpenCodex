@@ -100,7 +100,7 @@ test('campagne : brouillon, contrat obligatoire, lancement, statuts fermés, tit
   const preuve = path.join(c.etat, 'DEV-101.recette.json');
   fs.writeFileSync(preuve, JSON.stringify({ issue: 'DEV-101', criteres: [{ critere: 'export refusé sans période', controle: 'dialogue sans période', resultat: 'echec' }] }));
   assert.equal(code(() => P.statutIssue(c, 'refonte', 'DEV-101', 'close', preuve)), 'RECETTE INCOMPLÈTE');
-  fs.writeFileSync(preuve, JSON.stringify({ issue: 'DEV-101', criteres: [{ critere: 'export refusé sans période', controle: 'dialogue sans période', resultat: 'ok', preuve: 'capture 01' }, { critere: 'rendu tablette', controle: 'aucun', resultat: 'non_applicable', justification: 'tablette physique réservée à Paul' }] }));
+  fs.writeFileSync(preuve, JSON.stringify({ issue: 'DEV-101', criteres: [{ critere: 'export refusé sans période', controle: 'dialogue sans période', resultat: 'ok', preuve: 'capture 01' }, { critere: 'rendu tablette', controle: 'aucun', resultat: 'non_applicable', justification: 'tablette physique réservée à l’utilisateur' }] }));
   P.statutIssue(c, 'refonte', 'DEV-101', 'close', preuve);
   assert.equal(P.titreCampagne(P.lireCampagne(c, 'refonte')).titre, '🟢 AUTO · mon-api · refonte · 50%');
   assert.equal(P.titre('TEST', 'mon-api', 'ms auth-core').dossier, '04 Relais & maintenance');
@@ -186,11 +186,11 @@ test('charges lourdes : plusieurs par campagne, plafond hôte commun', () => {
   assert.equal(code(() => P.prendreCreneauLourd(c, 'lourd-b', { attenteMax: 300, pas: 100 })), 'CRÉNEAU LOURD INDISPONIBLE');
 });
 
-test('fiche : mention de modèle ignorée et signalée, Fable 5.2 réservé à Paul ; livrable sans code', () => {
+test('fiche : mention de modèle ignorée et signalée, Fable 5.2 réservé à l’utilisateur ; livrable sans code', () => {
   const c = configTest();
   const m = P.mentionsModele(c, 'Utiliser Fable 5.2 pour les visuels, puis un modèle Claude plus modeste.');
   assert.deepEqual(m.map((x) => x.modele), ['claude-fable-5-2']); assert.equal(m[0].reserve_paul, true);
-  assert.match(P.signalementModele('DEV-1335', m[0]), /réservé à Paul : à lancer à la main si Paul le souhaite$/);
+  assert.match(P.signalementModele('DEV-900011', m[0]), /réservé à l’utilisateur : à lancer à la main si l’utilisateur le souhaite$/);
   assert.deepEqual(P.mentionsModele(c, 'Critères : écran de connexion.'), []);
   assert.equal(P.natureFiche('Aucun code. ## Recette développeur Statut : SANS OBJET'), 'livrable');
   assert.equal(P.natureFiche('Recette développeur : REQUISE'), 'code');
@@ -407,15 +407,15 @@ test('poste retirer : tâche retirée, issue exclue (file, admission, ligne d’
   fs.writeFileSync(path.join(at.etat, 'campagnes', 'k.json'), JSON.stringify({ id: 'k', projet: 'p', mode: 'auto', statut: 'en_cours', items: [{ type: 'issue_standalone', linear_id: 'DEV-7', statut: 'en_attente', blocked_by: [] }, { type: 'issue_standalone', linear_id: 'DEV-8', statut: 'revue', blocked_by: [] }] }));
   const d = P.posteDeposer(at, 'k', 'DEV-7', { fiche: 'Recette sur tablette physique' });
   assert.equal(code(() => P.posteRetirer(at, 'DEV-7', {})), 'MOTIF ABSENT');
-  const r = P.posteRetirer(at, 'DEV-7', { motif: 'recette tablette faite par Paul' });
+  const r = P.posteRetirer(at, 'DEV-7', { motif: 'recette tablette faite par l’utilisateur' });
   assert.equal(r.tache, d.tache); assert.equal(r.statut, 'retiree');
-  const i = P.issues(P.lireCampagne(at, 'k'))[0]; assert.equal(i.poste, undefined); assert.equal(i.poste_exclu, 'recette tablette faite par Paul');
+  const i = P.issues(P.lireCampagne(at, 'k'))[0]; assert.equal(i.poste, undefined); assert.equal(i.poste_exclu, 'recette tablette faite par l’utilisateur');
   assert.equal(P.postePrendre(at).tache, null, 'une tâche retirée n’est jamais relevée');
   assert.equal(code(() => P.posteDeposer(at, 'k', 'DEV-7', { fiche: 'x' })), 'POSTE EXCLU');
-  assert.deepEqual(P.contexte(at, 'k').exclues_poste, ['DEV-7 : recette tablette faite par Paul']);
-  assert.match(P.ligneEtat(at, 'k').detail, /Toi : à faire par toi : DEV-7 \(recette tablette faite par Paul\)$/);
-  assert.match(fs.readFileSync(path.join(at.etat, 'campagnes', 'k.decisions.md'), 'utf8'), /DEV-7 · Retirée de la passerelle poste par Paul/);
-  assert.deepEqual(P.posteFile(at).retirees, ['DEV-7 : recette tablette faite par Paul']);
+  assert.deepEqual(P.contexte(at, 'k').exclues_poste, ['DEV-7 : recette tablette faite par l’utilisateur']);
+  assert.match(P.ligneEtat(at, 'k').detail, /Toi : à faire par toi : DEV-7 \(recette tablette faite par l’utilisateur\)$/);
+  assert.match(fs.readFileSync(path.join(at.etat, 'campagnes', 'k.decisions.md'), 'utf8'), /DEV-7 · Retirée de la passerelle poste par l’utilisateur/);
+  assert.deepEqual(P.posteFile(at).retirees, ['DEV-7 : recette tablette faite par l’utilisateur']);
   P.modifierCampagne(at, 'k', (c) => { c.items[1].statut = 'close'; });
   assert.match(P.ligneEtat(at, 'k').detail, /^⏸ À TOI · il ne reste que ta part : DEV-7/);
   const d2 = P.posteDeposer(at, 'k', 'DEV-7', { fiche: 'y', forcer: true }); assert.equal(P.issues(P.lireCampagne(at, 'k'))[0].poste_exclu, undefined, '--forcer lève l’exclusion'); assert.equal(code(() => P.posteRetirer(at, d2.tache, { motif: 'm' })), 0);
@@ -568,7 +568,7 @@ test('point 2.6 : lecture seule, qui débloque, actions dédoublonnées et trié
   assert.equal(p.actions_paul.length, 1, 'même action dans deux campagnes : une seule ligne');
   assert.deepEqual(p.actions_paul[0].issues.sort(), ['DEV-3', 'DEV-9']); assert.equal(p.actions_paul[0].debloque, 3, 'DEV-3, DEV-4 (dépendante) et DEV-9');
   assert.equal(a.estimation.fiabilite, 'faible'); assert.equal(a.estimation.unite, 'heures de travail des agents');
-  assert.equal(a.estimation.plafond_sans_toi, 4, 'sans Paul : DEV-1 close + DEV-2, DEV-5, DEV-6');
+  assert.equal(a.estimation.plafond_sans_toi, 4, 'sans l’utilisateur : DEV-1 close + DEV-2, DEV-5, DEV-6');
   assert.ok(a.estimation.si_actions_faites[1] >= a.estimation.sinon[1]);
   assert.match(p.ligne_etat, /^⏸ À TOI · point de 2 campagne\(s\) fait, 1 blocage\(s\) à qualifier · Toi : Fournir le compte service/);
   assert.match(p.rendu, /\*\*Ce que tu dois faire\*\*\n\n1\. Fournir le compte service \(proposé : compte _2\) — débloque 3 issue\(s\)/);
@@ -686,13 +686,13 @@ test('2.6.2 : campagne ajouter : issue admissible, motif obligatoire, doublon si
   assert.equal(code(() => P.ajouterIssues(at, 'k', ['DEV-5'], {})), 'MOTIF ABSENT');
   assert.equal(code(() => P.ajouterIssues(at, 'k', ['dev5'], { motif: 'm' })), 'IDENTIFIANT INVALIDE');
   assert.equal(code(() => P.ajouterIssues(at, 'k', ['DEV-5'], { motif: 'm', projet: 'inconnu' })), 'PROJET INCONNU');
-  const r = P.ajouterIssues(at, 'k', ['DEV-5', 'DEV-1'], { motif: 'mandat de cadrage autonome de Paul', bloqueePar: ['DEV-1'], projet: 'p' });
+  const r = P.ajouterIssues(at, 'k', ['DEV-5', 'DEV-1'], { motif: 'mandat de cadrage autonome de l’utilisateur', bloqueePar: ['DEV-1'], projet: 'p' });
   assert.deepEqual(r.ajoutees, ['DEV-5']); assert.deepEqual(r.deja_presentes, ['DEV-1']); assert.equal(r.total, 2);
   const i5 = P.issues(P.lireCampagne(at, 'k')).find((i) => i.linear_id === 'DEV-5');
   assert.equal(i5.statut, 'en_attente'); assert.deepEqual(i5.blocked_by, ['DEV-1']); assert.equal(i5.branche, 'codex/issue-DEV-5');
   P.ajouterIssues(at, 'k', ['DEV-6'], { motif: 'm', milestone: 'ms-1' });
   assert.equal(P.lireCampagne(at, 'k').items[1].issues[0].linear_id, 'DEV-6');
-  assert.match(fs.readFileSync(path.join(at.etat, 'campagnes', 'k.decisions.md'), 'utf8'), /DEV-5 · Ajoutée à la campagne en cours \(pilote\.mjs campagne ajouter\) : mandat de cadrage autonome de Paul ; bloquée par DEV-1/);
+  assert.match(fs.readFileSync(path.join(at.etat, 'campagnes', 'k.decisions.md'), 'utf8'), /DEV-5 · Ajoutée à la campagne en cours \(pilote\.mjs campagne ajouter\) : mandat de cadrage autonome de l’utilisateur ; bloquée par DEV-1/);
   P.modifierCampagne(at, 'k', (c) => { c.statut = 'close'; });
   assert.equal(code(() => P.ajouterIssues(at, 'k', ['DEV-7'], { motif: 'm' })), 'CAMPAGNE CLOSE');
 });
@@ -925,10 +925,10 @@ test('2.9 : places libérées par l’attente extérieure, CADREUR REQUIS, cadre
   P.executer(['arret', 'k', 'DEV-2', '--attend', 'paul', '--quoi', 'lancer la commande root', '--irreversible', 'commande sudo sur atelier'], at);
   P.decision(at, 'k', 'DEV-1', 'cadrage de déblocage ouvert (deblocage-DEV-1)');
   assert.equal(code(() => P.statutIssue(at, 'k', 'DEV-1', 'revue', null, { attend: 'paul', quoi: 'x' })), 'CADREUR REQUIS', 'une ouverture de cadrage ne vaut pas conclusion');
-  P.decision(at, 'k', 'DEV-1', 'Conclusion du cadreur : option A retenue sauf avis contraire ; réservé à Paul : oui');
+  P.decision(at, 'k', 'DEV-1', 'Conclusion du cadreur : option A retenue sauf avis contraire ; réservé à l’utilisateur : oui');
   P.statutIssue(at, 'k', 'DEV-1', 'revue', null, { attend: 'paul', quoi: 'confirmer option A' });
   const l = P.issues(P.lireCampagne(at, 'k'));
-  assert.deepEqual(P.actifsAdmission(l).map((i) => i.linear_id), ['DEV-3'], 'les issues qui attendent Paul libèrent leur place');
+  assert.deepEqual(P.actifsAdmission(l).map((i) => i.linear_id), ['DEV-3'], 'les issues qui attendent l’utilisateur libèrent leur place');
   assert.equal(P.ouvertesAdmission(l).length, 3); assert.equal(P.ouvertesMax(at), 8);
   const ligne = P.ligneEtat(at, 'k').detail; assert.match(ligne, /^▶/); assert.match(ligne, /2 en attente hors agents/); assert.match(ligne, /Toi : .*décider pour DEV-1 \(confirmer option A\)/);
   const lances = []; const lanceur = async (cfg, o) => { lances.push(o); return { action: 'cree', chat: 'chat-' + o.args[0] }; };
@@ -936,7 +936,7 @@ test('2.9 : places libérées par l’attente extérieure, CADREUR REQUIS, cadre
   assert.equal(await P.cadreursAuto(at, k(), { maintenant: t0, lanceur }), null, 'premier passage : état mémorisé');
   assert.equal(await P.cadreursAuto(at, k(), { maintenant: new Date(+t0 + 60 * 60000), lanceur }), null, 'immobile depuis 1 h seulement');
   const r = await P.cadreursAuto(at, k(), { maintenant: new Date(+t0 + 125 * 60000), lanceur });
-  assert.deepEqual(r.lances.map((x) => x.issue), ['DEV-3'], 'DEV-1 attend Paul après cadrage, DEV-2 est irréversible, DEV-4 attend sa dépendance');
+  assert.deepEqual(r.lances.map((x) => x.issue), ['DEV-3'], 'DEV-1 attend l’utilisateur après cadrage, DEV-2 est irréversible, DEV-4 attend sa dépendance');
   assert.equal(lances[0].depuisRole, 'AUTO'); assert.equal(lances[0].nouveau, true); assert.match(lances[0].fiche, /Conclusion du cadreur/);
   assert.equal(P.issues(k()).find((i) => i.linear_id === 'DEV-3').cadreur.chat, 'chat-deblocage-DEV-3');
   assert.equal(await P.cadreursAuto(at, k(), { maintenant: new Date(+t0 + 130 * 60000), lanceur }), null, 'le journal a bougé : nouvel état');
@@ -944,8 +944,8 @@ test('2.9 : places libérées par l’attente extérieure, CADREUR REQUIS, cadre
   assert.match(P.ligneEtat(at, 'k').detail, /Toi : rien/, 'attente levée');
   fs.writeFileSync(path.join(at.etat, 'campagnes', 'm.json'), JSON.stringify({ id: 'm', projet: 'p', mode: 'auto', statut: 'en_cours', items: [it('DEV-8', 'bloquee'), it('DEV-9', 'en_attente', { blocked_by: ['DEV-8'] })] }));
   assert.match(P.ligneEtat(at, 'm').detail, /^⏳ .*Toi : reprendre les issues bloquées/);
-  P.executer(['arret', 'm', 'DEV-8', '--attend', 'paul', '--quoi', 'lancer la phase 2 depuis le poste', '--reserve', 'production et identifiants de Paul'], at);
-  assert.match(P.ligneEtat(at, 'm').detail, /^⏸ .*Toi : décider pour DEV-8 \(lancer la phase 2 depuis le poste\)/, '2.9.1 : l’action de Paul prime sur le message générique');
+  P.executer(['arret', 'm', 'DEV-8', '--attend', 'paul', '--quoi', 'lancer la phase 2 depuis le poste', '--reserve', 'production et identifiants de l’utilisateur'], at);
+  assert.match(P.ligneEtat(at, 'm').detail, /^⏸ .*Toi : décider pour DEV-8 \(lancer la phase 2 depuis le poste\)/, '2.9.1 : l’action de l’utilisateur prime sur le message générique');
 });
 
 
@@ -955,7 +955,7 @@ test('2.10 : bloc d’état rendu par le script, Toi en premier, dernière ligne
   fs.mkdirSync(path.join(at.etat, 'campagnes'), { recursive: true });
   const it = (id, statut, extra = {}) => ({ type: 'issue_standalone', linear_id: id, statut, blocked_by: [], ...extra });
   fs.writeFileSync(path.join(at.etat, 'campagnes', 'k.json'), JSON.stringify({ id: 'k', projet: 'p', mode: 'auto', statut: 'en_cours', items: [it('DEV-1', 'close'), it('DEV-2', 'preflight'), it('DEV-3', 'revue'), it('DEV-4', 'bloquee'), it('DEV-5', 'en_attente', { blocked_by: ['DEV-4'] }), it('DEV-6', 'en_attente', { blocked_by: ['DEV-4'] })] }));
-  P.executer(['arret', 'k', 'DEV-4', '--attend', 'paul', '--quoi', 'installer PowerShell 7 sur le poste', '--reserve', 'installation sur le poste de Paul'], at);
+  P.executer(['arret', 'k', 'DEV-4', '--attend', 'paul', '--quoi', 'installer PowerShell 7 sur le poste', '--reserve', 'installation sur le poste de l’utilisateur'], at);
   const e = P.ligneEtat(at, 'k'); const lignes = e.bloc.split('\n');
   assert.equal(lignes[0], '**k** · 1/6 closes · ▶ EN COURS');
   assert.equal(lignes[1], '- 👤 **À toi (1)** :'); assert.equal(lignes[2], '  1. DEV-4 · installer PowerShell 7 sur le poste → débloque 2 issue(s)', 'Toi en premier, une action par ligne, avec ce qu’elle débloque');
@@ -963,18 +963,18 @@ test('2.10 : bloc d’état rendu par le script, Toi en premier, dernière ligne
   const longue = P.ligneEtat(at, 'k').bloc.split('\n')[2]; assert.ok(longue.length < 205 && /…/.test(longue) && /→ débloque 2 issue\(s\)$/.test(longue), 'action longue coupée sur un mot : ' + longue);
   assert.equal(lignes[3], '- 🤖 Agents (2) : DEV-2 démarrage · DEV-3 revue');
   assert.ok(lignes.includes('- 🕓 À venir (2) : 2 attendent leurs dépendances'));
-  assert.ok(!lignes.some((x) => x.startsWith('- ⛔')), '2.21.1 : une bloquée qui attend Paul n’apparaît que dans 👤 Toi');
+  assert.ok(!lignes.some((x) => x.startsWith('- ⛔')), '2.21.1 : une bloquée qui attend l’utilisateur n’apparaît que dans 👤 Toi');
   assert.equal(e.ligne, '▶ EN COURS · 2 agent(s) au travail · 2 à venir · Toi : DEV-4 · installer PowerShell 7 sur le poste');
   { const f = P.ligneEtat(at, 'k'); assert.equal(P.executer(['ligne-etat', 'k', '--texte'], at).__texte, f.bloc + '\n\n' + f.ligne); }
   assert.match(e.detail, /décider pour DEV-4/, 'la ligne détaillée reste disponible');
   P.statutIssue(at, 'k', 'DEV-3', 'fusionnee'); assert.match(P.ligneEtat(at, 'k').bloc, /🤖 Agents \(2\) : DEV-2 démarrage · DEV-3 à recetter/, '2.11.2 : une issue fusionnée à recetter reste visible');
   P.statutIssue(at, 'k', 'DEV-4', 'en_cours');
-  assert.doesNotMatch(P.ligneEtat(at, 'k').bloc, /👤/, 'rubrique absente quand Paul n’a rien à faire'); assert.match(P.ligneEtat(at, 'k').ligne, /Toi : rien$/);
+  assert.doesNotMatch(P.ligneEtat(at, 'k').bloc, /👤/, 'rubrique absente quand l’utilisateur n’a rien à faire'); assert.match(P.ligneEtat(at, 'k').ligne, /Toi : rien$/);
 });
 
 
 
-test('2.11 : demandes à l’exécutant de l’hôte, rubrique 🛠, refus remonté à Paul, relance des issues admises', async () => {
+test('2.11 : demandes à l’exécutant de l’hôte, rubrique 🛠, refus remonté à l’utilisateur, relance des issues admises', async () => {
   const { createHash } = await import('node:crypto');
   const at = configTest({ hote: 'atelier', deploiement_serveurs: false, gh: false });
   fs.mkdirSync(path.join(at.etat, 'campagnes'), { recursive: true });
@@ -993,8 +993,8 @@ test('2.11 : demandes à l’exécutant de l’hôte, rubrique 🛠, refus remon
   fs.mkdirSync(path.join(at.etat, 'executant', 'resultats'), { recursive: true });
   fs.writeFileSync(path.join(at.etat, 'executant', 'resultats', d.id + '.json'), JSON.stringify({ id: d.id, statut: 'refus', message: 'cible hors de la liste fermée', le: new Date().toISOString() }));
   assert.doesNotMatch(P.ligneEtat(at, 'k').bloc, /👤/, '2.15.2 : un refus technique reste aux agents'); assert.match(P.ligneEtat(at, 'k').bloc, /DEV-1 root-atelier \(refusé\)/);
-  fs.writeFileSync(path.join(at.etat, 'executant', 'resultats', d.id + '.json'), JSON.stringify({ id: d.id, statut: 'refus', message: 'aucun mandat root-atelier de Paul', le: new Date().toISOString() }));
-  assert.match(P.ligneEtat(at, 'k').bloc, /👤 \*\*À toi \(1\)\*\* :\n  1\. DEV-1 · exécutant root-atelier refusé : aucun mandat root-atelier de Paul/);
+  fs.writeFileSync(path.join(at.etat, 'executant', 'resultats', d.id + '.json'), JSON.stringify({ id: d.id, statut: 'refus', message: 'aucun mandat root-atelier de l’utilisateur', le: new Date().toISOString() }));
+  assert.match(P.ligneEtat(at, 'k').bloc, /👤 \*\*À toi \(1\)\*\* :\n  1\. DEV-1 · exécutant root-atelier refusé : aucun mandat root-atelier de l’utilisateur/);
   const c = P.lireCampagne(at, 'k'); const E = P.empreinteReprise(at, c);
   const dr = P.decisionReprise(at, { ...c, dernier_reveil: '2026-11-21T21:00:00Z', empreinte_repos: E, repos_le: '2026-11-21T21:35:00Z' }, { maintenant: new Date('2026-11-21T22:00:00Z') });
   assert.equal(dr.relancer, true); assert.match(dr.raison, /issues admises sans mouvement depuis 25 min/);
@@ -1052,7 +1052,7 @@ test('2.17 : modes de fournisseur, cadreurs sur Fable 5.1, mode auto, chats exis
   P.composer(c, { nom: 'boucle', projet: 'p', ids: ['DEV-1'] }); fs.writeFileSync(path.join(c.etat, 'campagnes', 'boucle.contrat.md'), 'x'); P.validerContrat(c, 'boucle');
   assert.equal(P.gardeBoucle(c, 'boucle', 'DEV-1', 'tests').a_neuf_12h, 1); P.gardeBoucle(c, 'boucle', 'DEV-1', 'dev'); P.gardeBoucle(c, 'boucle', 'DEV-1', 'tests');
   assert.equal(code(() => P.gardeBoucle(c, 'boucle', 'DEV-1', 'tests')), 'CADREUR REQUIS', '3ᵉ recette à neuf en 12 h'); assert.equal(P.gardeBoucle(c, 'boucle', 'DEV-1', 'dev').a_neuf_12h, 2);
-  P.decision(c, 'boucle', 'DEV-1', 'Conclusion du cadreur : rejouer la recette avec le jeu corrigé ; réservé à Paul : non'); assert.equal(P.gardeBoucle(c, 'boucle', 'DEV-1', 'tests', { maintenant: Date.now() + 1000 }).a_neuf_12h, 1, 'la conclusion du cadreur rouvre les essais');
+  P.decision(c, 'boucle', 'DEV-1', 'Conclusion du cadreur : rejouer la recette avec le jeu corrigé ; réservé à l’utilisateur : non'); assert.equal(P.gardeBoucle(c, 'boucle', 'DEV-1', 'tests', { maintenant: Date.now() + 1000 }).a_neuf_12h, 1, 'la conclusion du cadreur rouvre les essais');
   assert.equal(P.gardeBoucle(c, 'boucle', 'DEV-1', 'tests', { maintenant: Date.now() + 13 * 3600000 }).a_neuf_12h, 1, 'fenêtre de 12 h');
 });
 
@@ -1084,7 +1084,7 @@ test('2.19 : mains du poste : commande demandée par atelier, écoutée et joué
   const d = P.posteDemander(at, { script: 'sudo -n systemctl status deployeurer-maj.path', shell: 'ssh:serveur', objet: 'état de l’unité de mise à jour', demandeur: 'chat-cadreur' });
   assert.equal(d.statut, 'en_file'); assert.equal(d.connecte, false, 'poste pas encore à l’écoute');
   assert.equal(P.postePrendre(at, { poste: 'x' }).tache, null, 'la relève des recettes ne prend pas les commandes');
-  assert.match(P.posteResultat(at, d.tache).message, /poste non connecté.*ne pas la confier à Paul/);
+  assert.match(P.posteResultat(at, d.tache).message, /poste non connecté.*ne pas la confier à l’utilisateur/);
   const echo = path.join(at.etat, 'echo.mjs'); fs.writeFileSync(echo, "const t = require('fs').readFileSync(0, 'utf8'); console.log('sortie de ' + process.argv[2] + ' : ' + t.trim()); process.exit(t.includes('echoue') ? 3 : 0);".replace("const t = require('fs')", "import fs from 'node:fs'; const t = fs"));
   const po = configTest({ hote: 'local', atelier_simule: fa, passerelle: { actif: true, dossier_travail: path.join(at.etat, 'travail'), ssh_commande: [process.execPath, echo], ecoute_duree_s: 1, ecoute_pause_ms: 10, ecoute_echecs_max: 2 } });
   assert.equal(P.posteEcouter(po, { cycles: 1 }).faites, 1);
@@ -1093,14 +1093,14 @@ test('2.19 : mains du poste : commande demandée par atelier, écoutée et joué
   const e = P.posteDemander(at, { script: 'echoue', shell: 'ssh:serveur' }); P.posteEcouter(po, { cycles: 1 }); const re = P.posteResultat(at, e.tache); assert.equal(re.resultat, 'echec'); assert.equal(re.code, 3);
   const f = P.posteFile(at); assert.equal(f.commandes.rendues_24h, 2); assert.deepEqual(f.en_file, []);
   const att = P.posteDemander(at, { script: 'x', shell: 'ssh:serveur', attendreS: 1 }); assert.equal(att.statut, 'en_file', 'attente bornée : rend la main avec la suite à suivre'); assert.match(att.suite, /poste resultat/);
-  assert.match(P.reglePoste(at), /ne se demande JAMAIS à Paul : node .* poste demander --shell ssh:<alias>\|powershell/);
+  assert.match(P.reglePoste(at), /ne se demande JAMAIS à l’utilisateur : node .* poste demander --shell ssh:<alias>\|powershell/);
   const hors = configTest({ hote: 'local', atelier_simule: path.join(at.etat, 'absent.json'), passerelle: { actif: true, ecoute_pause_ms: 1, ecoute_echecs_max: 2 } }); assert.equal(P.posteEcouter(hors).action, 'arret', 'atelier injoignable : l’écoute s’arrête, la tâche planifiée la relancera');
 });
 
 test('2.19.1 : « lancer » oublié par le chat lanceur : la commande $dev est quand même lancée', async () => {
   const c = configTest({ hote: 'atelier' }); c.appServerFactice = path.join(c.etat, 'app.jsonl'); c.projets = { 'projet-a': { chemin: c.etat } }; const f = path.join(c.etat, 'poste.local.json'); fs.writeFileSync(f, JSON.stringify(c));
   const run = (argv, input) => spawnSync(process.execPath, [path.join(path.dirname(fileURLToPath(import.meta.url)), 'pilote.mjs'), ...argv], { input, encoding: 'utf8', env: { ...process.env, PILOTE_CONFIG: f } });
-  const r = run(['discute', '--depuis-modele', 'gpt-6-luna', '--fiche-stdin'], 'Paul : $dev discute'); assert.equal(r.status, 0, r.stderr); assert.match(r.stdout, /💬 PROJET · general · discussion du/);
+  const r = run(['discute', '--depuis-modele', 'gpt-6-luna', '--fiche-stdin'], 'l’utilisateur : $dev discute'); assert.equal(r.status, 0, r.stderr); assert.match(r.stdout, /💬 PROJET · general · discussion du/);
   const r2 = run(['cadrage', 'exports', '--projet', 'projet-a', '--depuis-modele', 'gpt-6-luna', '--fiche-stdin'], 'x'); assert.equal(r2.status, 0, r2.stderr); assert.match(r2.stdout, /🟣 CADRE · projet-a · exports/);
   const r3 = run(['inconnue', '--fiche-stdin'], 'x'); assert.notEqual(r3.status, 0);
 });
@@ -1140,7 +1140,7 @@ test('2.20 : fenêtre à consommer, pause par économie, reprise qui relance l�
   quotas(36, 28); const r = await P.reveil(c); assert.ok(r.some((x) => x.action === 'reprise : fenêtre à consommer (v2.20)' && x.campagne === 'eco' && x.relance?.action === 'relancé'), JSON.stringify(r).slice(0, 600));
   assert.equal(P.lireCampagne(c, 'eco').statut, 'en_cours'); assert.equal(P.lireCampagne(c, 'eco').pause_motif, undefined);
   assert.match(fs.readFileSync(c.appServerFactice, 'utf8'), /Reprise \(fenêtre à consommer/);
-  P.mettreEnPause(c, 'eco'); const rr = await P.reprendreCampagne(c, 'eco'); assert.equal(rr.relance.action, 'relancé', 'reprise par Paul : orchestrateur relancé aussitôt');
+  P.mettreEnPause(c, 'eco'); const rr = await P.reprendreCampagne(c, 'eco'); assert.equal(rr.relance.action, 'relancé', 'reprise par l’utilisateur : orchestrateur relancé aussitôt');
 });
 
 test('2.20.1 : temps restant : poste à part, total stable dans le temps', () => {
@@ -1179,25 +1179,25 @@ test('2.21 : une revue favorable inscrite suffit pour empiler, et se perd au ret
   assert.match(P.contexte(at, 'k').consigne, /pilote\.mjs revue <campagne> <ID> favorable/);
 });
 
-test('2.21.1 : bloc lisible, issue arrêtée hors admissibles, action de Paul en clair dans la ligne courte', () => {
+test('2.21.1 : bloc lisible, issue arrêtée hors admissibles, action de l’utilisateur en clair dans la ligne courte', () => {
   const at = configTest({ hote: 'atelier', deploiement_serveurs: false, gh: false });
   fs.mkdirSync(path.join(at.etat, 'campagnes'), { recursive: true });
   const it = (id, statut, extra = {}) => ({ type: 'issue_standalone', linear_id: id, statut, blocked_by: [], ...extra });
-  fs.writeFileSync(path.join(at.etat, 'campagnes', 'q.json'), JSON.stringify({ id: 'q', projet: 'p', mode: 'auto', statut: 'en_cours', items: [it('DEV-1431', 'bloquee'), it('DEV-1413', 'en_attente'), it('DEV-1437', 'en_attente')] }));
-  P.executer(['arret', 'q', 'DEV-1431', '--attend', 'paul', '--quoi', 'fusionner la PR #145 vers main', '--reserve', 'fusion dans main du déployeur'], at);
-  P.executer(['arret', 'q', 'DEV-1413', '--attend', 'agents', '--quoi', 'close sans fusion après fusion de DEV-1431'], at);
+  fs.writeFileSync(path.join(at.etat, 'campagnes', 'q.json'), JSON.stringify({ id: 'q', projet: 'p', mode: 'auto', statut: 'en_cours', items: [it('DEV-900016', 'bloquee'), it('DEV-900015', 'en_attente'), it('DEV-900017', 'en_attente')] }));
+  P.executer(['arret', 'q', 'DEV-900016', '--attend', 'paul', '--quoi', 'fusionner la PR #900001 vers main', '--reserve', 'fusion dans main du déployeur'], at);
+  P.executer(['arret', 'q', 'DEV-900015', '--attend', 'agents', '--quoi', 'close sans fusion après fusion de DEV-900016'], at);
   const e = P.ligneEtat(at, 'q'); const lignes = e.bloc.split('\n');
-  assert.ok(lignes.includes('- 🕓 À venir (2) : admissibles DEV-1437 · en attente DEV-1413 (close sans fusion après fusion de DEV-1431)'), e.bloc);
+  assert.ok(lignes.includes('- 🕓 À venir (2) : admissibles DEV-900017 · en attente DEV-900015 (close sans fusion après fusion de DEV-900016)'), e.bloc);
   assert.ok(!/0 attendent|⛔/.test(e.bloc), e.bloc);
-  assert.equal(e.ligne, '▶ EN COURS · 1 admissible(s) · 1 en attente · Toi : DEV-1431 · fusionner la PR #145 vers main');
+  assert.equal(e.ligne, '▶ EN COURS · 1 admissible(s) · 1 en attente · Toi : DEV-900016 · fusionner la PR #900001 vers main');
   assert.match(P.contexte(at, 'q').consigne, /ni balise <pre>/);
 });
 
-test('2.22 : projet livré par Paul : ni GO, ni exécutant de livraison, ni livrer ; consigne explicite', async () => {
+test('2.22 : projet livré par l’utilisateur : ni GO, ni exécutant de livraison, ni livrer ; consigne explicite', async () => {
   const at = campagneChaine(); at.livraison_par_paul = ['p'];
   assert.equal(code(() => P.goLivraison(at, 'k', 'plan.md')), 'LIVRAISON PAR PAUL');
   assert.equal(code(() => P.demanderExecutant(at, 'k', 'livraison', { plan: 'x' })), 'LIVRAISON PAR PAUL');
-  await assert.rejects(() => P.livrer(at, 'k', { aBlanc: true }), /déployé par Paul depuis le déployeur/);
-  assert.match(P.contexte(at, 'k').consigne, /^Livraison par Paul \(v2\.22\) : le projet p est déployé par Paul/);
-  at.livraison_par_paul = []; assert.doesNotMatch(P.contexte(at, 'k').consigne, /Livraison par Paul/);
+  await assert.rejects(() => P.livrer(at, 'k', { aBlanc: true }), /déployé par l’utilisateur depuis le déployeur/);
+  assert.match(P.contexte(at, 'k').consigne, /^Livraison par l’utilisateur \(v2\.22\) : le projet p est déployé par l’utilisateur/);
+  at.livraison_par_paul = []; assert.doesNotMatch(P.contexte(at, 'k').consigne, /Livraison par l’utilisateur/);
 });

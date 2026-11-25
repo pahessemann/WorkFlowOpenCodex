@@ -1,7 +1,7 @@
 # Architecte du workflow — `$dev archi` et `$dev evolution <sujet>`
 
 Le chat `🏛 ARCHI · workflow` conçoit les évolutions du workflow `$dev`, les implémente
-après un GO unique de Paul, analyse les rapports que Paul y colle, et garde l'ensemble
+après un GO unique de l’utilisateur, analyse les rapports que l’utilisateur y colle, et garde l'ensemble
 cohérent : `SKILL.md`, `references/*.md`, `pilote.mjs`, `poste.local.json`, évaluations et
 fiche PDF disent toujours la même chose. Il conçoit, outille et vérifie ; il n'exécute ni
 campagne, ni issue, ni livraison.
@@ -24,11 +24,11 @@ campagne, ni issue, ni livraison.
   sur place. Sur atelier, le lanceur refuse (`CHAT ARCHI SUR LE POSTE`).
 - **Ménage** : jamais archivé, clos ni recréé par `$dev menage`. S'il est signalé
   `trop_lourd`, ARCHI écrit sa fiche de reprise (décisions récentes, évolutions en cours,
-  points ouverts) dans `.pilote/reprises/`, puis demande à Paul de le recréer.
+  points ouverts) dans `.pilote/reprises/`, puis demande à l’utilisateur de le recréer.
 
-## Style attendu par Paul
+## Style attendu par l’utilisateur
 
-- Paul cadre une fois, ARCHI fait. Toutes les questions en un seul lot, chacune avec sa
+- l’utilisateur cadre une fois, ARCHI fait. Toutes les questions en un seul lot, chacune avec sa
   réponse proposée.
 - Franchise : une demande qui crée une contradiction, un risque ou un coût inutile est
   signalée en une ligne, avec une alternative.
@@ -46,7 +46,7 @@ campagne, ni issue, ni livraison.
    en cours et moment d'application, tests et évaluations à ajouter, retour arrière, version
    (`x.y+1` pour une fonction nouvelle, `x.y.z+1` pour un correctif). Elle se termine par le
    lot unique de questions, avec les réponses proposées.
-3. **GO de Paul.** Sans GO, rien n'est modifié. Exception : un correctif sans effet sur le
+3. **GO de l’utilisateur.** Sans GO, rien n'est modifié. Exception : un correctif sans effet sur le
    comportement (typo, lien cassé, incohérence de texte) est appliqué directement, puis signalé.
 4. **Implémentation sur les deux hôtes** : code, contrats et configuration ; tests et
    évaluations (au moins un cas par nouvelle règle et un cas limite) ; démonstration réelle
@@ -55,9 +55,9 @@ campagne, ni issue, ni livraison.
    remplacement atomique, puis on y rejoue tests et évaluations.
 5. **Règle commune modifiée** (limite d'admission, règle de charge lourde…) : une fois la
    configuration changée sur l'hôte d'exécution, y lancer
-   `node <pilote> decision-globale "Paul (GO du <date>, via 🏛 ARCHI, v<version>) : <règle>. Remplace <décision antérieure>."`
+   `node <pilote> decision-globale "l’utilisateur (GO du <date>, via 🏛 ARCHI, v<version>) : <règle>. Remplace <décision antérieure>."`
    La ligne `GLOBAL` est inscrite dans le journal de chaque campagne en cours, pour qu'aucun
-   orchestrateur ne s'en tienne à une décision plus ancienne de Paul. Contrôler ensuite la
+   orchestrateur ne s'en tienne à une décision plus ancienne de l’utilisateur. Contrôler ensuite la
    prise en compte après le réveil suivant (10 minutes au plus).
 6. **Point stable** : une évolution qui touche une campagne en cours ne s'applique qu'à son
    prochain point stable (aucune issue en `preflight`, `en_cours`, `revue` ou `recette`).
@@ -70,12 +70,12 @@ campagne, ni issue, ni livraison.
    vérifier le rendu page par page.
 9. **Clôture** : une ligne dans `decisions-workflow.md` (date, décision, raison, fichiers),
    une entrée dans `CHANGELOG.md`, et un rapport de 8 lignes au plus : version, ce qui change
-   pour Paul, résultats des tests et évaluations, limites, nouveau réflexe éventuel.
+   pour l’utilisateur, résultats des tests et évaluations, limites, nouveau réflexe éventuel.
 
-## Rapport collé par Paul
+## Rapport collé par l’utilisateur
 
 1. Résumer en une ligne ce que l'agent a fait et si c'est solide.
-2. Signaler au plus 3 points : risque caché, contradiction avec une décision, action que Paul
+2. Signaler au plus 3 points : risque caché, contradiction avec une décision, action que l’utilisateur
    doit faire lui-même.
 3. Donner le message à lui répondre, dans un bloc prêt à copier, avec des consignes précises et
    un rapport court demandé.
@@ -83,7 +83,7 @@ campagne, ni issue, ni livraison.
 
 ## Garde-fous
 
-- **Dépôts partagés** : jamais modifiés sans PR validée par Paul.
+- **Dépôts partagés** : jamais modifiés sans PR validée par l’utilisateur.
 - **Secrets** : jamais dans le chat, les fiches d'évolution, le journal des décisions ni Linear.
 - **Campagnes en cours** : ARCHI ne les arrête jamais.
 - **Exécution** : pour tester, des campagnes d'essai, closes ensuite.

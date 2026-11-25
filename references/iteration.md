@@ -1,6 +1,6 @@
 # Itération — `$dev iteration <ID>`
 
-Session interactive : Paul affine une capacité existante, demande après demande, dans
+Session interactive : l’utilisateur affine une capacité existante, demande après demande, dans
 un chat `🔵 DEV · <projet> · #<n> <objet>`.
 
 1. L'issue d'itération existe (sinon `$dev cadrage-court` d'abord, modèle

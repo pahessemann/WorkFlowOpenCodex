@@ -37,13 +37,13 @@ Délai maximal par tâche : `passerelle.delai_max_min` (180). Depuis la v2.23, u
 
 ## Retirer : `node <pilote> poste retirer <tâche|ID> --motif "<raison>" [--campagne <nom>]` (v2.5.1)
 
-Pour une tâche que le poste ne doit pas faire (ex. recette sur tablette physique, faite par Paul) :
+Pour une tâche que le poste ne doit pas faire (ex. recette sur tablette physique, faite par l’utilisateur) :
 
 - seule une tâche `en_file` se retire ; `en_cours` est refusée (`TÂCHE EN COURS` : attendre son retour) ;
 - la tâche passe `retiree` et n'est plus jamais relevée ; l'issue perd `poste` et reçoit `poste_exclu: <motif>` ;
-- une ligne est inscrite au journal de la campagne (« Retirée de la passerelle poste par Paul… ») ;
+- une ligne est inscrite au journal de la campagne (« Retirée de la passerelle poste par l’utilisateur… ») ;
 - l'issue apparaît dans `exclues_poste` de `contexte` : elle n'est ni redéposée (`POSTE EXCLU`, sauf
-  `--forcer` sur instruction de Paul) ni admise (`ADMISSION DIFFÉRÉE` : elle attend Paul) ;
+  `--forcer` sur instruction de l’utilisateur) ni admise (`ADMISSION DIFFÉRÉE` : elle attend l’utilisateur) ;
 - la ligne d'état de la campagne dit « Toi : à faire par toi : <ID> (<motif>) », et `⏸ À TOI` quand il ne
   reste que cette part.
 
@@ -56,7 +56,7 @@ Pour une tâche que le poste ne doit pas faire (ex. recette sur tablette physiqu
 - **Plafond des échecs d'environnement** : chaque retour `environnement` incrémente `poste_env_echecs` de
   l'issue (cause tirée du retour) ; un retour `ok` le remet à zéro. À `passerelle.max_echecs_env` (2), un
   nouveau dépôt est refusé (`POSTE À DÉBLOQUER`), l'issue apparaît dans `poste_a_debloquer` de `contexte`,
-  et la ligne d'état dit « Toi : débloquer le poste pour <ID> (<cause>) ». Après l'action de Paul :
+  et la ligne d'état dit « Toi : débloquer le poste pour <ID> (<cause>) ». Après l'action de l’utilisateur :
   `poste deposer … --forcer`, qui remet le compteur à zéro.
 - **Après un nouveau retour environnement (v2.23)** : lire le retour et les preuves partielles, diagnostiquer puis vérifier un changement pertinent avant tout nouveau dépôt. Fournir `--changement "<diagnostic et changement vérifié>"` (20 caractères minimum), consigné au journal ; cette déclaration ne prouve pas automatiquement le changement. `--forcer` ne dispense pas de ce diagnostic et conserve son rôle pour le plafond ou une exclusion. Ne jamais relancer une tâche dont la session précédente pourrait encore agir.
 - **Sortie des recettes longues** : la sortie standard et d'erreur de la session est écartée sans tampon mémoire ; `dernier-message.md`, `retour.md`, `resultat.json` et les preuves restent les supports de résultat. Les preuves partielles sont transférées même après interruption.
@@ -103,7 +103,7 @@ qu'une autre voie travaille. Une tâche prise par une voie supplémentaire porte
 À chaque relève, la passerelle compte les tâches en file ou en cours. S'il en reste, elle coupe la veille et la veille
 prolongée **sur secteur** (`powercfg /setacvalueindex … STANDBYIDLE|HIBERNATEIDLE 0`), après avoir sauvegardé les valeurs dans
 `.pilote/poste-veille.json` ; dès que la file est vide, elle les restaure. Les réglages sur batterie ne sont jamais touchés.
-La fermeture du capot reste du ressort de Paul. Désactivation : `passerelle.eveil_secteur: false`.
+La fermeture du capot reste du ressort de l’utilisateur. Désactivation : `passerelle.eveil_secteur: false`.
 
 ## Rangement des chats du poste (v2.16)
 
@@ -114,7 +114,7 @@ un chat libre (titre sans rôle du workflow), un GO attendu (⏸) ni un chat en 
 
 ## Mains du poste : commandes à la demande (v2.19)
 
-Tout chat d’atelier (cadreur, DEV, orchestrateur, voie de recette) fait jouer une commande hors atelier **sans passer par Paul** :
+Tout chat d’atelier (cadreur, DEV, orchestrateur, voie de recette) fait jouer une commande hors atelier **sans passer par l’utilisateur** :
 sur le poste Windows, ou sur un serveur que seul le poste joint par ses alias SSH (ex. `deployeur-web`, `sudo -n` permis).
 
 `node <pilote> poste demander --shell ssh:<alias>|powershell --objet "<quoi>" [--attendre <s>] [--delai <s>] --script-stdin`
@@ -125,8 +125,8 @@ sur le poste Windows, ou sur un serveur que seul le poste joint par ses alias SS
 - `--agent --fiche-stdin` : une session de développement sur le poste (Sonnet par le routeur), pour une tâche qui demande du jugement ;
   retour `retour.md` (40 lignes) et `resultat.json`.
 - Gardes : gestionnaire de mots de passe et suppression définitive sur le poste refusés (`COMMANDE REFUSÉE`). Une action irréversible
-  sur un serveur reste soumise au GO de Paul (la fiche le cite).
-- Poste non connecté : la demande attend sa connexion ; le chat termine son tour en `⏳ EN ATTENTE`, sans rien demander à Paul.
+  sur un serveur reste soumise au GO de l’utilisateur (la fiche le cite).
+- Poste non connecté : la demande attend sa connexion ; le chat termine son tour en `⏳ EN ATTENTE`, sans rien demander à l’utilisateur.
 
 **Écoute du poste** : tâche planifiée `pilote-poste-ecoute` (ouverture de session, déverrouillage, toutes les 10 min, une seule instance,
 sans limite de durée) qui lance `node <pilote> poste ecouter` : une attente longue sur atelier (`poste attendre-commande`, 80 s) répétée

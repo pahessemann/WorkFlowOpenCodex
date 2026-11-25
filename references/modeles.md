@@ -29,7 +29,7 @@ Tarifs par million de tokens (entrée / sortie / lecture de cache).
 | 👁 **Contrôle** | Claude Sonnet 5.5 `claude-sonnet-5-5` | 2 / 10 (0,10) | Revues courantes, tests, visuel, fallback d'Opus en dev ; lecteur au-delà de 100k (fenêtre 1M, sans palier) | — |
 | 🔧 **Ouvrier** | Claude Haiku 5.5 `claude-haiku-5-5` | 0,10 / 0,50 (0,01) ; **×5 au-delà de 100k** | Dev léger, pilotage, titres et badges de chats, digest, compression de logs, doc ; **lecteur `large` jusqu'à 100k** | Toute entrée > 100k |
 | 🎨 **Œil** et 🆘 **Recours** | Claude Fable 5.1 `claude-fable-5-1` | 10 / 50 (0,25) | **Choix visuels** (`choix-visuel`, quel que soit le niveau) ; essai 3 sur verrou d'architecture ou raisonnement long, **si `fable_autorise`** | Implémentation visuelle, tout autre usage nominal |
-| 👤 **Réservé à Paul** | Claude Fable 5.2 `claude-fable-5-2` | à vérifier | Utilisé seulement par Paul, à la main | **Jamais routé** : `pilote.mjs` refuse de l'attribuer à un agent ou sous-agent |
+| 👤 **Réservé à l’utilisateur** | Claude Fable 5.2 `claude-fable-5-2` | à vérifier | Utilisé seulement par l’utilisateur, à la main | **Jamais routé** : `pilote.mjs` refuse de l'attribuer à un agent ou sous-agent |
 
 ### Relais OpenAI (fallback et second regard)
 
@@ -132,7 +132,7 @@ En `large`, le routeur renvoie **deux modèles** :
 | 1 | Haiku | Opus | Opus |
 | 2 | Sonnet | Opus, nouvelle approche et contexte enrichi ; ou Astra en second regard (bug subtil) | Opus, nouvelle approche et contexte enrichi ; ou Astra en second regard (bug subtil, tests) |
 | 3 | Opus | Fable* (architecture) ou Astra (bug) | Fable* ou Astra |
-| Échec du 3ᵉ essai | `⛔ BLOQUÉ` → Paul | `⛔ BLOQUÉ` → Paul | `⛔ BLOQUÉ` → Paul |
+| Échec du 3ᵉ essai | `⛔ BLOQUÉ` → l’utilisateur | `⛔ BLOQUÉ` → l’utilisateur | `⛔ BLOQUÉ` → l’utilisateur |
 
 \* Fable seulement si `fable_autorise: true` ; sinon, Astra.
 
@@ -166,14 +166,14 @@ Changer de modèle cerveau, dev, contrôle ou œil se fait **à un seul endroit*
 
 ## v2.7 — Sonnet en criticité standard
 
-Décision de Paul du 21/11/2026 (mesure : 746 M tokens d'entrée Opus en 24 h sur atelier) : `dev` `standard` passe sur
+Décision de l’utilisateur du 21/11/2026 (mesure : 746 M tokens d'entrée Opus en 24 h sur atelier) : `dev` `standard` passe sur
 **Sonnet 5.5** (fallback Opus), et la revue `standard` en sous-agent reste sur Sonnet démarré à neuf, sans substitution par
 Opus puisque Sonnet est disponible en sous-agent. Escalade `standard` : essai 1 Sonnet, essai 2 Opus (ou Astra pour un bug
 subtil), essai 3 Astra ou Fable. Opus reste le modèle du `sensible` et du cadrage.
 
 ## v2.13 — sous-agents Sonnet, Sol et Astra ; relais OpenAI
 
-Demande de Paul du 22/11/2026. Liste des sous-agents d'atelier : Sonnet, Opus, Haiku, Sol, Astra (`ocx agent subagents set`).
+Demande de l’utilisateur du 22/11/2026. Liste des sous-agents d'atelier : Sonnet, Opus, Haiku, Sol, Astra (`ocx agent subagents set`).
 En sous-agent, un fallback absent est relevé par un modèle proche (Luna → Sonnet, Terra → Sol, Fable → Astra), la garde de
 volume prend Sonnet, et l'escalade prend Astra quand Fable n'est pas disponible. **Relais OpenAI** : un modèle Anthropic
 refusé (`pilote.mjs refus <modèle> <message>`, 60 min) dont le fallback est refusé aussi passe sur **Sol** (rôles Sonnet et
@@ -181,7 +181,7 @@ Haiku) ou **Astra** (rôles Opus et Fable). L'orchestrateur note le refus dès q
 
 ## v2.17 — modes de fournisseur, cadreurs sur Fable 5.1, abonnement et garde de boucle
 
-Demandes de Paul du 23/11/2026 (fiche `evolutions/2026-11-23-fournisseurs-et-abonnement.md`). But : ménager l’abonnement, pas le prix catalogue.
+Demandes de l’utilisateur du 23/11/2026 (fiche `evolutions/2026-11-23-fournisseurs-et-abonnement.md`). But : ménager l’abonnement, pas le prix catalogue.
 
 **`$dev fournisseur claude|mixte|gpt|auto`** (`.pilote/fournisseur.json`, relayé du poste à atelier). Le routeur applique la table du mode ; chaque
 `thread/start`, `thread/resume` et `turn/start` passe par `modeleEffectif` : en mode `gpt`, les chats existants (orchestrateurs compris) sont relancés chez OpenAI.
@@ -201,7 +201,7 @@ la liste des sous-agents d’opencodex. Au-delà de 272 k tokens d’entrée, le
 
 **Cadreurs sur Fable 5.1** (modes claude et mixte) : Fable vaut Opus pour comprendre un dépôt (SWE Atlas 76,5 % contre 77,4 %) et puise dans sa
 propre fenêtre ; retour à Opus si cette fenêtre dépasse `modeles.fable_seuil_pct` (80 %) ou si Fable est refusé. Les cadreurs sont des chats,
-pas des sous-agents : ils ne prennent pas de place dans la liste des 5. Un cadrage inline en sous-agent reste sur Opus. Fable 5.2 reste réservé à Paul.
+pas des sous-agents : ils ne prennent pas de place dans la liste des 5. Un cadrage inline en sous-agent reste sur Opus. Fable 5.2 reste réservé à l’utilisateur.
 
 **Relevé de l’abonnement** : le réveil et `$dev point` lisent les quotas d’opencodex (`provider-account-quota-cache.json`,
 `codex-quota-cache.json`) au plus une fois par heure et les ajoutent à `.pilote/abonnement.jsonl`, avec la vitesse en points par heure.
@@ -212,7 +212,7 @@ lance le cadreur de déblocage, dont la conclusion au journal rouvre deux essais
 
 ## v2.20 — comptes Anthropic : consommer d’abord ce qui va expirer
 
-Demande de Paul du 23/11 : deux comptes Claude, l’un réinitialisé le lendemain à 18 h avec 64 % libres, l’autre à 98 % réinitialisé trois jours plus tard ; les campagnes vidaient le second.
+Demande de l’utilisateur du 23/11 : deux comptes Claude, l’un réinitialisé le lendemain à 18 h avec 64 % libres, l’autre à 98 % réinitialisé trois jours plus tard ; les campagnes vidaient le second.
 
 - **Bascule horaire** (réveil d’atelier, au relevé de l’abonnement) : le compte actif d’opencodex devient celui qui se réinitialise le plus tôt tant qu’il est sous 95 % (`ocx account use anthropic <id>`). Le compte actif est noté dans `.pilote/fournisseur.json` (`compte_actif`) ; le mode `auto` lit ce compte. À la main : `$dev abonnement compte <id>`.
 - **Fenêtre à consommer** : un compte qui garde au moins `abonnement.consommer.reste_min_pct` (30) % libres et se réinitialise dans `heures_max` (36) h. Le réveil reprend alors les campagnes mises en pause par `$dev pause <nom> --economie` (ligne au journal, orchestrateur relancé).

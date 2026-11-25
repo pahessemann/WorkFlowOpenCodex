@@ -14,7 +14,7 @@ activité (`chats.discussion_archive_heures`) ou 1 h après sa ligne `✅`.
 2. L'état des campagnes du projet : `node <pilote> etat` (campagnes dont `projet` est ce projet), puis
    `node <pilote> point <campagne…> --texte` pour celles qui sont en cours.
 3. Les 20 dernières lignes des journaux de décisions de ces campagnes (`~/.pilote/campagnes/<campagne>.decisions.md`).
-4. Se présenter en 5 lignes au plus (projet, campagnes en cours, ce qui attend Paul), puis attendre la question.
+4. Se présenter en 5 lignes au plus (projet, campagnes en cours, ce qui attend l’utilisateur), puis attendre la question.
 
 Le reste se lit à la demande : code, `git log` et `git diff`, issues et milestones Linear (lecture), notes Obsidian (lecture).
 
@@ -26,7 +26,7 @@ commentaire Linear, ni note Obsidian, ni commande `pilote.mjs` qui modifie l'ét
 
 ## Relais par le lanceur
 
-Quand la discussion débouche sur une action **et que Paul la demande** (« lance-le », « cadre ça », une commande `$dev`), le chat la
+Quand la discussion débouche sur une action **et que l’utilisateur la demande** (« lance-le », « cadre ça », une commande `$dev`), le chat la
 confie au lanceur avec une fiche de 15 lignes au plus (demande mot pour mot, ce qui a été établi, issues et fichiers cités) :
 `node <pilote> lancer <commande> [arguments] --depuis-role PROJET --projet <projet> --nouveau --fiche-stdin`.
 
@@ -43,5 +43,5 @@ son modèle est celui du routeur pour la commande.
 ## Ligne d'état
 
 Chaque message final se termine par une ligne seule : `⏳ EN ATTENTE · discussion sur <sujet> · Toi : <ta réponse attendue ou rien>`,
-ou `✅ TERMINÉ · <ce qui a été conclu ou relayé> · Toi : rien` quand Paul clôt la discussion. Au-delà d'environ 100 k tokens de contexte,
+ou `✅ TERMINÉ · <ce qui a été conclu ou relayé> · Toi : rien` quand l’utilisateur clôt la discussion. Au-delà d'environ 100 k tokens de contexte,
 proposer un nouveau `$dev discuter`.

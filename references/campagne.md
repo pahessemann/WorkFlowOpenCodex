@@ -34,7 +34,7 @@ contrat est mise de côté et signalée dans le digest.
   par `pilote.mjs essai <campagne> <ID> echec` (circuit-breaker à 3).
 - Issue arrêtée (`bloquee`, ou `revue`/`recette` qui attend autre chose que ton travail) : dis qui la
   débloque, `pilote.mjs statut … --attend paul|agents|poste|env --quoi "<cause>"` ou `pilote.mjs arret …`
-  sans changer le statut ; pour Paul, l'action exacte et la réponse proposée. Qualifie aussi chaque issue
+  sans changer le statut ; pour l’utilisateur, l'action exacte et la réponse proposée. Qualifie aussi chaque issue
   de `a_qualifier` (`contexte`) à ta reprise. `$dev point` en dépend (`point.md`, v2.6).
 - Fusions dans `codex/ms-<slug>` sans GO. Recette de Milestone : chat `🧪 TEST` Sonnet
   (`test.md`). PR finale vers `main` : automatique si recette verte, revue favorable et
@@ -42,14 +42,14 @@ contrat est mise de côté et signalée dans le digest.
 - Toute décision prise seul : une ligne dans `.pilote/campagnes/<nom>.decisions.md`.
 - Avant tout blocage : cadreur de déblocage (`blocages.md`, v2.6.3) ; l'orchestrateur lance avec `--depuis-role AUTO`
   (ou `SUP`), le lanceur ne lui répond jamais `executer_ici`.
-- v2.11 : une action réservée à Paul conclue par un cadreur (root dans atelier, CLI du déployeur, livraison sous GO ou mandat)
+- v2.11 : une action réservée à l’utilisateur conclue par un cadreur (root dans atelier, CLI du déployeur, livraison sous GO ou mandat)
   se demande à l'exécutant de l'hôte : `pilote.mjs executant demander <campagne> root-atelier|serveur-cli|livraison --issue <ID> …`
   (`executant.md`) ; résultat dans `executant etat`, au journal et dans le bloc d'état. Traitée en 5 min, même poste éteint.
 - v2.9 : `--attend paul` exige la conclusion du cadreur au journal (`CADREUR REQUIS`), sauf `--reserve "<motif>"`
-  (irréversible ou root, secret à fournir, hors mandat). Aucune question à Paul dans le texte d'un tour : seule la ligne
-  d'état lui parle. Une issue qui attend Paul, le poste ou l'environnement libère sa place : admets d'autres issues tant
+  (irréversible ou root, secret à fournir, hors mandat). Aucune question à l’utilisateur dans le texte d'un tour : seule la ligne
+  d'état lui parle. Une issue qui attend l’utilisateur, le poste ou l'environnement libère sa place : admets d'autres issues tant
   que `dev_max` et `ouvertes_max` le permettent (`contexte` : `admission.en_attente_exterieure`).
-- Issue à ajouter en cours de campagne (cadreur, décision de Paul) : `pilote.mjs campagne ajouter <campagne> <ID…>
+- Issue à ajouter en cours de campagne (cadreur, décision de l’utilisateur) : `pilote.mjs campagne ajouter <campagne> <ID…>
   --motif "<décision ou clause du contrat>" [--bloquee-par ID,ID] [--milestone slug]`, jamais en modifiant le JSON
   à la main ; la ligne au journal est écrite par le script (v2.6.2).
 - Digest quotidien : `$dev digest <nom>` (Haiku, 15 lignes).
@@ -62,10 +62,10 @@ contrat est mise de côté et signalée dans le digest.
 
 - Une recette qu'atelier ne peut pas faire part au poste Windows : `node <pilote> poste deposer <campagne> <ID> --fiche <f>` (`poste.md`). L'issue sort du quota et apparaît dans `au_poste` de `contexte` ; elle n'est jamais relancée par l'orchestrateur.
 - Les retours arrivent dans `retours_poste` : lire `retour.md` et les preuves, clore si la matrice est complète, sinon noter la cause et redéposer. Tout changement de statut solde le retour.
-- Une issue de `poste_a_debloquer` a atteint le plafond des échecs d'environnement au poste : ne la redépose pas, elle attend une action de Paul (v2.5.4). Une admission peut être différée par la garde CPU : réessaie au réveil suivant.
-- Une issue de `exclues_poste` a été retirée de la passerelle par Paul : ni redéposée, ni admise ; elle attend Paul (`poste retirer`, v2.5.1).
+- Une issue de `poste_a_debloquer` a atteint le plafond des échecs d'environnement au poste : ne la redépose pas, elle attend une action de l’utilisateur (v2.5.4). Une admission peut être différée par la garde CPU : réessaie au réveil suivant.
+- Une issue de `exclues_poste` a été retirée de la passerelle par l’utilisateur : ni redéposée, ni admise ; elle attend l’utilisateur (`poste retirer`, v2.5.1).
 - Chaque message final de l'orchestrateur se termine par la sortie de `node <pilote> ligne-etat <campagne> --texte` (bloc d'état puis
-  ligne courte), recopiée à l'identique en texte normal (ni bloc de code, ni `<pre>`) ; au-dessus, 5 lignes au plus « Depuis le dernier tour » ; aucune action de Paul
+  ligne courte), recopiée à l'identique en texte normal (ni bloc de code, ni `<pre>`) ; au-dessus, 5 lignes au plus « Depuis le dernier tour » ; aucune action de l’utilisateur
   hors de la rubrique 👤 Toi (SKILL.md §2.3 bis, v2.10).
 
 ## Interruptions

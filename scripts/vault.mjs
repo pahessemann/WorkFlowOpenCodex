@@ -36,8 +36,8 @@ function git(cwd, ...args) {
 }
 const court = (sha) => (sha || "").slice(0, 8);
 
-// Chemin réel : sous Windows, Git donne la forme longue (C:/Users/runneradmin)
-// alors qu'un chemin reçu peut être court (C:\Users\RUNNER~1). Un fichier
+// Chemin réel : sous Windows, Git donne la forme longue (C:/Users/<utilisateur>)
+// alors qu'un chemin reçu peut être court (C:\Users\<utilisateur-court>). Un fichier
 // supprimé est résolu par son dossier parent.
 function reel(chemin) {
   const absolu = path.resolve(chemin);

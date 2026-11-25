@@ -1,7 +1,7 @@
 # Point des campagnes — `$dev point [campagne…]` (v2.6)
 
 Une commande, toujours le même rendu : où en sont les campagnes, ce qui bloque, qui débloque,
-ce que Paul doit faire, et le temps restant. Lecture seule : elle n'écrit rien (test dédié).
+ce que l’utilisateur doit faire, et le temps restant. Lecture seule : elle n'écrit rien (test dédié).
 
 ## Où la lancer
 
@@ -22,7 +22,7 @@ ce que Paul doit faire, et le temps restant. Lecture seule : elle n'écrit rien 
    **Abonnement** : pourcentage de la semaine Anthropic du compte actif et vitesse en points par heure, fenêtre Fable, Codex,
    dates de remise à zéro et mode de fournisseur (`auto → mixte` quand le mode auto a basculé).
 5. **État par campagne** (v2.10) : le bloc d'état de chaque campagne (👤 Toi en premier), le même que celui des orchestrateurs.
-6. **Ligne d'état** du point : `⏸ À TOI` s'il reste une action de Paul, sinon `✅ TERMINÉ`.
+6. **Ligne d'état** du point : `⏸ À TOI` s'il reste une action de l’utilisateur, sinon `✅ TERMINÉ`.
 
 Sans `--texte` : le JSON complet (`campagnes`, `actions_paul`, `ressources`, `ligne_etat`, `rendu`).
 
@@ -51,7 +51,7 @@ En **heures de travail des agents** (temps écoulé, places actuelles comprises)
 l'estimation centrale, dans deux cas :
 
 - **si tes actions sont faites** : toutes les issues non closes ;
-- **sinon** : sans les issues qui attendent Paul et celles qui en dépendent, avec le **plafond** des issues
+- **sinon** : sans les issues qui attendent l’utilisateur et celles qui en dépendent, avec le **plafond** des issues
   atteignables sans lui.
 
 Base de calcul (v2.13.1) : d'abord le **débit réel**, si au moins 3 issues ont été closes sur la fenêtre de mesure (24 h, ou

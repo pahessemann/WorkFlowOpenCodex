@@ -32,7 +32,7 @@ SHA de base, ses preuves transverses et les PR déjà intégrées ; elle suit la
 même ingestion sans prétendre avoir créé ou fusionné une nouvelle PR.
 
 Dans une campagne, l’orchestrateur fait ingérer directement selon le contrat de
-campagne ; aucun relais vers Paul. Après `INGÉRÉ`, il conserve une
+campagne ; aucun relais vers l’utilisateur. Après `INGÉRÉ`, il conserve une
 ligne de synthèse et reprend l’issue suivante du lot. Si le bilan de revue
 terminale démontre tous les critères du milestone et ses issues terminées,
 actualiser son état terminal disponible dans Linear, sans reclôturer les issues.
@@ -131,5 +131,5 @@ locaux par-dessus). Pour enregistrer : `node scripts/vault.mjs envoyer -m "<mess
 <fichiers>`, avec les seuls fichiers modifiés (chemins relatifs ou `vault:<chemin>`).
 Si l’envoi est refusé parce que le vault a avancé, le script intègre et réessaie
 (trois tentatives au plus). Un vrai conflit est annulé proprement : le commit
-local est conservé et la décision revient à Paul, dans le digest. Jamais d’envoi
+local est conservé et la décision revient à l’utilisateur, dans le digest. Jamais d’envoi
 forcé. Le chemin du vault est lu dans `poste.local.json` (`vault`).

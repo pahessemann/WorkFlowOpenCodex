@@ -10,6 +10,6 @@ atelier sans l'app) ou pour une recette sur appareil.
   navigateur des agents par le dispositif (`recette-atelier.md`). Jamais d'écoute sur
   une interface publique.
 - **Recette sur appareil Android** : émulateur d'atelier selon le `PROJECT.md` du
-  projet ; un appareil physique reste une recette réservée à Paul.
+  projet ; un appareil physique reste une recette réservée à l’utilisateur.
 - **iOS** : exploration seulement si le contrat le demande.
 

@@ -2,7 +2,7 @@
 
 - **Source** : réserve numérotée `<COMPTE>_1`, `<COMPTE>_2`… dans le `.env.local` du
   checkout principal du projet, sur chaque hôte qui exécute des recettes. Pour un
-  projet sans réserve (ex. une nouvelle application), Paul fournit les comptes et les place lui-même.
+  projet sans réserve (ex. une nouvelle application), l’utilisateur fournit les comptes et les place lui-même.
 - **Registre** : `.pilote/comptes.json`, numéros seulement, jamais d'identifiant ni de
   mot de passe.
 - **Réserver** : `pilote.mjs ouvrir <campagne> <ID> --compte <COMPTE>` choisit un numéro

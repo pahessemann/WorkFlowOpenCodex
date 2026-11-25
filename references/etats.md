@@ -11,8 +11,8 @@
 | Ligne d'état (§2.3 bis) | `▶ EN COURS`, `⏳ EN ATTENTE`, `⏸ À TOI`, `⛔ BLOQUÉ`, `✅ TERMINÉ` |
 | Issue, champ `poste` | `en_file`, `en_cours`, `retour` (résultat : `ok`, `echec`, `environnement`) |
 | Tâche de la passerelle poste | `en_file`, `en_cours`, `rendu`, `bloque`, `retiree` |
-| Issue, champs `poste_env_echecs` et `poste_env_cause` | échecs d'environnement au poste ; au plafond (2), redépôt refusé jusqu'à l'action de Paul (v2.5.4) |
-| Issue, champ `poste_exclu` | motif du retrait : ni redéposée au poste, ni admise ; attend Paul (v2.5.1) |
+| Issue, champs `poste_env_echecs` et `poste_env_cause` | échecs d'environnement au poste ; au plafond (2), redépôt refusé jusqu'à l'action de l’utilisateur (v2.5.4) |
+| Issue, champ `poste_exclu` | motif du retrait : ni redéposée au poste, ni admise ; attend l’utilisateur (v2.5.1) |
 | Suffixe de titre | `⏸ GO` (un des 3 motifs), `⛔ BLOQUÉ`, `✅` |
 
 Messages normalisés émis par les scripts : `PRÉFLIGHT TECHNIQUE BLOQUÉ`,
