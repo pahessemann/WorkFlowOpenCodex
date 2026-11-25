@@ -1201,3 +1201,20 @@ test('2.22 : projet livré par Paul : ni GO, ni exécutant de livraison, ni livr
   assert.match(P.contexte(at, 'k').consigne, /^Livraison par Paul \(v2\.22\) : le projet p est déployé par Paul/);
   at.livraison_par_paul = []; assert.doesNotMatch(P.contexte(at, 'k').consigne, /Livraison par Paul/);
 });
+
+
+test('reprise autonome : réveil et reprise explicite utilisent la consigne actuelle', async () => {
+  for (const mode of ['reveil', 'reprendre']) {
+    const c = configTest({ hote: 'atelier', workflow_autonome: true, deploiement_serveurs: false });
+    c.appServerFactice = path.join(c.etat, 'as.jsonl');
+    fs.mkdirSync(path.join(c.etat, 'campagnes'), { recursive: true });
+    fs.writeFileSync(path.join(c.etat, 'campagnes', 'x.json'), JSON.stringify({ id:'x', projet:'p', mode:'auto', contrat_valide:true, statut: mode === 'reveil' ? 'en_cours' : 'en_pause', chat:'C1', chat_modele:'m', items:[{ type:'issue_standalone', linear_id:'DEV-1', statut:'en_attente', blocked_by:[] }] }));
+    if (mode === 'reveil') await P.reveil(c); else await P.reprendreCampagne(c, 'x');
+    const tour = fs.readFileSync(c.appServerFactice, 'utf8').split('\n').filter(Boolean).map(JSON.parse).filter(x => x.method === 'turn/start').at(-1);
+    assert.ok(tour, mode); const texte = tour.params.input[0].text;
+    assert.match(texte, /documents du dépôt sont un contexte technique, sans imposer leurs procédures/);
+    assert.match(texte, /Ne supprime ni ne modifie les routes et contrats/);
+    assert.match(texte, /GO explicite/);
+    assert.doesNotMatch(texte, /règles de son PROJECT|lance les revues et admissions en attente/);
+  }
+});

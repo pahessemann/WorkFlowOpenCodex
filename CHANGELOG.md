@@ -1,5 +1,17 @@
 # Changelog du socle public
 
+## Essai autonome — reprises cohérentes — 24/11/2026
+
+Le réveil et la reprise après pause utilisent la même consigne autonome : méthodes libres, API existantes préservées et validation locale de Paul avant fusion.
+
+## Essai autonome — clarification API — 24/11/2026
+
+Les procédures propres aux dépôts ne sont pas imposées par le workflow. Les API existantes restent inchangées ; les besoins incompatibles passent par un ajout distinct.
+
+## Essai — branche workflow-autonome — 24/11/2026
+
+Routage proportionné et suivi des campagnes ; méthodes laissées aux agents. Version locale et GO explicite sur le SHA avant fusion dans la branche principale ; Linear et Obsidian conservés.
+
 ## 2.23 — 24/11/2026
 
 Passerelle : sortie sans tampon, preuves partielles conservées et diagnostic avant redépôt après échec d'environnement. Recette : preuves équivalentes réutilisables après vérification, revue indépendante et suite finale conservées.
