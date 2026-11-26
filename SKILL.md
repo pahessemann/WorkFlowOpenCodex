@@ -47,7 +47,7 @@ Paul intervient **une fois, au cadrage**. Ensuite, les agents travaillent seuls 
 | `$dev cadrage <sujet>` | **Cadrage complet avec Paul** : Linear, Obsidian, tableaux de référence, contrat de campagne (`cadrage.md`) | `CADRE` |
 | `$dev cadrage-court <ID\|sujet>` | Créer ou modifier **une seule** issue Linear (itération, demande de composant), sans cadrage complet (`cadrage-court.md`) | inline |
 | `$dev projet <nom>` | Créer ou raccorder un dépôt, vérifier son `PROJECT.md` jusqu'à `PRET_POUR_DEVELOPPEMENT` (`projet.md`) | inline |
-| `$dev point [campagne…]` | **Le point des campagnes** en un rendu fixe : avancement, blocages et qui débloque, ce que Paul doit faire, temps restant en heures de travail des agents ; lecture seule, lancé depuis AIDE ou tout chat du workflow (`point.md`) | inline |
+| `$dev point [campagne…]` | **Le point des campagnes et des tâches de travail hors campagne** : avancement, blocages, actions de Paul et temps restant ; contrôle ponctuel en lecture seule depuis AIDE ou tout chat du workflow (`point.md`) | inline |
 | `$dev digest [nom]` | Résumé des dernières 24 h : avancement, décisions prises seul, blocages | inline |
 | `$dev prototype <sujet>` | Composer une page avec les vrais composants dans l'éditeur, exporter un `spec.json` v1 vérifié (`prototype.md`) | `PROTO` |
 | `$dev test <projet>` | Recette ou tests ciblés (`test.md`) | inline ou `TEST` |

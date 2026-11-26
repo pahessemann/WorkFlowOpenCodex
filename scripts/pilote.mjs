@@ -747,7 +747,7 @@ export async function lancerCommande(cfg, { commande, args = [], depuisModele = 
   if (spec.fixe) return lancerArchi(cfg, { commande, args, fiche });
   const ligneCommande = '$dev ' + [commande, ...args].join(' ');
   if (spec.direct && !['poste', 'campagne', 'livrer'].includes(commande)) { try { return { action: 'executer_ici', commande: ligneCommande, resultat: executer([commande, ...args], cfg), consigne: 'commande déterministe exécutée par le lanceur : recopie resultat (ou son champ rendu/__texte) tel quel' }; } catch (e) { if (e instanceof Refus) throw e; } } // v2.19.2
-  if (spec.direct) return { action: 'executer_ici', commande: ligneCommande, consigne: 'commande déterministe : node <pilote> ' + [commande, ...args].join(' ') + (commande === 'point' ? ' --texte, puis recopier la sortie telle quelle (lecture seule)' : '') + ', aucun modèle requis' };
+  if (spec.direct) return { action: 'executer_ici', commande: ligneCommande, consigne: 'commande déterministe : node <pilote> ' + [commande, ...args].join(' ') + (commande === 'point' ? ' --texte, puis compléter le point des tâches hors campagne selon references/point.md (lecture seule)' : '') + ', aucun modèle requis' };
   const r = router(cfg, { tache: spec.tache, criticite: spec.criticite || criticite || 'standard' });
   const ici = !spec.nouveau && depuisModele && String(depuisModele).replace(/^[a-z]+\//, '') === r.modele && !['ARCHI', 'AUTO', 'SUP', 'PROJET'].includes(String(depuisRole || '').toUpperCase()); // v2.18 : un chat 💬 PROJET délègue toujours // ARCHI et les orchestrateurs délèguent toujours (v2.6.3)
   if (ici) return { action: 'executer_ici', commande: ligneCommande, modele: r.modele, consigne: 'le modèle du chat courant est celui du routeur : exécuter ici' };
@@ -1577,7 +1577,7 @@ export function premierMessageAide(cfg, modele) {
     '- Une question ou une demande d\'évolution du workflow lui-même va vers 🏛 ARCHI · workflow :', '  je lance $dev evolution <sujet> (ou $dev archi) par le lanceur, qui rouvre ce chat sans doublon.',
     '- « Où en sont mes chats ? » : je lis le dernier message des chats locaux (read_thread), puis je passe [{ id, titre, dernier_message }] sur l\'entrée standard de node ' + (cfg.pilote || path.join(RACINE, 'scripts', 'pilote.mjs')) + ' etat chats --chats-stdin (aucun fichier écrit) ; je recopie le tableau.',
     '- $dev discuter [projet] [sujet] (ou $dev discute, ou « je veux discuter d\'un projet ») : je le lance par le lanceur comme toute commande ; il ouvre à chaque fois un nouveau chat 💬 PROJET sur atelier (sans projet : discussion générale sur les projets en cours) ; je réponds par sa ligne « → ouvert : … ».',
-    '- $dev point [campagne…], ou « où en sont les campagnes, qu\'est-ce qui bloque, combien de temps reste-t-il ? » : seule commande que j\'exécute moi-même, car elle n\'écrit rien : node ' + (cfg.pilote || path.join(RACINE, 'scripts', 'pilote.mjs')) + ' point [campagne…] --texte ; je recopie sa sortie telle quelle, sans rien ajouter ni retirer.', '- ' + REGLE_LIGNE_ETAT,
+    '- $dev point [campagne…], ou « où en sont les campagnes, qu\'est-ce qui bloque, combien de temps reste-t-il ? » : seule commande que j\'exécute moi-même, car elle n\'écrit rien : node ' + (cfg.pilote || path.join(RACINE, 'scripts', 'pilote.mjs')) + ' point [campagne…] --texte ; je complète le point des tâches hors campagne selon references/point.md, en lecture seule.', '- ' + REGLE_LIGNE_ETAT,
     '- Si la réponse n\'est pas dans SKILL.md, je le dis au lieu d\'inventer.'].join('\n');
 }
 function modeleAide(cfg, indisponibles = []) {
@@ -1836,7 +1836,7 @@ export function point(cfg, noms = [], { maintenant = Date.now() } = {}) {
   const toi = actions_paul.slice(0, 2).map((a) => a.action + ' (' + a.issues.join(', ') + ')').join(' ; ') + (actions_paul.length > 2 ? ' ; et ' + (actions_paul.length - 2) + ' autre(s) action(s)' : '');
   const ligne_etat = actions_paul.length ? formatLigne('⏸', 'point de ' + n + ' campagne(s) fait' + (qualifier.length ? ', ' + qualifier.length + ' blocage(s) à qualifier' : ''), toi) : formatLigne('✅', 'point de ' + n + ' campagne(s) fait, rien ne t’attend' + (qualifier.length ? ' ; ' + qualifier.length + ' blocage(s) à qualifier par les orchestrateurs' : ''), 'rien');
   try { releverAbonnement(cfg, { maintenant }); } catch {}
-  const p = { genere_le: new Date(maintenant).toISOString(), campagnes, actions_paul, ressources, abonnement: resumeAbonnement(cfg, maintenant), chats_archives_24h: chatsArchives24h(cfg, maintenant), ligne_etat, consigne: 'Recopie le champ rendu tel quel, sans rien ajouter ni retirer ; point en lecture seule.' };
+  const p = { genere_le: new Date(maintenant).toISOString(), campagnes, actions_paul, ressources, abonnement: resumeAbonnement(cfg, maintenant), chats_archives_24h: chatsArchives24h(cfg, maintenant), ligne_etat, consigne: 'Le champ rendu couvre les campagnes ; compléter le point des tâches hors campagne selon references/point.md. Lecture seule.' };
   return { ...p, rendu: rendrePoint(p) };
 }
 

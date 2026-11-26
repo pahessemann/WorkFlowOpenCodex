@@ -7,8 +7,9 @@ ce que Paul doit faire, et le temps restant. Lecture seule : elle n'écrit rien 
 
 - Dans `❓ AIDE` : AIDE l'exécute lui-même, seule exception à sa délégation, car elle n'écrit rien.
 - Dans tout chat du workflow, `🏛 ARCHI` compris. Pas de chat dédié.
-- Commande : `node <pilote> point [campagne…] --texte`, puis recopier la sortie telle quelle, en texte normal (ni bloc de code, ni `<pre>`), sans rien
-  ajouter ni retirer. Sans nom : toutes les campagnes `en_cours` ; avec des noms : celles-ci, même en pause.
+- Commande : `node <pilote> point [campagne…] --texte`. Sans nom : toutes les campagnes `en_cours` ; avec des noms : celles-ci, même en pause.
+- À chaque demande de point sans nom, compléter les campagnes par un relevé ponctuel des tâches de travail hors campagne sur le poste et atelier : chats DEV, CADRE, PROTO, TEST et RELAIS non archivés. Utiliser les outils Codex `list_threads` puis `read_thread` pour lire leur dernier état et l’activité réelle ; paginer si nécessaire. Exclure les tâches terminées et les doublons déjà couverts par une campagne ; inclure celles qui attendent Paul ou sont bloquées. Un titre ou un registre ancien ne prouve pas qu’un agent travaille : signaler « état à vérifier » si la lecture échoue ou est ambiguë. Ne pas exposer les conversations personnelles sans lien avec le workflow.
+- Présenter les tâches séparément avec leur objet, état, action attendue et hôte, avant la ligne d’état finale. Si un hôte ou outil est inaccessible, le signaler explicitement et ne pas conclure qu’il ne reste aucune action. Une campagne nommée conserve son périmètre. Aucun lancement, relance, notification ni surveillance périodique : uniquement une photographie à la demande. Le texte du pilote reste le relevé des campagnes, et ne suffit pas à lui seul pour le point complet : adapter sa rubrique « Ce que tu dois faire » et sa ligne finale aux tâches vérifiées, sans affirmer « rien » si une action reste attendue ou si un hôte est inaccessible.
 - Sur le poste, le script interroge atelier par SSH (`registre_distant`) ; les chiffres sont ceux d'atelier.
 
 ## Rendu (ordre fixe)
