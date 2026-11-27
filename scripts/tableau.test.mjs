@@ -106,7 +106,7 @@ fs.appendFileSync(process.env.FAUX_JOURNAL, [cmd, ...rest].join(' ') + hote + (s
 if (process.env.FAUX_ECHEC === '1') { console.error('CADREUR REQUIS — DEV-1 : aucune conclusion de cadreur au journal'); process.exit(6); }
 const plan = '# plan de livraison\\n- étape 1 : copier\\n';
 const rep = { point: { genere_le: new Date().toISOString(), campagnes: [{ campagne: 'demo', mode: 'auto', statut: 'en_cours', closes: 1, total: 3, ligne_etat: '▶ EN COURS · Toi : rien', arrets: [] }], actions_paul: [], ressources: { hote: 'atelier' }, abonnement: { comptes: [{ id: 'abc123', compte: 'abc123', pct: 40, actif: true }] }, ligne_etat: '✅ TERMINÉ · point fait · Toi : rien', rendu: '**Campagnes**' },
-  chats: { hote: 'local', chats: [] }, 'tableau-campagnes': { campagnes: [{ id: 'demo', projet: 'p', statut: 'en_cours', chat: null, hote_livraison: 'local', livraison_par_paul: false, livraison: { plan: '/etat/plans/demo.md', sha256: null } }, { id: 'paie', projet: 'q', statut: 'en_cours', hote_livraison: 'local', livraison_par_paul: true, livraison: null }] },
+  chats: { hote: 'local', chats: [] }, 'tableau-campagnes': { campagnes: [{ id: 'demo', projet: 'p', statut: 'en_cours', chat: null, hote_livraison: 'local', livraison_par_paul: false, livraison: { plan: '/etat/plans/demo.md', sha256: null } }, { id: 'livree-par-paul', projet: 'q', statut: 'en_cours', hote_livraison: 'local', livraison_par_paul: true, livraison: null }] },
   pause: { campagne: rest[0], statut: 'en_pause' }, reprendre: { campagne: rest[0], statut: 'en_cours' }, 'relancer-chat': { chat: rest[0], action: 'relance-acces' }, chat: { campagne: rest[0], chat: 'nouveau-chat' },
   lancer: { action: 'ouvrir', chat: 'x', titre: '🟣 CADRE · p · ' + rest.slice(1).join(' ') }, 'decision-globale': { inscrit: ['demo'] }, abonnement: { action: 'basculé', id: rest[1] }, menage: rest[0] === 'appliquer' ? { appliquees: 2 } : { lignes: 3 },
   'livraison-info': rest[0] === 'demo' ? { campagne: 'demo', projet: 'p', hote_livraison: 'local', livraison: { plan: '/etat/plans/demo.md' }, plan_texte: plan } : { campagne: rest[0], projet: 'q', livraison: null, plan_texte: plan }, 'livraison-go': { campagne: rest[0], go: { plan: rest[1] } } };
@@ -171,15 +171,15 @@ test('tableau 3.4 : un refus du pilote est rendu tel quel et journalisé', async
 test('tableau 3.4 : GO de livraison seulement sur l’empreinte du plan présenté, jamais pour un projet livré par Paul', async () => {
   const cfg = cfgV2(); const s = await T.servir(cfg, { port: 0 });
   try {
-    const k = await json(base(s) + 'api/campagnes'); assert.equal(k.corps.campagnes.find((c) => c.id === 'paie').livraison_par_paul, true);
-    assert.equal((await poster(s, { action: 'livraison-go', campagne: 'paie', empreinte: 'deadbeef', plan: 'x' })).corps.refus, 'LIVRAISON PAR PAUL');
+    const k = await json(base(s) + 'api/campagnes'); assert.equal(k.corps.campagnes.find((c) => c.id === 'livree-par-paul').livraison_par_paul, true);
+    assert.equal((await poster(s, { action: 'livraison-go', campagne: 'livree-par-paul', empreinte: 'deadbeef', plan: 'x' })).corps.refus, 'LIVRAISON PAR PAUL');
     const info = await poster(s, { action: 'livraison-info', campagne: 'demo' }); assert.match(info.corps.resultat.plan_texte, /plan de livraison/);
     const emp = (await import('node:crypto')).createHash('sha256').update(info.corps.resultat.plan_texte).digest('hex');
     assert.equal((await poster(s, { action: 'livraison-go', campagne: 'demo', empreinte: 'zz' })).corps.refus, 'PARAMÈTRE INVALIDE');
     assert.equal((await poster(s, { action: 'livraison-go', campagne: 'demo', empreinte: '0123456789ab' })).corps.refus, 'EMPREINTE DIFFÉRENTE');
     const go = await poster(s, { action: 'livraison-go', campagne: 'demo', empreinte: emp.slice(0, 8) }); assert.equal(go.code, 200, JSON.stringify(go.corps)); assert.equal(go.corps.resultat.go.plan, '/etat/plans/demo.md');
     assert.ok(journal().includes('livraison-go demo /etat/plans/demo.md @atelier'), 'le GO est enregistré sur l’hôte d’exécution avec le plan présenté');
-    assert.ok(!journal().some((l) => l.startsWith('livraison-go paie')), 'aucune commande jouée pour le projet livré par Paul');
+    assert.ok(!journal().some((l) => l.startsWith('livraison-go livree-par-paul')), 'aucune commande jouée pour le projet livré par Paul');
   } finally { await s.fermer(); }
 });
 
