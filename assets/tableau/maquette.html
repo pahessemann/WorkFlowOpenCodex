@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="fr" data-theme="auto" data-densite="normale">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Maquette 3.5 · Tableau de bord $dev</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2320799d'/%3E%3Cpath d='M7 8h18v4H7zM7 14h8v10H7zM17 14h8v4h-8zM17 20h8v4h-8z' fill='%23fff'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="tete">
+  <div class="tete-ligne">
+    <div class="identite">
+      <span class="logo" aria-hidden="true">▦</span>
+      <div>
+        <div class="titre">Tableau de bord <small>workflow <code>$dev</code> <span id="version">…</span></small></div>
+        <div id="etat-global" class="etat-global squelette">relevé en cours…</div>
+      </div>
+    </div>
+    <nav class="compteurs" aria-label="Aller à">
+      <button type="button" data-aller="#toi" title="Ce que tu dois faire"><b id="c-toi">–</b><span>à toi</span></button>
+      <button type="button" data-aller="#campagnes" title="Campagnes en cours"><b id="c-campagnes">–</b><span>campagnes</span></button>
+      <button type="button" data-aller="#chats" title="Chats dont la ligne d’état t’attend"><b id="c-attendent">–</b><span>chats qui t’attendent</span></button>
+    </nav>
+    <div class="outils">
+      <span id="fraicheur" class="fraicheur">relevé en cours…</span>
+      <button type="button" id="relever" title="Relever maintenant (r)">↻ Relever</button>
+      <button type="button" id="aller-actions" data-aller="#panneau" title="Aller aux actions (a)">Actions</button>
+      <button type="button" id="theme" class="icone" title="Thème : automatique, clair ou sombre" aria-label="Changer de thème">◐</button>
+      <button type="button" id="densite" class="icone" title="Densité normale ou compacte" aria-label="Changer la densité">▤</button>
+    </div>
+  </div>
+  <div class="liseret" aria-hidden="true"><i id="liseret"></i></div>
+</header>
+<div id="bandeau" class="bandeau" hidden role="status"></div>
+<main class="disposition">
+  <div class="principale">
+    <section id="toi" class="toi calme">
+      <div class="toi-tete"><h2>👤 À toi</h2><span id="ligne-point" class="ligne"></span></div>
+      <ol id="actions-paul"><li class="vide squelette">relevé en cours…</li></ol>
+    </section>
+    <section id="campagnes" class="carte">
+      <h2>Campagnes <span id="nb-campagnes" class="badge"></span></h2>
+      <div id="liste-campagnes" class="grille"><article class="campagne squelette"><div class="nom">…</div><div class="barre"><i></i></div><div class="estimation">relevé en cours…</div></article></div>
+    </section>
+    <section id="blocages" class="carte">
+      <h2>Blocages <span id="nb-blocages" class="badge"></span></h2>
+      <ul id="liste-blocages"><li class="vide">Aucun.</li></ul>
+    </section>
+    <section id="chats" class="carte">
+      <h2>Chats ouverts <span id="nb-chats" class="badge"></span></h2>
+      <div id="filtres" class="filtres" role="group" aria-label="Filtres"></div>
+      <div id="liste-chats"><p class="vide squelette">relevé en cours…</p></div>
+    </section>
+    <section class="carte deux">
+      <div><h2>Ressources</h2><dl id="ressources"></dl></div>
+      <div><h2>Abonnement</h2><dl id="abonnement"></dl></div>
+    </section>
+    <section class="carte">
+      <details><summary>Point complet (rendu de <code>pilote.mjs point</code>)</summary><div id="rendu" class="rendu"></div></details>
+    </section>
+  </div>
+  <aside id="panneau" class="panneau" aria-label="Actions">
+    <div class="onglets" role="tablist">
+      <button type="button" role="tab" data-onglet="lancer" class="actif" aria-selected="true">Lancer</button>
+      <button type="button" role="tab" data-onglet="decision">Décision</button>
+      <button type="button" role="tab" data-onglet="compte">Compte</button>
+      <button type="button" role="tab" data-onglet="menage">Ménage</button>
+      <button type="button" role="tab" data-onglet="journal">Journal</button>
+    </div>
+    <p id="sans-jeton" class="avis" hidden>Actions désactivées : ouvre le tableau depuis AIDE (<code>$dev tableau</code>) pour obtenir le jeton de session.</p>
+    <div class="onglet actif" data-onglet="lancer">
+      <form id="f-lancer" class="formulaire">
+        <p class="aide">Ouvre un chat de travail par le lanceur, avec une fiche de 15 lignes au plus. Jamais exécuté ici.</p>
+        <label>Commande <select name="commande"></select></label>
+        <label>Arguments <input name="args" placeholder="sujet, ID d’issue…" maxlength="200"></label>
+        <label>Projet <select name="projet"><option value="">(aucun)</option></select></label>
+        <label>Fiche de lancement <textarea name="fiche" rows="6" required placeholder="La demande mot pour mot, l’essentiel du contexte, les issues, fichiers et liens cités."></textarea></label>
+        <label class="ligne-case"><input type="checkbox" name="nouveau"> Nouveau chat même si un sujet proche existe</label>
+        <button type="submit" class="primaire">Lancer</button>
+      </form>
+    </div>
+    <div class="onglet" data-onglet="decision">
+      <form id="f-decision" class="formulaire">
+        <p class="aide">Inscrite au journal de chaque campagne en cours, signée « Paul, via le tableau de bord ».</p>
+        <label>Décision <textarea name="texte" rows="4" required maxlength="2000" placeholder="Règle ou décision, en une phrase."></textarea></label>
+        <button type="submit" class="primaire">Inscrire</button>
+      </form>
+    </div>
+    <div class="onglet" data-onglet="compte">
+      <form id="f-compte" class="formulaire">
+        <p class="aide">Compte Anthropic actif d’atelier (relevé par le point).</p>
+        <label>Compte <select name="compte"></select></label>
+        <button type="submit" class="primaire">Basculer</button>
+      </form>
+    </div>
+    <div class="onglet" data-onglet="menage">
+      <form id="f-menage" class="formulaire">
+        <p class="aide">Analyse en lecture seule des chats des deux hôtes, puis application des seules actions sûres (jamais de suppression).</p>
+        <div class="boutons"><button type="submit" class="primaire">Analyser</button><button type="button" id="menage-appliquer" disabled>Appliquer les sûres</button></div>
+      </form>
+    </div>
+    <div class="onglet" data-onglet="journal">
+      <div class="filtres"><button type="button" class="filtre actif" data-journal="tous">tous</button><button type="button" class="filtre" data-journal="ok">faits</button><button type="button" class="filtre" data-journal="refus">refus</button></div>
+      <ul id="journal"><li class="vide">Aucune action.</li></ul>
+    </div>
+    <div id="resultat" class="resultat" hidden aria-live="polite"></div>
+  </aside>
+</main>
+<div id="toast" class="toast" hidden role="status"></div>
+<footer>Lecture : <code>pilote.mjs point</code> et le registre des chats des deux hôtes. Actions : chacune joue une commande existante de <code>pilote.mjs</code> sur le bon hôte, avec le jeton de session de l’URL ouverte par AIDE ; ni statut d’issue, ni fusion, ni déploiement. Le serveur ne répond qu’à <code>127.0.0.1</code>. Raccourcis : <kbd>r</kbd> relever, <kbd>a</kbd> actions.</footer>
+<div class="maquette-ruban">Maquette 3.5 · données fictives · <a href="/">page réelle</a></div>
+<script src="maquette-donnees.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
+

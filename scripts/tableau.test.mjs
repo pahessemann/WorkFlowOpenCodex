@@ -184,3 +184,18 @@ test('tableau 3.4 : GO de livraison seulement sur l’empreinte du plan présent
 });
 
 
+
+test('tableau 3.5 : la page et la maquette sont cohérentes avec app.js, sans boîte native', async () => {
+  const cfg = cfgTest(); const s = await T.servir(cfg, { port: 0 });
+  try {
+    const page = (await json(base(s))).corps; const maquette = (await json(base(s) + 'maquette.html')).corps; const app = (await json(base(s) + 'app.js')).corps; const css = (await json(base(s) + 'style.css')).corps;
+    const ids = [...new Set([...app.matchAll(/\$\('#([a-z0-9-]+)/g)].map((m) => m[1]))]; assert.ok(ids.length > 15, 'identifiants trouvés dans app.js');
+    for (const id of ids) { assert.ok(page.includes('id="' + id + '"'), 'index.html : #' + id); assert.ok(maquette.includes('id="' + id + '"'), 'maquette.html : #' + id); }
+    assert.doesNotMatch(app, /\b(confirm|alert|prompt)\(/, 'aucune boîte native du navigateur');
+    assert.match(maquette, /maquette-donnees\.js/); assert.doesNotMatch(page, /maquette-donnees/);
+    assert.match((await json(base(s) + 'maquette-donnees.js')).corps, /window\.fetch = /);
+    for (const attendu of ['[data-theme=sombre]', '[data-densite=compacte]', '@media (max-width:1100px)', '.toi.urgent', '.panneau', '.confirm', '.toast']) assert.ok(css.includes(attendu), 'style.css : ' + attendu);
+    assert.match(page, /aria-live="polite"/); assert.match(page, /role="tablist"/);
+  } finally { await s.fermer(); }
+});
+

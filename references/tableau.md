@@ -1,10 +1,20 @@
-# Tableau de bord — `$dev tableau` (3.3, actions 3.4)
+# Tableau de bord — `$dev tableau` (3.3, actions 3.4, page 3.5)
 
 Une page web locale qui montre d'un coup d'œil ce que `$dev point` raconte et où en est chaque chat, et qui
 permet depuis la 3.4 de jouer quelques commandes du pilote sans ouvrir un chat. Elle s'affiche **toujours dans le
 navigateur intégré du chat `❓ AIDE · workflow`**, jamais dans Edge ni Chrome.
 
 ## Ce que la page montre (ordre fixe)
+
+Depuis la 3.5 : en-tête collant avec l'état global du point, trois compteurs (à toi, campagnes en cours, chats dont la ligne
+d'état t'attend), fraîcheur relative et liseré jusqu'au prochain relevé, bouton « Relever » (raccourci `r`), thème
+automatique / clair / sombre et densité normale / compacte mémorisés dans le navigateur ; deux colonnes à partir de 1100 px
+(contenu, puis panneau d'actions collant à droite), tout empilé en dessous (panneau intégré à côté du chat, bouton
+« Actions », raccourci `a`). « À toi » est ambre seulement quand quelque chose t'attend. Les chats sont regroupés par hôte et
+dossier, les ⏸ en premier, avec filtres (m'attend, hôte, rôle), ligne d'état dépliable au clic, « relevée il y a … » ; les
+chats sans ligne d'état relevée sont repliés. Les confirmations sont inline (Oui / Non), le résultat d'une action s'affiche
+en toast puis en détail dans le panneau, le journal se filtre (faits / refus). `/maquette.html` sert la même page avec des
+données fictives (`maquette-donnees.js` remplace `fetch`, rien n'est envoyé) : c'est le banc d'essai visuel.
 
 1. **👤 À toi** : les actions de Paul (`actions_paul` du point) et la ligne d'état du point.
 2. **Campagnes** : une carte par campagne en cours (avancement, clôtures 24 h, temps restant, places, ligne d'état, bloc d'état).

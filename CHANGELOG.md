@@ -1,5 +1,9 @@
 # Changelog du socle public
 
+## 3.5.0-test — page du tableau de bord refondue — 27/11/2026
+
+En-tête avec état global, compteurs et fraîcheur ; deux colonnes avec panneau d'actions sur écran large, tout empilé dans un panneau étroit ; chats regroupés et filtrés ; confirmations inline et toasts ; thème et densité mémorisés ; maquette à données fictives sur `/maquette.html`. Serveur et API inchangés.
+
 ## 3.4.0-test — actions du tableau de bord — 27/11/2026
 
 Boutons du tableau de bord sous jeton de session : pause et reprise d'une campagne, relance d'un chat, création du chat d'une campagne, lancement d'un chat de travail avec fiche, GO de livraison sur l'empreinte du plan présenté, décision globale, compte du fournisseur, ménage. Chaque bouton joue une commande existante du pilote sur le bon hôte et rend son refus tel quel ; journal des actions.

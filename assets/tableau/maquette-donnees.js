@@ -1,0 +1,41 @@
+/* Maquette 3.5 : données fictives servies à la place de l’API (fetch remplacé). Rien n’est envoyé au serveur. */
+(() => {
+  sessionStorage.setItem('jeton', 'maquette');
+  const maintenant = Date.now(); const il_y_a = (min) => new Date(maintenant - min * 60000).toISOString();
+  const bloc = (n, etat) => '**' + n + '** · 12/35 closes · ' + etat + '\n- 👤 Toi (1) : 1. valider le contrat SC12 → débloque DEV-1330\n- 🤖 Agents (6) : DEV-1315 recette · DEV-1317 dev · DEV-1322 revue · +3';
+  const point = { releve_le: il_y_a(0.4), erreur: null, point: { genere_le: il_y_a(0.4), ligne_etat: '⏸ À TOI · point de 3 campagne(s) fait · Toi : valider le contrat SC12 (DEV-1330) ; décider pour DEV-1402',
+    actions_paul: [{ action: 'valider le contrat SC12 (proposé : oui, périmètre Ano seulement)', issues: ['DEV-1330'], campagne: 'portail-client-scission' }, { action: 'décider pour DEV-1402 : moteur Word (proposé : HtmlToOpenXml)', issues: ['DEV-1402', 'DEV-1403'], campagne: 'api-rh' }],
+    campagnes: [
+      { campagne: 'portail-client-scission', mode: 'auto', statut: 'en_cours', closes: 12, total: 35, closes_24h: 4, places: { occupees: 7, max: 15 }, estimation: { si_actions_faites: [9, 18], fiabilite: 'moyenne' }, ligne_etat: '⏸ À TOI · 6 agents au travail · Toi : valider le contrat SC12', bloc: bloc('portail-client-scission', '⏸ À TOI'), arrets: [{ issue: 'DEV-1330', attend: 'paul', quoi: 'valider le contrat SC12 (proposé : oui)' }, { issue: 'DEV-1340', attend: 'agents', quoi: 'cadrage de déblocage en cours' }] },
+      { campagne: 'api-rh', mode: 'auto', statut: 'en_pause', closes: 27, total: 28, closes_24h: 0, places: { occupees: 0, max: 15 }, estimation: { si_actions_faites: [1, 2], fiabilite: 'bonne' }, ligne_etat: '⏳ EN ATTENTE · en pause par économie · Toi : rien', bloc: '**api-rh** · 27/28 closes · ⏳ EN ATTENTE', arrets: [] },
+      { campagne: 'terminaux-cli-atelier', mode: 'auto', statut: 'en_cours', closes: 2, total: 2, closes_24h: 2, places: { occupees: 0, max: 15 }, estimation: { si_actions_faites: [0, 0], fiabilite: 'faible' }, ligne_etat: '✅ TERMINÉ · toutes les issues sont closes · Toi : $dev cloture terminaux-cli-atelier', bloc: '**terminaux-cli-atelier** · 2/2 closes · ✅ TERMINÉ', arrets: [] }],
+    ressources: { hote: 'atelier', ram_libre_gio: 41.3, disque_libre_gio: 83.5, disque_seuil_gio: 40, charge_1min: 0.4, coeurs: 8, pression_cpu_60s: 0.23, volume: { sauvegarde: { resultat: 'ok', le: '27/11 05:23' } } },
+    abonnement: { anthropic: { compte: '8a6c35', pct: 51, remise: il_y_a(-6000) }, vitesse_pt_h: 1, codex: { pct: 75, remise: il_y_a(-7000) }, mode: 'gpt', effectif: 'gpt', comptes: [{ id: '8a6c35', compte: '8a6c35', pct: 51, actif: true }, { id: '590693', compte: '590693', pct: 4, actif: false }] },
+    rendu: '**Campagnes**\n\n| Campagne | Avancement | Clôtures 24 h | Reste |\n|---|---|---|---|\n| portail-client-scission (AUTO) | 12/35 (34 %) | 4 | 23 |\n| api-rh (AUTO) | 27/28 (96 %) | 0 | 1 |\n\n**Blocages**\n\n👤 À toi : DEV-1330 · valider le contrat SC12\n\n⏸ À TOI · point de 3 campagne(s) fait · Toi : valider le contrat SC12' } };
+  const chats = { releve_le: il_y_a(0.4), erreur: null, atelier_injoignable: null, chats: [
+    { chat_id: 'c1', titre: '🟢 AUTO · portail-client · portail-client-scission · 34%', role: 'AUTO', hote: 'atelier', dossier: '01 Campagnes', statut: 'actif', ligne_etat: '⏸ À TOI · recette de la fiche contrat terminée, SC12 attend ta validation · Toi : valider le contrat SC12 dans Linear', ligne_etat_le: il_y_a(12) },
+    { chat_id: 'c2', titre: '🔵 DEV · app-badgeuse · DEV-1330 badgeuse QR back-office', role: 'DEV', hote: 'atelier', dossier: '02 Développement / app-badgeuse', statut: 'attente_go', ligne_etat: '⏸ À TOI · Le message pour Yannick est prêt · Toi : préciser le canal et le destinataire exact si tu veux que je l’envoie.', ligne_etat_le: il_y_a(1500) },
+    { chat_id: 'c3', titre: '🟣 CADRE · portail-client · preparation-scission', role: 'CADRE', hote: 'atelier', dossier: '03 Cadrage & prototypes', statut: 'bloque', ligne_etat: '⛔ BLOQUÉ · Linear refuse les écritures, mises à jour gardées en attente · Toi : tester un commentaire sur DEV-1268 depuis un nouveau chat, ou fournir une clé d’API Linear', ligne_etat_le: il_y_a(1400) },
+    { chat_id: 'c4', titre: '🟣 CADRE · deployeur · Atelier personnel : ajout terminaux CLI Claude et GPT', role: 'CADRE', hote: 'atelier', dossier: '03 Cadrage & prototypes', statut: 'actif', ligne_etat: '▶ EN COURS · L’orchestrateur autonome a démarré son premier tour · Toi : rien', ligne_etat_le: il_y_a(70) },
+    { chat_id: 'c5', titre: '🧪 TEST · app-rh · recettes app-rh', role: 'TEST', hote: 'atelier', dossier: '04 Relais & maintenance', statut: 'actif', ligne_etat: '⏳ EN ATTENTE · aucune issue à recetter pour l’instant · Toi : rien', ligne_etat_le: il_y_a(200) },
+    { chat_id: 'c6', titre: '⚙️ RELAIS · design-system · storybook-v2', role: 'RELAIS', hote: 'atelier', dossier: '04 Relais & maintenance', statut: 'actif', ligne_etat: null },
+    { chat_id: 'l1', titre: '❓ AIDE · workflow', role: 'AIDE', hote: 'local', dossier: '00 Accueil', statut: 'actif', ligne_etat: null },
+    { chat_id: 'l2', titre: '🏛 ARCHI · workflow', role: 'ARCHI', hote: 'local', dossier: '00 Accueil', statut: 'actif', ligne_etat: null },
+    { chat_id: 'l3', titre: '🎨 PROTO · portail-client · contrat-et-poste', role: 'PROTO', hote: 'local', dossier: '03 Cadrage & prototypes', statut: 'actif', ligne_etat: null }] };
+  const campagnes = { releve_le: il_y_a(0.4), erreur: null, campagnes: [{ id: 'portail-client-scission', projet: 'portail-client', statut: 'en_cours', chat: 'c1', hote_livraison: 'atelier', livraison_par_paul: false, livraison: null }, { id: 'api-rh', projet: 'api-centrale', statut: 'en_pause', chat: 'x', hote_livraison: 'local', livraison_par_paul: false, livraison: { plan: '/etat/plans/api-rh.md' } }, { id: 'terminaux-cli-atelier', projet: 'deploy', statut: 'en_cours', chat: null, hote_livraison: 'local', livraison_par_paul: true, livraison: null }] };
+  const version = { version: '3.5.0-maquette', hote: 'local', rafraichissement_s: 60, cache_s: 60, actions: ['pause', 'reprendre', 'relancer-chat', 'chat', 'lancer', 'livraison-info', 'livraison-go', 'decision-globale', 'abonnement-compte', 'menage'], commandes_lanceur: ['cadrage', 'issue', 'discuter', 'prototype'], projets: ['portail-client', 'deployeur', 'app-badgeuse'], livraison_par_paul: ['deployeur'] };
+  let journal = [{ le: il_y_a(30), action: 'menage', params: {}, ok: true }, { le: il_y_a(90), action: 'pause', params: { campagne: 'api-rh' }, ok: true }, { le: il_y_a(300), action: 'relancer-chat', params: { chat: 'c2' }, ok: false, refus: 'CIRCUIT-BREAKER', message: '3 relances pour accès restreint' }];
+  const reponse = (o, delai = 250) => new Promise((r) => setTimeout(() => r({ ok: true, status: 200, json: async () => o }), delai));
+  window.fetch = (url, init = {}) => {
+    const p = String(url).replace(/\?.*$/, '');
+    if (p === '/api/version') return reponse(version);
+    if (p === '/api/point') return reponse(point, 600);
+    if (p === '/api/chats') return reponse(chats, 500);
+    if (p === '/api/campagnes') return reponse(campagnes);
+    if (p === '/api/journal') return reponse({ journal: [...journal].reverse() });
+    if (p === '/api/action') { const corps = JSON.parse(init.body || '{}'); const ok = corps.action !== 'relancer-chat'; const r = ok ? { ok: true, action: corps.action, resultat: corps.action === 'livraison-info' ? { campagne: corps.campagne, projet: 'api-centrale', livraison: { plan: '/etat/plans/api-rh.md' }, plan_texte: '# plan de livraison api-rh\n- étape 1 : déposer le paquet\n- étape 2 : redémarrer le service\n- retour arrière : paquet précédent' } : { campagne: corps.campagne, statut: corps.action === 'pause' ? 'en_pause' : 'en_cours', maquette: true } } : { ok: false, action: corps.action, refus: 'CIRCUIT-BREAKER', message: 'c2 : 3 relances pour accès restreint ; Paul doit vérifier le réglage d’exécution de l’hôte' };
+      journal.push({ le: new Date().toISOString(), action: corps.action, params: corps, ok, refus: r.refus, message: r.message }); return reponse(r, 700); }
+    return reponse({ refus: 'INCONNU' });
+  };
+})();
+
