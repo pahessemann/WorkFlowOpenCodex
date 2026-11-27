@@ -2567,6 +2567,26 @@
       }
     },
     {
+      "id": "tableau-campagnes",
+      "commande": "pilote.mjs tableau-campagnes (3.4 : campagnes vues par le tableau, lecture seule)",
+      "argv": [
+        "tableau-campagnes"
+      ],
+      "avant": [
+        [
+          "campagne",
+          "composer",
+          "demo",
+          "mon-api",
+          "DEV-1"
+        ]
+      ],
+      "attendu": {
+        "code": 0,
+        "contient": "\"livraison_par_paul\": false"
+      }
+    },
+    {
       "id": "tableau-sous-commande",
       "commande": "$dev tableau bidule (refus net)",
       "argv": [

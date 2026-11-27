@@ -1,5 +1,9 @@
 # Changelog du socle public
 
+## 3.4.0-test — actions du tableau de bord — 27/11/2026
+
+Boutons du tableau de bord sous jeton de session : pause et reprise d'une campagne, relance d'un chat, création du chat d'une campagne, lancement d'un chat de travail avec fiche, GO de livraison sur l'empreinte du plan présenté, décision globale, compte du fournisseur, ménage. Chaque bouton joue une commande existante du pilote sur le bon hôte et rend son refus tel quel ; journal des actions.
+
 ## 3.3.0-test — tableau de bord local — 27/11/2026
 
 `scripts/tableau.mjs` sert sur `127.0.0.1` une page en lecture seule (point des campagnes, lignes d'état, chats ouverts des deux hôtes), rafraîchie toutes les 60 s, avec cache et derniers chiffres conservés quand l'hôte distant est injoignable. `pilote.mjs tableau servir|url|arret` ; tâche planifiée à l'ouverture de session ; le chat d'aiguillage ouvre la page dans le navigateur intégré de l'application. Les actions viendront en 3.4.

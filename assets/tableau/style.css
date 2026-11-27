@@ -28,4 +28,14 @@ summary{cursor:pointer;font-weight:600}
 footer{padding:8px 20px 20px;color:var(--doux);font-size:12px}
 code{background:rgba(127,127,127,.12);padding:1px 4px;border-radius:3px}
 li.bloc-item{margin:4px 0}li.bloc-item .qui{display:inline-block;min-width:60px;font-weight:600}
+button{font:inherit;font-size:12.5px;padding:4px 10px;border-radius:6px;border:1px solid var(--accent);background:transparent;color:var(--accent);cursor:pointer}button:hover{background:var(--accent);color:#fff}button:disabled{opacity:.45;cursor:default}button.danger{border-color:var(--alerte);color:var(--alerte)}button.danger:hover{background:var(--alerte);color:#fff}button.primaire{background:var(--accent);color:#fff}
+.boutons{display:flex;flex-wrap:wrap;gap:6px;margin-top:4px}
+.actions .formulaires{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}
+.bloc-action{border:1px solid var(--ligne);border-radius:8px;padding:10px 12px;display:grid;gap:8px;align-content:start;min-width:0}.bloc-action h3{margin:0;font-size:13.5px}.bloc-action p{margin:0}
+.bloc-action label{display:grid;gap:3px;font-size:12.5px;color:var(--doux)}.bloc-action input,.bloc-action select,.bloc-action textarea{font:inherit;font-size:13px;padding:5px 7px;border:1px solid var(--ligne);border-radius:6px;background:var(--fond);color:var(--texte)}.bloc-action .ligne-case{display:flex;align-items:center;gap:6px}
+.resultat{margin-top:12px;padding:10px 12px;border-radius:8px;border:1px solid var(--ligne);background:var(--fond);font-size:13px}.resultat.ok{border-color:var(--ok)}.resultat.refus{border-color:var(--alerte)}.resultat pre{white-space:pre-wrap;margin:6px 0 0;font-size:12px;max-height:320px;overflow:auto}
+#journal{margin:6px 0 0;padding-left:18px;font-size:12.5px}#journal li{margin:2px 0}#journal .refus{color:var(--alerte)}#journal .ok{color:var(--ok)}
+.plan{white-space:pre-wrap;font-size:12px;max-height:260px;overflow:auto;border:1px solid var(--ligne);border-radius:6px;padding:8px;background:var(--fond)}
+.go-livraison{display:grid;gap:6px;margin-top:6px}.go-livraison input{font:inherit;padding:4px 7px;border:1px solid var(--ligne);border-radius:6px;background:var(--fond);color:var(--texte)}
+td .boutons{margin:0}
 

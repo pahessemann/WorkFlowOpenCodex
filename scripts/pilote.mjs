@@ -15,7 +15,7 @@ export const ETATS_ISSUE = ['en_attente', 'preflight', 'en_cours', 'revue', 'rec
 export const ETATS_CAMPAGNE = ['brouillon', 'en_cours', 'en_pause', 'close'];
 export const CRITICITES = ['leger', 'standard', 'sensible'];
 export const MAX_ESSAIS = 3;
-export const VERSION = '3.3.0-test';
+export const VERSION = '3.4.0-test';
 const PASTILLES = { AUTO: '🟢', SUP: '🟠', MS: '🔷', DEV: '🔵', CADRE: '🟣', PROTO: '🎨', TEST: '🧪', RELAIS: '⚙️', BILAN: '📘', AIDE: '❓', ARCHI: '🏛', PROJET: '💬' };
 const DOSSIERS = { AUTO: '01 Campagnes', SUP: '01 Campagnes', MS: '01 Campagnes', DEV: '02 Développement', CADRE: '03 Cadrage & prototypes', PROTO: '03 Cadrage & prototypes', TEST: '04 Relais & maintenance', RELAIS: '04 Relais & maintenance', BILAN: '04 Relais & maintenance', AIDE: '00 Accueil', ARCHI: '00 Accueil', PROJET: '00 Accueil' };
 export const TITRE_ARCHI = '🏛 ARCHI · workflow';
@@ -725,6 +725,11 @@ export function chatsDeuxHotes(cfg) {
   let distant = [], atelier_injoignable = null;
   if (cfg.hote === 'local' && (cfg.registre_distant || cfg.atelier_simule)) { try { distant = Object.values(appelAtelier(cfg, ['chats'])).map((x) => ({ ...x, hote: 'atelier' })); } catch (e) { atelier_injoignable = e.message; } }
   return { hote: cfg.hote, chats: [...local, ...distant], atelier_injoignable };
+}
+// 3.4 : campagnes vues par le tableau de bord (projet, chat, livraison) ; sur le poste, lues sur l’hôte d’exécution.
+export function campagnesTableau(cfg) {
+  if (cfg.hote === 'local' && (cfg.registre_distant || cfg.atelier_simule)) return appelAtelier(cfg, ['tableau-campagnes']);
+  return { hote: cfg.hote, campagnes: listerCampagnes(cfg).filter((c) => c.statut !== 'close').map((c) => ({ id: c.id, projet: c.projet, statut: c.statut, mode: c.mode || null, chat: c.chat || null, hote_execution: c.hote_execution || null, hote_livraison: c.hote_livraison || null, attente_go: !!c.attente_go, livraison_par_paul: livreParPaul(cfg, c), livraison: c.livraison ? { plan: c.livraison.plan || null, sha256: c.livraison.sha256 || null, go_le: c.livraison.go_le || null, utilise: !!c.livraison.utilise } : null })) };
 }
 export function inscrireChat(cfg, e) {
   if (!e.chat_id) refuser('CHAT ABSENT', 'chat_id requis');
@@ -2315,6 +2320,7 @@ function executerBrut(argv, cfg = null) {
     case 'lancer': return lancerCommande(C(), { commande: a[0], args: a.slice(1), depuisModele: o['depuis-modele'] || null, depuisRole: o['depuis-role'] && o['depuis-role'] !== true ? o['depuis-role'] : null, fiche: o['fiche-stdin'] ? fs.readFileSync(0, 'utf8') : o['fiche-fichier'] ? fs.readFileSync(o['fiche-fichier'], 'utf8') : String(o.fiche || ''), projet: o.projet || null, criticite: o.criticite || null, garder: o.garder || null, nouveau: !!o.nouveau });
     case 'menage': { const rel = (f) => path.isAbsolute(f) ? f : path.join(C().etat, f); const ch = o['chats-fichier'] ? lireJson(rel(o['chats-fichier']), []) : o.chats ? JSON.parse(o.chats) : null; const lin = o['linear-fichier'] ? lireJson(rel(o['linear-fichier']), {}) : {}; if (o['archive-apres-jours'] !== undefined) { C().chats = { ...(C().chats || {}), archive_apres_jours: Number(o['archive-apres-jours']) }; delete C().chats.archive_apres_heures; } if (o['archive-apres-heures'] !== undefined) C().chats = { ...(C().chats || {}), archive_apres_heures: Number(o['archive-apres-heures']) }; if (a[0] === 'appliquer') return appliquerMenage(C(), a[1] || 'surs', { chats: ch, linear: lin }); return analyserMenage(C(), { chats: ch || [], linear: lin }); }
     case 'chats': return o['deux-hotes'] ? chatsDeuxHotes(C()) : lireRegistreChats(C());
+    case 'tableau-campagnes': return campagnesTableau(C()); // 3.4
     case 'tableau': { const r = spawnSync(process.execPath, [path.join(RACINE, 'scripts', 'tableau.mjs'), a[0] || 'servir'], { encoding: 'utf8', windowsHide: true, timeout: 60000 }); if (r.status !== 0) { const m = String(r.stderr || r.stdout || '').trim().split('\n')[0]; const i = m.indexOf(' — '); refuser(i > 0 ? m.slice(0, i) : 'TABLEAU INACTIF', i > 0 ? m.slice(i + 3) : m || 'échec sans message', r.status || 6); } return JSON.parse(r.stdout); } // 3.3 : tableau de bord lecture seule ; sans argument = servir (idempotent) ; processus séparé car tableau.mjs importe le pilote
     case 'recreer-chat': return modifierCampagne(C(), a[0], (cc) => { cc.recreer_chat = true; return { campagne: a[0], recreer_chat: true, regle: 'recréé par le réveil au prochain point stable, jamais au milieu d’une issue' }; });
     case 'chats-app': return (async () => { const { connecter } = await import('./appserver.mjs'); const s = await connecter(avecMode(C())); const out = []; try { let cursor = null; for (let i = 0; i < 20; i++) { const r = await s.call('thread/list', { limit: 100, ...(cursor ? { cursor } : {}) }); for (const x of r.data) out.push({ id: x.id, titre: x.name || '', hote: C().hote, archive: false, maj: new Date((x.updatedAt || 0) * 1000).toISOString(), dossier: x.section?.name || null }); cursor = r.nextCursor; if (!cursor) break; } } finally { s.fermer(); } return out; })();

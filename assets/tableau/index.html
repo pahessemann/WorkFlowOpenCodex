@@ -8,14 +8,14 @@
 </head>
 <body>
 <header>
-  <div class="titre"><span class="pastille">▦</span> Tableau de bord <span class="sous">workflow <code>$dev</code> <span id="version">…</span> · lecture seule</span></div>
+  <div class="titre"><span class="pastille">▦</span> Tableau de bord <span class="sous">workflow <code>$dev</code> <span id="version">…</span> · <span id="mode">lecture seule</span></span></div>
   <div class="releve"><span id="releve">relevé en cours…</span> · <span id="compte">rafraîchissement automatique</span></div>
 </header>
 <div id="bandeau" class="bandeau" hidden></div>
 <main>
   <section id="toi" class="carte toi">
     <h2>👤 À toi</h2>
-    <ol id="actions"><li class="vide">Rien.</li></ol>
+    <ol id="actions-paul"><li class="vide">Rien.</li></ol>
     <p id="ligne-point" class="ligne"></p>
   </section>
   <section class="carte">
@@ -32,13 +32,37 @@
   </section>
   <section class="carte">
     <h2>Chats ouverts <span id="nb-chats" class="badge"></span></h2>
-    <table id="chats"><thead><tr><th>Chat</th><th>Hôte</th><th>Dossier</th><th>Dernière ligne d’état</th><th>Relevée</th></tr></thead><tbody></tbody></table>
+    <table id="chats"><thead><tr><th>Chat</th><th>Hôte</th><th>Dossier</th><th>Dernière ligne d’état</th><th>Relevée</th><th></th></tr></thead><tbody></tbody></table>
+  </section>
+  <section class="carte actions" id="actions">
+    <h2>Actions <span class="badge">chaque bouton joue une commande du pilote ; son refus s’affiche tel quel</span></h2>
+    <p id="sans-jeton" class="vide" hidden>Actions désactivées : ouvre le tableau depuis AIDE (<code>$dev tableau</code>) pour obtenir le jeton de session.</p>
+    <div class="formulaires">
+      <form id="f-lancer" class="bloc-action"><h3>Lancer un chat de travail</h3>
+        <label>Commande <select name="commande"></select></label>
+        <label>Arguments <input name="args" placeholder="sujet, ID d’issue…" maxlength="200"></label>
+        <label>Projet <select name="projet"><option value="">(aucun)</option></select></label>
+        <label>Fiche de lancement (15 lignes au plus) <textarea name="fiche" rows="5" required placeholder="La demande mot pour mot, l’essentiel du contexte, les issues, fichiers et liens cités."></textarea></label>
+        <label class="ligne-case"><input type="checkbox" name="nouveau"> Nouveau chat même si un sujet proche existe</label>
+        <button type="submit">Lancer</button></form>
+      <form id="f-decision" class="bloc-action"><h3>Décision globale</h3>
+        <label>Inscrite au journal de chaque campagne en cours <textarea name="texte" rows="3" required maxlength="2000" placeholder="Règle ou décision, en une phrase."></textarea></label>
+        <button type="submit">Inscrire</button></form>
+      <form id="f-compte" class="bloc-action"><h3>Compte Anthropic actif (atelier)</h3>
+        <label>Compte <select name="compte"></select></label>
+        <button type="submit">Basculer</button></form>
+      <form id="f-menage" class="bloc-action"><h3>Ménage des chats</h3>
+        <p class="vide">Analyse en lecture seule, puis application des seules actions sûres.</p>
+        <button type="submit" data-etape="analyser">Analyser</button> <button type="button" id="menage-appliquer" disabled>Appliquer les sûres</button></form>
+    </div>
+    <div id="resultat" class="resultat" hidden></div>
+    <details><summary>Journal des actions</summary><ul id="journal"></ul></details>
   </section>
   <section class="carte">
     <details><summary>Point complet (rendu de <code>pilote.mjs point</code>)</summary><div id="rendu" class="rendu"></div></details>
   </section>
 </main>
-<footer>Le tableau n’écrit rien : il recopie <code>pilote.mjs point</code> et le registre des chats des deux hôtes. Il ne répond qu’à <code>127.0.0.1</code>.</footer>
+<footer>Lecture : <code>pilote.mjs point</code> et le registre des chats des deux hôtes. Actions : chacune joue une commande existante de <code>pilote.mjs</code> sur le bon hôte, avec le jeton de session de l’URL ouverte par AIDE ; aucun changement de statut d’issue, aucune fusion, aucun déploiement. Le serveur ne répond qu’à <code>127.0.0.1</code>.</footer>
 <script src="app.js"></script>
 </body>
 </html>

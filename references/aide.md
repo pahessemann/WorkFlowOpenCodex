@@ -95,7 +95,7 @@ Après la mise à jour de son premier message (v2.6) : `$dev aide --recreer`.
 
 `$dev tableau`, ou « tableau de bord », « ouvre le tableau » : seconde commande qu'AIDE exécute lui-même, car elle
 n'écrit rien. AIDE lance `node <pilote> tableau servir` (idempotent : démarre le serveur local s'il ne tourne pas et
-rend son `url`), puis ouvre cette URL **dans le navigateur intégré du chat AIDE** : d'abord l'outil de l'application
+rend son `url`, qui porte le jeton de session des actions 3.4 : l'ouvrir telle quelle), puis ouvre cette URL **dans le navigateur intégré du chat AIDE** : d'abord l'outil de l'application
 `open_in_codex` (`target: { type: "browser", url }`, qui ouvre le panneau du chat, ou le met en file s'il n'est pas
 affiché) ; s'il manque, `cua.createBrowserTab("iab", url, { visible: true })` (disponible seulement quand le chat est
 affiché à l'écran) ; sinon AIDE rend l'URL à cliquer. Jamais Edge ni Chrome. AIDE ne clique sur rien dans la page :
