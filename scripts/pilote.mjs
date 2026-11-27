@@ -15,7 +15,7 @@ export const ETATS_ISSUE = ['en_attente', 'preflight', 'en_cours', 'revue', 'rec
 export const ETATS_CAMPAGNE = ['brouillon', 'en_cours', 'en_pause', 'close'];
 export const CRITICITES = ['leger', 'standard', 'sensible'];
 export const MAX_ESSAIS = 3;
-export const VERSION = '3.2.0-test';
+export const VERSION = '3.3.0-test';
 const PASTILLES = { AUTO: '🟢', SUP: '🟠', MS: '🔷', DEV: '🔵', CADRE: '🟣', PROTO: '🎨', TEST: '🧪', RELAIS: '⚙️', BILAN: '📘', AIDE: '❓', ARCHI: '🏛', PROJET: '💬' };
 const DOSSIERS = { AUTO: '01 Campagnes', SUP: '01 Campagnes', MS: '01 Campagnes', DEV: '02 Développement', CADRE: '03 Cadrage & prototypes', PROTO: '03 Cadrage & prototypes', TEST: '04 Relais & maintenance', RELAIS: '04 Relais & maintenance', BILAN: '04 Relais & maintenance', AIDE: '00 Accueil', ARCHI: '00 Accueil', PROJET: '00 Accueil' };
 export const TITRE_ARCHI = '🏛 ARCHI · workflow';
@@ -719,6 +719,13 @@ const normaliserObjet = (t) => String(t || '').toLowerCase().normalize('NFD').re
 const jetons = (t) => new Set(normaliserObjet(t).split(' ').filter((x) => x.length > 2));
 const proximite = (a, b) => { const A = jetons(a), B = jetons(b); if (!A.size || !B.size) return 0; let n = 0; for (const x of A) if (B.has(x)) n++; return n / (A.size + B.size - n); };
 export function lireRegistreChats(cfg) { return lireJson(path.join(cfg.etat, 'chats.json'), {}); }
+// 3.3 : registre des chats des deux hôtes pour le tableau de bord ; atelier injoignable n’est pas une erreur, il est signalé.
+export function chatsDeuxHotes(cfg) {
+  const local = Object.values(lireRegistreChats(cfg)).map((x) => ({ ...x, hote: x.hote || cfg.hote }));
+  let distant = [], atelier_injoignable = null;
+  if (cfg.hote === 'local' && (cfg.registre_distant || cfg.atelier_simule)) { try { distant = Object.values(appelAtelier(cfg, ['chats'])).map((x) => ({ ...x, hote: 'atelier' })); } catch (e) { atelier_injoignable = e.message; } }
+  return { hote: cfg.hote, chats: [...local, ...distant], atelier_injoignable };
+}
 export function inscrireChat(cfg, e) {
   if (!e.chat_id) refuser('CHAT ABSENT', 'chat_id requis');
   if (e.statut && !STATUTS_CHAT.includes(e.statut)) refuser('STATUT INCONNU', e.statut + ' (liste fermée : ' + STATUTS_CHAT.join(', ') + ')');
@@ -738,7 +745,7 @@ export const LANCEUR = { cadrage: { role: 'CADRE', tache: 'cadrage' }, prototype
   milestone: { role: 'MS', tache: 'pilotage' }, test: { role: 'TEST', tache: 'recette-milestone' }, cloture: { role: 'BILAN', tache: 'finalisation' }, nettoyeur: { role: 'RELAIS', tache: 'automatisation', criticite: 'leger' },
   'cadrage-court': { inline: true, tache: 'cadrage' }, finaliser: { inline: true, tache: 'finalisation' }, projet: { inline: true, tache: 'cadrage' }, menage: { inline: true, tache: 'pilotage', criticite: 'leger' },
   archi: { role: 'ARCHI', fixe: true }, evolution: { role: 'ARCHI', fixe: true }, poste: { direct: true }, discuter: { role: 'PROJET', tache: 'discussion', nouveau: true }, discute: { role: 'PROJET', tache: 'discussion', nouveau: true }, discussion: { role: 'PROJET', tache: 'discussion', nouveau: true }, // v2.18 : toujours un nouveau chat ; v2.18.1 : alias
-  digest: { direct: true }, etat: { direct: true }, point: { direct: true }, modele: { direct: true }, aide: { direct: true }, livrer: { direct: true }, pause: { direct: true }, reprendre: { direct: true }, campagne: { direct: true }, fournisseur: { direct: true }, abonnement: { direct: true } }; // v2.19.2
+  digest: { direct: true }, etat: { direct: true }, point: { direct: true }, modele: { direct: true }, aide: { direct: true }, livrer: { direct: true }, pause: { direct: true }, reprendre: { direct: true }, campagne: { direct: true }, fournisseur: { direct: true }, abonnement: { direct: true }, tableau: { direct: true } }; // v2.19.2 ; 3.3 : tableau (lecture seule, url du tableau de bord)
 function registresFusionnes(cfg) {
   const local = Object.fromEntries(Object.entries(lireRegistreChats(cfg)).map(([k, v]) => [k, { ...v, chat_id: k, hote: v.hote || cfg.hote }]));
   if (!cfg.registre_distant) return local;
@@ -1579,7 +1586,8 @@ export function premierMessageAide(cfg, modele) {
     '- Une question ou une demande d\'évolution du workflow lui-même va vers 🏛 ARCHI · workflow :', '  je lance $dev evolution <sujet> (ou $dev archi) par le lanceur, qui rouvre ce chat sans doublon.',
     '- « Où en sont mes chats ? » : je lis le dernier message des chats locaux (read_thread), puis je passe [{ id, titre, dernier_message }] sur l\'entrée standard de node ' + (cfg.pilote || path.join(RACINE, 'scripts', 'pilote.mjs')) + ' etat chats --chats-stdin (aucun fichier écrit) ; je recopie le tableau.',
     '- $dev discuter [projet] [sujet] (ou $dev discute, ou « je veux discuter d\'un projet ») : je le lance par le lanceur comme toute commande ; il ouvre à chaque fois un nouveau chat 💬 PROJET sur atelier (sans projet : discussion générale sur les projets en cours) ; je réponds par sa ligne « → ouvert : … ».',
-    '- $dev point [campagne…], ou « où en sont les campagnes, qu\'est-ce qui bloque, combien de temps reste-t-il ? » : seule commande que j\'exécute moi-même, car elle n\'écrit rien : node ' + (cfg.pilote || path.join(RACINE, 'scripts', 'pilote.mjs')) + ' point [campagne…] --texte ; je recopie sa sortie telle quelle, sans rien ajouter ni retirer.', '- ' + REGLE_LIGNE_ETAT,
+    '- $dev point [campagne…], ou « où en sont les campagnes, qu\'est-ce qui bloque, combien de temps reste-t-il ? » : commande que j\'exécute moi-même, car elle n\'écrit rien : node ' + (cfg.pilote || path.join(RACINE, 'scripts', 'pilote.mjs')) + ' point [campagne…] --texte ; je recopie sa sortie telle quelle, sans rien ajouter ni retirer, puis je rappelle en une ligne que le tableau de bord existe ($dev tableau).',
+    '- $dev tableau, ou « tableau de bord » (3.3) : seule autre commande que j\'exécute moi-même, en lecture seule : node ' + (cfg.pilote || path.join(RACINE, 'scripts', 'pilote.mjs')) + ' tableau servir (idempotent : démarre le serveur local s\'il ne tourne pas, rend son url) ; puis j\'ouvre cette url dans le navigateur intégré de ce chat avec l\'outil open_in_codex (target { type: "browser", url }) ; s\'il manque, cua.createBrowserTab("iab", url, { visible: true }) ; sinon je rends l\'url à cliquer. Jamais Edge ni Chrome. Je ne clique sur rien dans la page : elle est à Paul.', '- ' + REGLE_LIGNE_ETAT,
     '- Si la réponse n\'est pas dans SKILL.md, je le dis au lieu d\'inventer.'].join('\n');
 }
 function modeleAide(cfg, indisponibles = []) {
@@ -2306,7 +2314,8 @@ function executerBrut(argv, cfg = null) {
     case 'poster': return posterSup(C(), a[0], o['texte-stdin'] ? fs.readFileSync(0, 'utf8') : String(o.texte || ''));
     case 'lancer': return lancerCommande(C(), { commande: a[0], args: a.slice(1), depuisModele: o['depuis-modele'] || null, depuisRole: o['depuis-role'] && o['depuis-role'] !== true ? o['depuis-role'] : null, fiche: o['fiche-stdin'] ? fs.readFileSync(0, 'utf8') : o['fiche-fichier'] ? fs.readFileSync(o['fiche-fichier'], 'utf8') : String(o.fiche || ''), projet: o.projet || null, criticite: o.criticite || null, garder: o.garder || null, nouveau: !!o.nouveau });
     case 'menage': { const rel = (f) => path.isAbsolute(f) ? f : path.join(C().etat, f); const ch = o['chats-fichier'] ? lireJson(rel(o['chats-fichier']), []) : o.chats ? JSON.parse(o.chats) : null; const lin = o['linear-fichier'] ? lireJson(rel(o['linear-fichier']), {}) : {}; if (o['archive-apres-jours'] !== undefined) { C().chats = { ...(C().chats || {}), archive_apres_jours: Number(o['archive-apres-jours']) }; delete C().chats.archive_apres_heures; } if (o['archive-apres-heures'] !== undefined) C().chats = { ...(C().chats || {}), archive_apres_heures: Number(o['archive-apres-heures']) }; if (a[0] === 'appliquer') return appliquerMenage(C(), a[1] || 'surs', { chats: ch, linear: lin }); return analyserMenage(C(), { chats: ch || [], linear: lin }); }
-    case 'chats': return lireRegistreChats(C());
+    case 'chats': return o['deux-hotes'] ? chatsDeuxHotes(C()) : lireRegistreChats(C());
+    case 'tableau': { const r = spawnSync(process.execPath, [path.join(RACINE, 'scripts', 'tableau.mjs'), a[0] || 'servir'], { encoding: 'utf8', windowsHide: true, timeout: 60000 }); if (r.status !== 0) { const m = String(r.stderr || r.stdout || '').trim().split('\n')[0]; const i = m.indexOf(' — '); refuser(i > 0 ? m.slice(0, i) : 'TABLEAU INACTIF', i > 0 ? m.slice(i + 3) : m || 'échec sans message', r.status || 6); } return JSON.parse(r.stdout); } // 3.3 : tableau de bord lecture seule ; sans argument = servir (idempotent) ; processus séparé car tableau.mjs importe le pilote
     case 'recreer-chat': return modifierCampagne(C(), a[0], (cc) => { cc.recreer_chat = true; return { campagne: a[0], recreer_chat: true, regle: 'recréé par le réveil au prochain point stable, jamais au milieu d’une issue' }; });
     case 'chats-app': return (async () => { const { connecter } = await import('./appserver.mjs'); const s = await connecter(avecMode(C())); const out = []; try { let cursor = null; for (let i = 0; i < 20; i++) { const r = await s.call('thread/list', { limit: 100, ...(cursor ? { cursor } : {}) }); for (const x of r.data) out.push({ id: x.id, titre: x.name || '', hote: C().hote, archive: false, maj: new Date((x.updatedAt || 0) * 1000).toISOString(), dossier: x.section?.name || null }); cursor = r.nextCursor; if (!cursor) break; } } finally { s.fermer(); } return out; })();
     case 'chat-inscrire': return inscrireChat(C(), JSON.parse(fs.readFileSync(0, 'utf8')));

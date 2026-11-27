@@ -2553,6 +2553,30 @@
         "code": 0,
         "contient": "\"statut\": \"en_file\""
       }
+    },
+    {
+      "id": "tableau-url",
+      "commande": "$dev tableau (3.3 : url du tableau de bord, lecture seule, jamais de chat)",
+      "argv": [
+        "tableau",
+        "url"
+      ],
+      "attendu": {
+        "code": 0,
+        "contient": "\"url\": \"http://127.0.0.1:"
+      }
+    },
+    {
+      "id": "tableau-sous-commande",
+      "commande": "$dev tableau bidule (refus net)",
+      "argv": [
+        "tableau",
+        "bidule"
+      ],
+      "attendu": {
+        "code": 2,
+        "contient": "SOUS-COMMANDE INCONNUE"
+      }
     }
   ]
 }

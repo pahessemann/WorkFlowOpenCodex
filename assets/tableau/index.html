@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tableau de bord · workflow $dev</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <div class="titre"><span class="pastille">▦</span> Tableau de bord <span class="sous">workflow <code>$dev</code> <span id="version">…</span> · lecture seule</span></div>
+  <div class="releve"><span id="releve">relevé en cours…</span> · <span id="compte">rafraîchissement automatique</span></div>
+</header>
+<div id="bandeau" class="bandeau" hidden></div>
+<main>
+  <section id="toi" class="carte toi">
+    <h2>👤 À toi</h2>
+    <ol id="actions"><li class="vide">Rien.</li></ol>
+    <p id="ligne-point" class="ligne"></p>
+  </section>
+  <section class="carte">
+    <h2>Campagnes</h2>
+    <div id="campagnes" class="grille"></div>
+  </section>
+  <section class="carte">
+    <h2>Blocages</h2>
+    <ul id="blocages"><li class="vide">Aucun.</li></ul>
+  </section>
+  <section class="carte deux">
+    <div><h2>Ressources</h2><dl id="ressources"></dl></div>
+    <div><h2>Abonnement</h2><dl id="abonnement"></dl></div>
+  </section>
+  <section class="carte">
+    <h2>Chats ouverts <span id="nb-chats" class="badge"></span></h2>
+    <table id="chats"><thead><tr><th>Chat</th><th>Hôte</th><th>Dossier</th><th>Dernière ligne d’état</th><th>Relevée</th></tr></thead><tbody></tbody></table>
+  </section>
+  <section class="carte">
+    <details><summary>Point complet (rendu de <code>pilote.mjs point</code>)</summary><div id="rendu" class="rendu"></div></details>
+  </section>
+</main>
+<footer>Le tableau n’écrit rien : il recopie <code>pilote.mjs point</code> et le registre des chats des deux hôtes. Il ne répond qu’à <code>127.0.0.1</code>.</footer>
+<script src="app.js"></script>
+</body>
+</html>
+

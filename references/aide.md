@@ -90,3 +90,15 @@ bloc à coller. Jamais de second chat ARCHI.
 de temps reste-t-il ? » : AIDE exécute lui-même `node <pilote> point [campagne…] --texte` et recopie la sortie
 telle quelle. C'est la seule commande qu'il n'envoie pas au lanceur, car elle n'écrit rien (`point.md`).
 Après la mise à jour de son premier message (v2.6) : `$dev aide --recreer`.
+
+## Tableau de bord (3.3)
+
+`$dev tableau`, ou « tableau de bord », « ouvre le tableau » : seconde commande qu'AIDE exécute lui-même, car elle
+n'écrit rien. AIDE lance `node <pilote> tableau servir` (idempotent : démarre le serveur local s'il ne tourne pas et
+rend son `url`), puis ouvre cette URL **dans le navigateur intégré du chat AIDE** : d'abord l'outil de l'application
+`open_in_codex` (`target: { type: "browser", url }`, qui ouvre le panneau du chat, ou le met en file s'il n'est pas
+affiché) ; s'il manque, `cua.createBrowserTab("iab", url, { visible: true })` (disponible seulement quand le chat est
+affiché à l'écran) ; sinon AIDE rend l'URL à cliquer. Jamais Edge ni Chrome. AIDE ne clique sur rien dans la page :
+elle appartient à Paul. Après un `$dev point`, AIDE rappelle en une ligne que le tableau existe.
+Détail du serveur, des routes et de la tâche planifiée : `tableau.md`. Après la mise à jour du premier message (3.3) :
+`$dev aide --recreer`.

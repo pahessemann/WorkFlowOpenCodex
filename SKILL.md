@@ -3,7 +3,7 @@ name: dev-orchestrator
 description: Orchestrateur de campagnes autonomes et supervisées (Linear Milestones et Issues) : composition à froid, chats identifiables d'un coup d'œil, routage économe des modèles et exécution hybride (PC local / VPS atelier).
 ---
 
-# Orchestrateur Dev — Workflow opérationnel (v2.23)
+# Orchestrateur Dev — Workflow opérationnel (v3.3.0-test)
 
 Ce skill régit l'orchestration des travaux via `pilote.mjs`, sur le poste local Windows et sur le VPS `atelier` (Linux).
 
@@ -48,6 +48,7 @@ Paul intervient **une fois, au cadrage**. Ensuite, les agents travaillent seuls 
 | `$dev cadrage-court <ID\|sujet>` | Créer ou modifier **une seule** issue Linear (itération, demande de composant), sans cadrage complet (`cadrage-court.md`) | inline |
 | `$dev projet <nom>` | Créer ou raccorder un dépôt, vérifier son `PROJECT.md` jusqu'à `PRET_POUR_DEVELOPPEMENT` (`projet.md`) | inline |
 | `$dev point [campagne…]` | **Le point des campagnes** en un rendu fixe : avancement, blocages et qui débloque, ce que Paul doit faire, temps restant en heures de travail des agents ; lecture seule, lancé depuis AIDE ou tout chat du workflow (`point.md`) | inline |
+| `$dev tableau` | **Tableau de bord** (3.3) : page web locale en lecture seule (point, lignes d'état, chats ouverts des deux hôtes, rafraîchie toutes les 60 s), servie sur `127.0.0.1` par `pilote.mjs tableau servir` et toujours ouverte dans le navigateur intégré du chat `❓ AIDE` (`tableau.md`) | inline |
 | `$dev digest [nom]` | Résumé des dernières 24 h : avancement, décisions prises seul, blocages | inline |
 | `$dev prototype <sujet>` | Composer une page avec les vrais composants dans l'éditeur, exporter un `spec.json` v1 vérifié (`prototype.md`) | `PROTO` |
 | `$dev test <projet>` | Recette ou tests ciblés (`test.md`) | inline ou `TEST` |
@@ -213,7 +214,9 @@ Exemple : `⏳ EN ATTENTE · retour du poste Windows attendu pour DEV-1038 · To
 
 Un chat n’exécute une commande `$dev` que si son modèle est celui du routeur pour cette commande. Sinon, il délègue par `node <pilote> lancer <commande> … --depuis-modele <son modèle> --fiche-stdin` : chat dédié pour une commande à type de chat, sous-agent pour une commande inline (résultat en 5 lignes). Le lanceur ne transmet qu’une fiche de 15 lignes au plus, rouvre un chat existant plutôt que d’en créer un doublon, et répond en une ligne « → ouvert : … ». Il ne cadre pas et ne code pas. Détail : `references/lanceur.md`.
 
-**❓ AIDE, porte d’entrée.** Le chat `❓ AIDE · workflow` aiguille les questions et lance toute commande `$dev` selon cette règle, sans jamais faire le travail lui-même. Seule exception (v2.6) : `$dev point`, qui n'écrit rien, qu'AIDE exécute lui-même et recopie tel quel (`point.md`).
+**❓ AIDE, porte d’entrée.** Le chat `❓ AIDE · workflow` aiguille les questions et lance toute commande `$dev` selon cette règle, sans jamais faire le travail lui-même. Deux exceptions, parce qu'elles n'écrivent rien : `$dev point` (v2.6), qu'AIDE exécute lui-même et recopie tel quel (`point.md`), et `$dev tableau` (3.3), qu'AIDE exécute puis ouvre dans le navigateur intégré de l'application (`tableau.md`).
+
+**Tableau de bord (3.3).** `scripts/tableau.mjs` sert sur `127.0.0.1` une page en lecture seule qui recopie `pilote.mjs point` et le registre des chats des deux hôtes (`chats --deux-hotes`), avec la dernière ligne d'état relevée par le réveil pour les chats d'atelier (« non relevée » pour ceux du poste), rafraîchie toutes les 60 s et conservant les derniers chiffres quand atelier est injoignable. `pilote.mjs tableau servir|url|arret` ; la tâche planifiée `pilote-tableau` le lance à l'ouverture de session. La page s'ouvre toujours dans le navigateur intégré du chat `❓ AIDE`, jamais dans Edge ni Chrome. Elle n'écrit rien : les actions (pause, relance, lancement, GO) viendront en 3.4.
 
 **🏛 ARCHI délègue toujours (v2.5.4).** ARCHI lance avec `--depuis-role ARCHI` : le lanceur ne lui répond jamais `executer_ici`, même quand son modèle est celui du routeur ; il conçoit, il n'exécute ni cadrage, ni issue, ni campagne.
 

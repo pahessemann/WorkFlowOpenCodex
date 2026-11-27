@@ -1,5 +1,9 @@
 # Changelog du socle public
 
+## 3.3.0-test — tableau de bord local — 27/11/2026
+
+`scripts/tableau.mjs` sert sur `127.0.0.1` une page en lecture seule (point des campagnes, lignes d'état, chats ouverts des deux hôtes), rafraîchie toutes les 60 s, avec cache et derniers chiffres conservés quand l'hôte distant est injoignable. `pilote.mjs tableau servir|url|arret` ; tâche planifiée à l'ouverture de session ; le chat d'aiguillage ouvre la page dans le navigateur intégré de l'application. Les actions viendront en 3.4.
+
 ## 3.2.0-test — GO unique et fusions autonomes — 26/11/2026
 
 L'humain valide une fois au lancement ; les agents fusionnent les travaux couverts par le mandat après tests et revue, y compris dans les campagnes en cours, sans GO par SHA. Le déploiement reste à la main de l'humain, y compris quand une fusion le déclencherait automatiquement.

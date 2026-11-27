@@ -11,6 +11,7 @@ ce que Paul doit faire, et le temps restant. Lecture seule : elle n'écrit rien 
   ajouter ni retirer. Sans nom : toutes les campagnes `en_cours` ; avec des noms : celles-ci, même en pause.
 - Les tâches hors campagne sont vérifiées séparément lorsque Paul le demande : consulter les chats de travail non archivés et leur dernier état sur les deux hôtes, sans en déduire une activité à partir du seul titre ; signaler les états invérifiables.
 - Sur le poste, le script interroge atelier par SSH (`registre_distant`) ; les chiffres sont ceux d'atelier.
+- Le même point, rafraîchi tout seul, s'affiche dans le tableau de bord (`$dev tableau`, 3.3, `tableau.md`) : AIDE le rappelle en une ligne après chaque `$dev point`.
 
 ## Rendu (ordre fixe)
 
