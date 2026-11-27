@@ -17,6 +17,18 @@ Pour toute tâche de code du workflow, appliquer le skill `ponytail:ponytail` au
 
 ---
 
+## Unslop pour les interfaces
+
+Pour une création, refonte ou amélioration visuelle d'interface, utiliser le skill `unslop` lorsque cela sert le besoin : lire `~/.agents/skills/unslop/SKILL.md`, puis appliquer ses recommandations de façon proportionnée. Respecter les demandes de Paul, l'identité du produit, le Design System et l'accessibilité ; ne pas modifier une interface hors périmètre. Le GO unique d'une campagne autorise les travaux visuels qu'il couvre : aucune validation supplémentaire imposée par le skill. Les agents et sous-agents concernés reçoivent cette règle. Aucun achat, installation de dépendance ou génération payante sans demande ou autorisation de Paul. Ne pas utiliser `scripts/story.mjs`, qui supprime des fichiers : conserver la règle de non-suppression. Skill créé par Damir Sokolovsky : https://github.com/heydamir/unslop (CC BY 4.0).
+
+---
+
+## Conseil ponctuel avec Claude Advisor
+
+Pour une tâche complexe exécutée avec Claude Code, la stratégie Advisor officielle d’Anthropic peut associer Sonnet à un conseiller Opus au lancement (`claude --model sonnet --advisor opus`). L’utiliser quand un second avis apportera une aide réelle, sans consultation systématique. Le conseiller reçoit le contexte complet de la session : respecter les règles de confidentialité, utiliser seulement les données autorisées et ne jamais exposer de secrets. Il consomme des tokens supplémentaires ; une économie globale n’est pas garantie. Ce mécanisme est distinct des sous-agents du workflow : ne pas prétendre qu’il est actif dans Codex ou via OpenCodeX sans preuve de compatibilité. Ne pas changer le modèle des campagnes en cours ni leur organisation. Les instructions de Paul et le GO unique priment. Documentation : https://code.claude.com/docs/en/advisor.
+
+---
+
 ## Principe directeur : Paul cadre, les agents exécutent
 
 Paul intervient **une fois, au cadrage**. Ensuite, les agents travaillent seuls jusqu'à la livraison. Toute la v2.2 en découle :
