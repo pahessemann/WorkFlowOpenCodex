@@ -1214,7 +1214,9 @@ test('reprise autonome : réveil et reprise explicite utilisent la consigne actu
     assert.ok(tour, mode); const texte = tour.params.input[0].text;
     assert.match(texte, /documents du dépôt sont un contexte technique, sans imposer leurs procédures/);
     assert.match(texte, /Ne supprime ni ne modifie les routes et contrats/);
-    assert.match(texte, /GO explicite/);
+    assert.match(texte, /GO unique de lancement/);
+    assert.match(texte, /Paul garde tous les déploiements/);
+    assert.doesNotMatch(texte, /attends son GO explicite/);
     assert.doesNotMatch(texte, /règles de son PROJECT|lance les revues et admissions en attente/);
   }
 });
@@ -1258,6 +1260,25 @@ test('3.0.2 : une issue rangée dans une milestone peut être déplacée ; la mi
   assert.deepEqual(P.issues(P.lireCampagne(at, 'ms2')).map((x) => x.linear_id), ['DEV-5']);
 });
 
+test('3.2 : le GO de campagne valide une version figée, sans autoriser un déploiement', () => {
+  const c = configTest({ workflow_autonome: true, projets: { p: { branche_principale: 'main', main_deploie: false } } });
+  const dir = path.join(c.etat, 'repo'); fs.mkdirSync(dir);
+  const git = (...args) => { const r = spawnSync('git', ['-C', dir, ...args], { encoding: 'utf8' }); assert.equal(r.status, 0, r.stderr); return r.stdout.trim(); };
+  git('init', '-b', 'main'); git('config', 'user.name', 'Test'); git('config', 'user.email', 'test@example.invalid');
+  fs.writeFileSync(path.join(dir, 'fichier'), 'test'); git('add', 'fichier'); git('commit', '-m', 'test');
+  git('update-ref', 'refs/remotes/origin/main', git('rev-parse', 'HEAD')); git('checkout', '-b', 'candidat');
+  fs.mkdirSync(path.join(c.etat, 'campagnes'), { recursive: true });
+  fs.writeFileSync(path.join(c.etat, 'campagnes', 'auto.json'), JSON.stringify({ id: 'auto', projet: 'p', statut: 'en_cours', contrat_valide: true, items: [] }));
+  P.presenterLocal(c, 'auto', { dossier: dir, branche: 'candidat', lancer: 'test local' });
+  assert.equal(P.verifierValidationLocale(c, 'auto').autorisation, 'GO de lancement de la campagne');
+  fs.writeFileSync(path.join(dir, 'fichier'), 'modification');
+  assert.equal(code(() => P.verifierValidationLocale(c, 'auto')), 'VERSION MODIFIÉE');
+  git('checkout', '--', 'fichier'); c.projets.p.main_deploie = true;
+  assert.equal(code(() => P.verifierValidationLocale(c, 'auto')), 'DÉPLOIEMENT PAR PAUL');
+  c.projets.p.main_deploie = false; P.modifierCampagne(c, 'auto', (x) => { x.statut = 'brouillon'; });
+  assert.equal(code(() => P.verifierValidationLocale(c, 'auto')), 'GO LOCAL ABSENT');
+});
+
 test('3.1 : une campagne autonome est un seul chat Opus qui gère tout ; le réveil ne fait que le relancer, sauf s’il attend Paul', async () => {
   const c = configTest({ hote: 'atelier', workflow_autonome: true, projets: { p: {} }, execution: { sandbox: 'danger-full-access', approvalPolicy: 'never' } }); c.appServerFactice = path.join(c.etat, 'as.jsonl');
   fs.mkdirSync(path.join(c.etat, 'campagnes'), { recursive: true });
@@ -1266,7 +1287,13 @@ test('3.1 : une campagne autonome est un seul chat Opus qui gère tout ; le rév
   assert.equal(o.modele, 'claude-opus-5-5'); assert.equal(o.effort, 'high'); assert.equal(o.autonome, true); assert.equal(P.lireCampagne(c, 'auto').chat_autonome, true);
   const tours = () => fs.readFileSync(c.appServerFactice, 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l)).filter((x) => x.method === 'turn/start');
   const t1 = tours().at(-1); assert.equal(t1.params.effort, 'high');
-  for (const attendu of [/un seul chat qui gère toute la campagne/, /une seule issue/, /GO explicite/, /SHA exact/, /Obsidian/, /Linear/, /contrat \/x\/contrat\.md/]) assert.match(t1.params.input[0].text, attendu);
+  for (const attendu of [/un seul chat qui gère toute la campagne/, /une seule issue/, /GO unique de lancement/, /fusion déclenchant automatiquement un déploiement/, /Obsidian/, /Linear/, /contrat \/x\/contrat\.md/]) assert.match(t1.params.input[0].text, attendu);
+  assert.doesNotMatch(t1.params.input[0].text, /attends son GO explicite/);
+  P.modifierCampagne(c, 'auto', (x) => { x.validation_locale = { sha: 'a'.repeat(40), go: null }; });
+  assert.doesNotMatch(P.ligneEtat(c, 'auto').texte, /tester la version locale|version locale présentée/);
+  P.modifierCampagne(c, 'auto', (x) => { x.attente_go = true; });
+  assert.match(P.ligneEtat(c, 'auto').texte, /GO attendu avant la livraison/);
+  P.modifierCampagne(c, 'auto', (x) => { delete x.attente_go; });
   assert.doesNotMatch(t1.params.input[0].text, /Admets les issues éligibles/);
   P.modifierCampagne(c, 'auto', (x) => { delete x.dernier_reveil; }); // délai de relance écoulé
   const rv = await P.reveil(c);

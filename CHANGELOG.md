@@ -1,5 +1,9 @@
 # Changelog du socle public
 
+## 3.2.0-test — GO unique et fusions autonomes — 26/11/2026
+
+L'humain valide une fois au lancement ; les agents fusionnent les travaux couverts par le mandat après tests et revue, y compris dans les campagnes en cours, sans GO par SHA. Le déploiement reste à la main de l'humain, y compris quand une fusion le déclencherait automatiquement.
+
 ## 3.1.0-test — une campagne, un chat autonome — 25/11/2026
 
 En mode autonome, une campagne est un seul chat (modèle le plus capable, effort élevé) qui gère toute la campagne ; un chat développeur ne traite qu'une issue. Le workflow ne sert qu'à l'affichage : le réveil n'admet plus d'issues et ne lance plus de cadreurs pour ces campagnes, et il ne relance pas un chat qui attend l'humain. Version locale et GO explicite sur le SHA avant fusion conservés.

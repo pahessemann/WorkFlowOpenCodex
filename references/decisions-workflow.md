@@ -20,3 +20,4 @@ du workflow, par une évolution (`$dev evolution`, `references/archi.md`).
 | P13 | Chaque réponse finale d'un chat se termine par une ligne d'état lisible au premier regard. |
 | P14 | Les preuves de recette équivalentes sont vérifiées et réutilisées ; les nouvelles tâches en échec d'environnement ne sont redéposées qu'après diagnostic et changement vérifié. |
 | P15 | En mode autonome, une campagne est un seul chat autonome qui gère tout et un développeur ne traite qu'une issue ; le workflow ne sert qu'à l'affichage, sans admission ni cadreur imposés. |
+| P16 | Le GO unique de lancement autorise les fusions couvertes par le mandat après tests et revue ; une fusion qui déclenche un déploiement attend l'autorisation de l'humain. |
