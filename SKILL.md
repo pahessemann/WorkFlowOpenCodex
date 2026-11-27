@@ -11,6 +11,12 @@ Ce skill régit l'orchestration des travaux via `pilote.mjs`, sur le poste local
 
 **Chemin de `pilote.mjs`** : `<pilote>`, partout dans ce skill, désigne la valeur `"pilote"` de `poste.local.json` (chemin absolu, propre à chaque hôte : `C:\Users\<utilisateur>\.agents\skills\dev\scripts\pilote.mjs` sur le poste, `/home/utilisateur/.agents/skills/dev/scripts/pilote.mjs` sur atelier). On ne cherche **jamais** `pilote.mjs` dans le dépôt du projet ni dans le dossier courant. Le skill se charge uniquement depuis `~/.agents/skills/dev/`.
 
+## Ponytail pour le développement
+
+Pour toute tâche de code du workflow, appliquer le skill `ponytail:ponytail` au niveau `full` par défaut : choisir la plus petite solution complète, réutiliser l'existant et vérifier les changements selon leur risque. Si le plugin n'est pas disponible sur l'hôte, lire `~/.agents/skills/ponytail/SKILL.md`. Les consignes explicites de Paul et les garde-fous du workflow priment, notamment aucune suppression définitive. Les campagnes transmettent cette règle à leurs développeurs et sous-agents. Signaler les limites utiles avant la ligne d'état finale.
+
+---
+
 ## Principe directeur : Paul cadre, les agents exécutent
 
 Paul intervient **une fois, au cadrage**. Ensuite, les agents travaillent seuls jusqu'à la livraison. Toute la v2.2 en découle :
